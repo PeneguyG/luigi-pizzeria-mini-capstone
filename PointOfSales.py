@@ -3,10 +3,8 @@ Point of Sales system
 Developers: Grace Peneguy, Josseline Artola
 
 '''
-#Libraroes imported
+#Libraries imported
 import sqlite3
-import tkinter as tk
-from tkinter import ttk
 import customtkinter as ctk
 
 #Setting up the cursor to connect to sqlite3 database
@@ -25,11 +23,13 @@ root.resizable(False,False)
 Login commands
 '''
 def login_confirmation():
+    #Takes the 
     username = username_entry.get()
     password = password_entry.get()
 
     if username == "default" and password == "password123":
         login_frame.pack_forget()
+        main_frame.pack(fill=ctk.BOTH, expand=True)
     else:
         error_label.configure(text="Invalid username or password")
 
@@ -54,5 +54,18 @@ login_button.pack(pady=10, padx=10)
 error_label = ctk.CTkLabel(login_frame, text="", text_color="red")
 error_label.pack(pady=5, padx=5)
 
+'''
+Creating the tabs for the main program
+'''
+main_frame = ctk.CTkFrame(root,fg_color='#8CB1F2')
+
+tabview = ctk.CTkTabview(main_frame)
+tabview.pack(padx=20, pady=20)
+             
+tabview.add("Point of Sales")
+tabview.add("Active Orders")
+tabview.add("All Orders")
+tabview.add("Sales Data")
+tabview.add("Logout")
 
 root.mainloop()
