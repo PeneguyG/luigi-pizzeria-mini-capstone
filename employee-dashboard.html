@@ -72,7 +72,9 @@
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="pickup-time">Requested pickup time</label>
-                    <input class="form-control" id="pickup-time" name="pickupTime" type="time" aria-label="Requested pickup time, optional">
+                    <input class="form-control" id="pickup-time" name="pickupTime" type="time" aria-describedby="pickup-time-help pickup-time-error" aria-label="Requested pickup time, optional">
+                    <div id="pickup-time-help" class="form-text">Optional. Choose a time later today.</div>
+                    <p id="pickup-time-error" class="small text-danger mt-1 mb-0" role="alert" hidden>Pickup time must be later than the current time.</p>
                   </div>
                 </div>
               </fieldset>
@@ -91,28 +93,28 @@
                     <label class="form-label" for="pizza-quantity">Quantity</label>
                     <input class="form-control" id="pizza-quantity" name="pizzaQuantity" type="number" min="1" max="20" value="1" required aria-label="Pizza quantity, from 1 to 20">
                   </div>
-                  <div class="col-12 col-sm-3 col-lg-7 d-flex align-items-end">
+                  <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-end gap-2">
                     <button class="btn btn-danger w-100 w-sm-auto" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add pizza to order</button>
                   </div>
                   <div class="col-12">
-                    <fieldset>
-                      <legend class="form-label mb-2">Available toppings <span class="small text-secondary fw-normal">(each selected topping is charged per pizza)</span></legend>
-                      <div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-2">
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-pepperoni" type="checkbox" value="Pepperoni" aria-label="Pepperoni topping"><label class="form-check-label" for="topping-pepperoni">Pepperoni</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-sausage" type="checkbox" value="Italian sausage" aria-label="Italian sausage topping"><label class="form-check-label" for="topping-sausage">Italian sausage</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-beef" type="checkbox" value="Beef" aria-label="Beef topping"><label class="form-check-label" for="topping-beef">Beef</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-green-peppers" type="checkbox" value="Green peppers" aria-label="Green peppers topping"><label class="form-check-label" for="topping-green-peppers">Green peppers</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-jalapenos" type="checkbox" value="Jalapenos" aria-label="Jalapenos topping"><label class="form-check-label" for="topping-jalapenos">Jalapenos</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-pineapple" type="checkbox" value="Pineapple" aria-label="Pineapple topping"><label class="form-check-label" for="topping-pineapple">Pineapple</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-onion" type="checkbox" value="Onion" aria-label="Onion topping"><label class="form-check-label" for="topping-onion">Onion</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-black-olives" type="checkbox" value="Black olives" aria-label="Black olives topping"><label class="form-check-label" for="topping-black-olives">Black olives</label></div></div>
-                        <div class="col"><div class="form-check"><input class="form-check-input pizza-topping" id="topping-tomatoes" type="checkbox" value="Diced tomatoes" aria-label="Diced tomatoes topping"><label class="form-check-label" for="topping-tomatoes">Diced tomatoes</label></div></div>
+                    <fieldset id="pizza-toppings">
+                      <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(per pizza; enter 0 for none, up to 3 servings)</span></legend>
+                      <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
+                        <div class="col"><label class="form-label small mb-1" for="topping-pepperoni">Pepperoni servings</label><input class="form-control form-control-sm pizza-topping" id="topping-pepperoni" type="number" min="0" max="3" step="1" value="0" data-topping="Pepperoni" aria-label="Pepperoni servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-sausage">Italian sausage servings</label><input class="form-control form-control-sm pizza-topping" id="topping-sausage" type="number" min="0" max="3" step="1" value="0" data-topping="Italian sausage" aria-label="Italian sausage servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-beef">Beef servings</label><input class="form-control form-control-sm pizza-topping" id="topping-beef" type="number" min="0" max="3" step="1" value="0" data-topping="Beef" aria-label="Beef servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-green-peppers">Green peppers servings</label><input class="form-control form-control-sm pizza-topping" id="topping-green-peppers" type="number" min="0" max="3" step="1" value="0" data-topping="Green peppers" aria-label="Green peppers servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-jalapenos">Jalapenos servings</label><input class="form-control form-control-sm pizza-topping" id="topping-jalapenos" type="number" min="0" max="3" step="1" value="0" data-topping="Jalapenos" aria-label="Jalapenos servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-pineapple">Pineapple servings</label><input class="form-control form-control-sm pizza-topping" id="topping-pineapple" type="number" min="0" max="3" step="1" value="0" data-topping="Pineapple" aria-label="Pineapple servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-onion">Onion servings</label><input class="form-control form-control-sm pizza-topping" id="topping-onion" type="number" min="0" max="3" step="1" value="0" data-topping="Onion" aria-label="Onion servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-black-olives">Black olives servings</label><input class="form-control form-control-sm pizza-topping" id="topping-black-olives" type="number" min="0" max="3" step="1" value="0" data-topping="Black olives" aria-label="Black olives servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-tomatoes">Diced tomatoes servings</label><input class="form-control form-control-sm pizza-topping" id="topping-tomatoes" type="number" min="0" max="3" step="1" value="0" data-topping="Diced tomatoes" aria-label="Diced tomatoes servings per pizza, 0 to 3"></div>
                       </div>
                     </fieldset>
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Small: $5 base + $1 per topping (¼ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Medium: $7 base + $2 per topping (½ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Large: $9 base + $3 per topping (1 cup)</span>
+                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Small: $5 base + $1 per serving (¼ cup)</span>
+                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Medium: $7 base + $2 per serving (½ cup)</span>
+                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Large: $9 base + $3 per serving (1 cup)</span>
                     </div>
                   </div>
                   <div class="col-12"><p class="small mb-0"><span class="fw-semibold">Current pizza estimate:</span> <span id="pizza-estimate">$7.00</span> <span class="text-secondary">per pizza</span></p></div>
@@ -148,10 +150,15 @@
                 <ul id="cart-items" class="list-group mb-3" aria-label="Items currently in order cart" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></ul>
                 <p id="cart-empty" class="small text-secondary border rounded p-3 mb-3">The cart is empty.</p>
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 border rounded p-3" style="background-color:#f8f5eb;">
-                  <p class="h6 mb-0">Order total: <span id="cart-total">$0.00</span></p>
-                  <p id="cart-total-live" class="small mb-0" role="status" aria-live="polite" aria-atomic="true">Order total $0.00. Current pizza estimate $7.00 per pizza.</p>
+                  <div>
+                    <p class="small mb-1">Subtotal: <span id="cart-subtotal">$0.00</span></p>
+                    <p class="small mb-1">Tax (9.75%): <span id="cart-tax">$0.00</span></p>
+                    <p class="h6 mb-0">Order total: <span id="cart-total">$0.00</span></p>
+                  </div>
+                  <p id="cart-total-live" class="small mb-0" role="status" aria-live="polite" aria-atomic="true">Subtotal $0.00. Tax at 9.75% is $0.00. Order total $0.00. Current pizza estimate $7.00 per pizza.</p>
                 </div>
                 <p id="cart-error" class="small text-danger mt-2 mb-0" role="alert" hidden>Add at least one item before placing the order.</p>
+                <p id="order-submit-error" class="alert alert-danger mt-2 mb-0" role="alert" hidden></p>
               </section>
 
               <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center gap-3 border-top pt-4">
@@ -170,6 +177,7 @@
             <button id="refresh-orders" class="btn btn-outline-danger" type="button" aria-label="Refresh active orders" aria-controls="active-orders-list">Refresh orders</button>
           </div>
           <div id="active-orders-list" class="d-grid gap-3" aria-label="Current active orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
+          <p id="orders-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-orders" class="border rounded p-4 text-center text-secondary" hidden>No active orders are waiting.</div>
         </div>
       </section>
@@ -181,6 +189,7 @@
             <button id="refresh-history" class="btn btn-outline-danger" type="button" aria-label="Refresh completed order history" aria-controls="history-list">Refresh history</button>
           </div>
           <div id="history-list" class="d-grid gap-3" aria-label="Completed and archived orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
+          <p id="history-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-history" class="border rounded p-4 text-center text-secondary" hidden>No completed orders are in history yet.</div>
         </div>
       </section>
@@ -192,25 +201,14 @@
   <script>
     'use strict';
 
-    /*
-     * DATABASE / API INTEGRATION POINTS
-     * ---------------------------------
-     * This page uses in-memory mock data for a standalone workflow.
-     * Replace listOrders() and listOrderHistory() with authenticated GET requests;
-     * createOrder() with an authenticated POST; and updateOrderStatus() with an
-     * authenticated PATCH request to the employee API.
-     *
-     * The server must enforce staff authentication and authorization on every request.
-     * A separate page or hidden link does not secure customer or employee data. Validate
-     * cart prices, status transitions, and permissions on the server. Map customer portal
-     * orders to this shared order shape.
-     */
+    /* Same-origin Flask API. The server recalculates item prices and tax before saving. */
     const pizzaPricing = {
       Small: { inches: 12, base: 5, topping: 1, portion: '¼ cup' },
       Medium: { inches: 14, base: 7, topping: 2, portion: '½ cup' },
       Large: { inches: 18, base: 9, topping: 3, portion: '1 cup' }
     };
     const drinkPricing = { Small: 1, Medium: 2, Large: 3 };
+    const TAX_RATE = 0.0975;
     const statusStyles = {
       Confirmed: { background: '#f1e6d3', color: '#514126' },
       'In-Progress': { background: '#dce9f2', color: '#24445a' },
@@ -219,24 +217,7 @@
     };
     const allowedStatuses = ['Confirmed', 'In-Progress', 'Ready', 'Overdue', 'Completed'];
 
-    const mockOrders = [
-      { id: 'WEB-1042', source: 'Customer portal', channel: 'Web pickup', customerName: 'Maya Rossi', customerPhone: '(555) 010-4420',
-        items: [{ type: 'Pizza', name: 'Large (18-inch) pizza', quantity: 1, unitPrice: 12, description: 'Toppings: Pepperoni' }],
-        totalPrice: 12, notes: 'Extra napkins', pickupTime: '12:20', status: 'In-Progress', createdAt: Date.now() - 9 * 60000 },
-      { id: 'WEB-1043', source: 'Customer portal', channel: 'Web pickup', customerName: 'Jordan Lee', customerPhone: '(555) 010-8871',
-        items: [{ type: 'Pizza', name: 'Medium (14-inch) pizza', quantity: 2, unitPrice: 9, description: 'Toppings: Pepperoni' }],
-        totalPrice: 18, notes: 'Call on arrival', pickupTime: '12:35', status: 'Confirmed', createdAt: Date.now() - 4 * 60000 }
-    ];
-    const mockHistory = [
-      { id: 'WEB-1038', source: 'Customer portal', channel: 'Web pickup', customerName: 'Sam Rivera', customerPhone: '(555) 010-2714',
-        items: [
-          { type: 'Pizza', name: 'Small (12-inch) pizza', quantity: 1, unitPrice: 7, description: 'Toppings: Onion, Green peppers' },
-          { type: 'Drink', name: 'Medium Cola', quantity: 1, unitPrice: 2, description: 'Medium size' }
-        ],
-        totalPrice: 9, notes: '', pickupTime: '11:40', status: 'Completed', createdAt: Date.now() - 70 * 60000, completedAt: Date.now() - 35 * 60000 }
-    ];
     let nextCartItemId = 1;
-    let nextOrderNumber = 1044;
 
     const dashboardStatus = document.getElementById('dashboard-status');
     const activeOrdersList = document.getElementById('active-orders-list');
@@ -260,7 +241,9 @@
     }
 
     function getSelectedToppings() {
-      return Array.from(document.querySelectorAll('.pizza-topping:checked')).map(function (input) { return input.value; });
+      return Array.from(document.querySelectorAll('.pizza-topping')).map(function (input) {
+        return { name: input.dataset.topping, quantity: Number(input.value) || 0 };
+      }).filter(function (topping) { return topping.quantity > 0; });
     }
 
     function getPizzaConfiguration() {
@@ -268,17 +251,61 @@
       const pricing = pizzaPricing[size];
       const quantity = Math.max(1, Math.min(20, Number(document.getElementById('pizza-quantity').value) || 1));
       const toppings = getSelectedToppings();
-      const unitPrice = pricing.base + toppings.length * pricing.topping;
+      const toppingServings = toppings.reduce(function (sum, topping) { return sum + topping.quantity; }, 0);
+      const unitPrice = pricing.base + toppingServings * pricing.topping;
       return { size: size, pricing: pricing, quantity: quantity, toppings: toppings, unitPrice: unitPrice, lineTotal: unitPrice * quantity };
     }
 
     function updatePizzaPreview() {
       const config = getPizzaConfiguration();
       document.getElementById('pizza-estimate').textContent = formatMoney(config.unitPrice);
+      const toppingSummary = config.toppings.map(function (topping) {
+        return topping.quantity + ' ' + (topping.quantity === 1 ? 'serving' : 'servings') + ' of ' + topping.name;
+      }).join(', ');
       document.getElementById('add-pizza').setAttribute('aria-label',
         'Add ' + config.quantity + ' ' + config.size.toLowerCase() + ' pizza' +
-        (config.toppings.length ? ' with ' + config.toppings.join(', ') : ' with no extra toppings') + ' to order');
+        (toppingSummary ? ' with ' + toppingSummary : ' with no extra toppings') + ' to order');
       updateCartTotalAnnouncement();
+    }
+
+    function clearPizzaSelection() {
+      document.getElementById('pizza-size').value = 'Medium';
+      document.getElementById('pizza-quantity').value = '1';
+      document.querySelectorAll('.pizza-topping').forEach(function (input) { input.value = '0'; });
+      updatePizzaPreview();
+    }
+
+    function getMinimumPickupTime() {
+      const today = new Date();
+      const nextMinute = new Date();
+      nextMinute.setSeconds(0, 0);
+      nextMinute.setMinutes(nextMinute.getMinutes() + 1);
+      if (nextMinute.getDate() !== today.getDate() || nextMinute.getMonth() !== today.getMonth() || nextMinute.getFullYear() !== today.getFullYear()) {
+        return null;
+      }
+      return String(nextMinute.getHours()).padStart(2, '0') + ':' + String(nextMinute.getMinutes()).padStart(2, '0');
+    }
+
+    function updatePickupTimeValidity() {
+      const input = document.getElementById('pickup-time');
+      const error = document.getElementById('pickup-time-error');
+      const minimum = getMinimumPickupTime();
+      if (minimum) input.min = minimum;
+      else input.removeAttribute('min');
+      const invalidPastTime = Boolean(input.value) && (!minimum || input.value < minimum);
+      input.setCustomValidity(invalidPastTime ? 'Pickup time must be later than the current time today.' : '');
+      error.textContent = minimum
+        ? 'Pickup time must be later than the current time today.'
+        : 'There are no later pickup times available today.';
+      error.hidden = !invalidPastTime;
+      return !invalidPastTime;
+    }
+
+    function clearDrinkSelection() {
+      document.getElementById('drink-option').value = 'Iced tea';
+      document.getElementById('drink-size').value = 'Medium';
+      document.getElementById('drink-quantity').value = '1';
+      updateDrinkButtonLabel();
     }
 
     function updateDrinkButtonLabel() {
@@ -289,14 +316,31 @@
         'Add ' + quantity + ' ' + size.toLowerCase() + ' ' + drink + (quantity === 1 ? '' : 's') + ' to order');
     }
 
+    function getCartSubtotalCents() {
+      return cartItems.reduce(function (sum, item) { return sum + Math.round(item.unitPrice * 100) * item.quantity; }, 0);
+    }
+
+    function getCartTaxCents() {
+      return Math.round(getCartSubtotalCents() * TAX_RATE);
+    }
+
+    function getCartSubtotal() {
+      return getCartSubtotalCents() / 100;
+    }
+
+    function getCartTax() {
+      return getCartTaxCents() / 100;
+    }
+
     function getCartTotal() {
-      return cartItems.reduce(function (sum, item) { return sum + item.unitPrice * item.quantity; }, 0);
+      return (getCartSubtotalCents() + getCartTaxCents()) / 100;
     }
 
     function updateCartTotalAnnouncement() {
       const config = getPizzaConfiguration();
       document.getElementById('cart-total-live').textContent =
-        'Order total ' + formatMoney(getCartTotal()) + '. Current ' + config.size.toLowerCase() +
+        'Subtotal ' + formatMoney(getCartSubtotal()) + '. Tax at 9.75% is ' + formatMoney(getCartTax()) +
+        '. Order total ' + formatMoney(getCartTotal()) + '. Current ' + config.size.toLowerCase() +
         ' pizza estimate ' + formatMoney(config.unitPrice) + ' per pizza.';
     }
 
@@ -318,26 +362,35 @@
             '" aria-label="' + escapeHTML(removeLabel) + '" aria-controls="cart-items">Remove</button></li>';
         }).join('');
       }
+      document.getElementById('cart-subtotal').textContent = formatMoney(getCartSubtotal());
+      document.getElementById('cart-tax').textContent = formatMoney(getCartTax());
       document.getElementById('cart-total').textContent = formatMoney(getCartTotal());
       updateCartTotalAnnouncement();
     }
 
     function addPizzaToCart() {
       const quantityInput = document.getElementById('pizza-quantity');
-      if (!quantityInput.checkValidity()) {
-        quantityInput.reportValidity();
-        quantityInput.focus();
+      const invalidInput = [quantityInput].concat(Array.from(document.querySelectorAll('.pizza-topping')))
+        .find(function (input) { return !input.checkValidity(); });
+      if (invalidInput) {
+        invalidInput.reportValidity();
+        invalidInput.focus();
         return;
       }
       const config = getPizzaConfiguration();
-      const toppingText = config.toppings.length ? config.toppings.join(', ') + ' (' + config.pricing.portion + ' each)' : 'None';
+      const toppingText = config.toppings.map(function (topping) {
+        return topping.quantity + '× ' + topping.name;
+      }).join(', ');
       cartItems.push({
         id: nextCartItemId++, type: 'Pizza', name: config.size + ' (' + config.pricing.inches + '-inch) pizza',
         quantity: config.quantity, unitPrice: config.unitPrice,
-        description: 'Base includes crust, marinara, and cheese. Toppings: ' + toppingText
+        description: toppingText ? 'Toppings: ' + toppingText : '',
+        pizzaSize: config.size, toppings: config.toppings.slice()
       });
+      clearPizzaSelection();
       renderCart();
-      announce(config.quantity + ' ' + config.size.toLowerCase() + ' pizza' + (config.quantity === 1 ? '' : 's') + ' added to the order cart.');
+      announce(config.quantity + ' ' + config.size.toLowerCase() + ' pizza' + (config.quantity === 1 ? '' : 's') +
+        ' added to the order cart. Pizza choices reset to Medium, quantity 1, and no extra toppings.');
     }
 
     function addDrinkToCart() {
@@ -350,48 +403,51 @@
       const size = document.getElementById('drink-size').value;
       const drink = document.getElementById('drink-option').value;
       const quantity = Number(quantityInput.value);
-      cartItems.push({ id: nextCartItemId++, type: 'Drink', name: size + ' ' + drink, quantity: quantity, unitPrice: drinkPricing[size], description: size + ' drink' });
+      cartItems.push({
+        id: nextCartItemId++, type: 'Drink', name: size + ' ' + drink, quantity: quantity,
+        unitPrice: drinkPricing[size], description: '', drinkName: drink, drinkSize: size
+      });
+      clearDrinkSelection();
       renderCart();
-      announce(quantity + ' ' + size.toLowerCase() + ' ' + drink + (quantity === 1 ? '' : 's') + ' added to the order cart.');
+      announce(quantity + ' ' + size.toLowerCase() + ' ' + drink + (quantity === 1 ? '' : 's') +
+        ' added to the order cart. Drink choices reset to medium iced tea, quantity 1.');
     }
 
-    /*
-     * Replace these mocks with authenticated employee API calls:
-     * GET /api/employee/orders, GET /api/employee/order-history,
-     * POST /api/employee/orders, PATCH /api/employee/orders/{id}.
-     */
+    async function apiRequest(path, options) {
+      if (window.location.protocol === 'file:') {
+        throw new Error('Open this dashboard through the Flask server at http://127.0.0.1:5000/ so it can reach the order API.');
+      }
+      const response = await fetch(path, Object.assign({ cache: 'no-store' }, options || {}));
+      let payload = null;
+      try { payload = await response.json(); } catch (_error) { /* Non-JSON response */ }
+      if (!response.ok) {
+        throw new Error(payload && payload.error ? payload.error : 'Request failed (' + response.status + ').');
+      }
+      return payload;
+    }
+
     async function listOrders() {
-      return mockOrders.filter(function (order) { return order.status !== 'Completed'; });
+      return apiRequest('/api/employee/orders');
     }
 
     async function listOrderHistory() {
-      return mockHistory.slice().sort(function (a, b) {
-        return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
-      });
+      return apiRequest('/api/employee/order-history');
     }
 
     async function createOrder(orderInput) {
-      const order = Object.assign({}, orderInput, {
-        id: 'POS-' + nextOrderNumber++, source: 'Employee POS', status: 'Confirmed', createdAt: Date.now()
+      return apiRequest('/api/employee/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(orderInput)
       });
-      mockOrders.unshift(order);
-      return order;
     }
 
     async function updateOrderStatus(orderId, status) {
-      if (allowedStatuses.indexOf(status) === -1) throw new Error('That order status is not supported.');
-      const index = mockOrders.findIndex(function (order) { return order.id === orderId; });
-      if (index === -1) throw new Error('Order was not found. Refresh the queue and try again.');
-      const order = mockOrders[index];
-      if (status === 'Completed') {
-        mockOrders.splice(index, 1);
-        order.status = 'Completed';
-        order.completedAt = Date.now();
-        mockHistory.unshift(order);
-      } else {
-        order.status = status;
-      }
-      return order;
+      return apiRequest('/api/employee/orders/' + encodeURIComponent(orderId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ status: status })
+      });
     }
 
     function formatTimestamp(timestamp) {
@@ -410,7 +466,14 @@
 
     function formatOrderItems(items) {
       return (items || []).map(function (item) {
-        const description = item.description ? ' <span class="text-secondary">(' + escapeHTML(item.description) + ')</span>' : '';
+        const toppingSummary = item.type === 'Pizza'
+          ? (item.toppings || []).map(function (topping) {
+            const name = typeof topping === 'string' ? topping : topping.name;
+            const quantity = typeof topping === 'string' ? 1 : topping.quantity;
+            return escapeHTML(quantity) + '× ' + escapeHTML(name);
+          }).join(', ')
+          : '';
+        const description = toppingSummary ? ' <span class="text-secondary">(Toppings: ' + toppingSummary + ')</span>' : '';
         return '<li>' + escapeHTML(item.quantity) + ' × ' + escapeHTML(item.name) + description + '</li>';
       }).join('');
     }
@@ -435,13 +498,15 @@
         '<div class="col-12 col-md-6"><span class="fw-semibold">Source:</span> ' + escapeHTML(order.source || 'Order system') + '</div>',
         '<div class="col-12"><span class="fw-semibold">Notes:</span> ' + escapeHTML(order.notes || 'None') + '</div>'
       ].join('');
+      const taxDetails = Number.isFinite(Number(order.taxPrice))
+        ? ' <span class="small text-secondary">(includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
       return '<article class="card" style="border-color:#ded5d2;"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div class="flex-grow-1">' +
         '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
         statusBadge(order.status) + '<span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">' + escapeHTML(order.source || 'Order system') + '</span></div>' +
         '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p><p class="small mb-2"><span class="fw-semibold">Items:</span></p>' +
         '<ul class="small mb-2">' + formatOrderItems(order.items) + '</ul>' +
-        '<p class="small mb-2"><span class="fw-semibold">Order total:</span> ' + formatMoney(getOrderTotal(order)) +
+        '<p class="small mb-2"><span class="fw-semibold">Order total:</span> ' + formatMoney(getOrderTotal(order)) + taxDetails +
         ' <span class="text-secondary">· Pickup ' + escapeHTML(order.pickupTime || 'Not specified') + '</span></p>' +
         '<button class="btn btn-sm btn-link link-danger px-0 py-1" type="button" data-details-button="' + id +
         '" aria-label="Show details for order ' + id + '" aria-expanded="false" aria-controls="' + detailsId + '">Show order details</button>' +
@@ -457,13 +522,15 @@
       const id = escapeHTML(order.id);
       const timestamp = formatTimestamp(order.completedAt);
       const timeTag = timestamp.iso ? '<time datetime="' + escapeHTML(timestamp.iso) + '">' + escapeHTML(timestamp.label) + '</time>' : escapeHTML(timestamp.label);
+      const taxDetails = Number.isFinite(Number(order.taxPrice))
+        ? '<span class="small text-secondary"> (includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
       return '<article class="card" style="border-color:#ded5d2;"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-md-row justify-content-between gap-3"><div class="flex-grow-1">' +
         '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
         '<span class="badge rounded-pill text-dark" style="background-color:#e4efe3;">Completed</span></div>' +
         '<p class="mb-2"><strong>' + escapeHTML(order.customerName) + '</strong></p>' +
         '<p class="small fw-semibold mb-1">Items ordered</p><ul class="small mb-0">' + formatOrderItems(order.items) + '</ul></div>' +
-        '<div class="text-md-end"><p class="h6 mb-2">Total: ' + formatMoney(getOrderTotal(order)) + '</p>' +
+        '<div class="text-md-end"><p class="h6 mb-2">Total: ' + formatMoney(getOrderTotal(order)) + taxDetails + '</p>' +
         '<p class="small mb-0"><span class="fw-semibold">Completed:</span> ' + timeTag + '</p></div></div></div></article>';
     }
 
@@ -471,9 +538,16 @@
       try {
         const orders = await listOrders();
         activeOrdersList.innerHTML = orders.map(orderCard).join('');
+        const loadError = document.getElementById('orders-load-error');
+        loadError.hidden = true;
+        loadError.textContent = '';
         document.getElementById('empty-orders').hidden = orders.length !== 0;
         document.getElementById('order-count').textContent = String(orders.length);
       } catch (error) {
+        const loadError = document.getElementById('orders-load-error');
+        loadError.textContent = 'Could not load active orders. ' + error.message;
+        loadError.hidden = false;
+        document.getElementById('empty-orders').hidden = true;
         announce('Could not load active orders. ' + error.message);
       }
     }
@@ -482,9 +556,16 @@
       try {
         const orders = await listOrderHistory();
         document.getElementById('history-list').innerHTML = orders.map(historyCard).join('');
+        const loadError = document.getElementById('history-load-error');
+        loadError.hidden = true;
+        loadError.textContent = '';
         document.getElementById('empty-history').hidden = orders.length !== 0;
         document.getElementById('history-count').textContent = String(orders.length);
       } catch (error) {
+        const loadError = document.getElementById('history-load-error');
+        loadError.textContent = 'Could not load order history. ' + error.message;
+        loadError.hidden = false;
+        document.getElementById('empty-history').hidden = true;
         announce('Could not load order history. ' + error.message);
       }
     }
@@ -523,7 +604,12 @@
 
     document.getElementById('pizza-size').addEventListener('change', updatePizzaPreview);
     document.getElementById('pizza-quantity').addEventListener('input', updatePizzaPreview);
-    document.querySelectorAll('.pizza-topping').forEach(function (input) { input.addEventListener('change', updatePizzaPreview); });
+    document.querySelectorAll('.pizza-topping').forEach(function (input) {
+      input.addEventListener('input', updatePizzaPreview);
+      input.addEventListener('change', updatePizzaPreview);
+    });
+    document.getElementById('pickup-time').addEventListener('input', updatePickupTimeValidity);
+    document.getElementById('pickup-time').addEventListener('change', updatePickupTimeValidity);
     document.getElementById('drink-size').addEventListener('change', updateDrinkButtonLabel);
     document.getElementById('drink-option').addEventListener('change', updateDrinkButtonLabel);
     document.getElementById('drink-quantity').addEventListener('input', updateDrinkButtonLabel);
@@ -549,6 +635,7 @@
 
     posForm.addEventListener('submit', async function (event) {
       event.preventDefault();
+      updatePickupTimeValidity();
       posForm.classList.add('was-validated');
       const cartError = document.getElementById('cart-error');
       if (!posForm.checkValidity()) {
@@ -564,6 +651,9 @@
         return;
       }
       cartError.hidden = true;
+      const submitError = document.getElementById('order-submit-error');
+      submitError.hidden = true;
+      submitError.textContent = '';
       const data = new FormData(posForm);
       const orderInput = {
         customerName: String(data.get('customerName')).trim(),
@@ -571,24 +661,42 @@
         channel: String(data.get('channel')),
         pickupTime: String(data.get('pickupTime') || ''),
         items: cartItems.map(function (item) {
-          return { type: item.type, name: item.name, quantity: item.quantity, unitPrice: item.unitPrice, description: item.description };
+          return {
+            type: item.type,
+            quantity: item.quantity,
+            pizzaSize: item.pizzaSize || null,
+            toppings: item.toppings || [],
+            drinkName: item.drinkName || null,
+            drinkSize: item.drinkSize || null
+          };
         }),
-        totalPrice: getCartTotal(),
         notes: ''
       };
+      const submitButton = posForm.querySelector('[type="submit"]');
+      submitButton.disabled = true;
+      posForm.setAttribute('aria-busy', 'true');
+      announce('Saving order.');
       try {
         const created = await createOrder(orderInput);
         cartItems.length = 0;
         posForm.reset();
         posForm.classList.remove('was-validated');
+        document.getElementById('pickup-time-error').hidden = true;
+        updatePickupTimeValidity();
         cartError.hidden = true;
+        submitError.hidden = true;
         renderCart();
         updatePizzaPreview();
         updateDrinkButtonLabel();
         activateTab(document.getElementById('orders-tab'), true);
         announce('Order ' + created.id + ' for ' + created.customerName + ' was placed and added to active orders.');
       } catch (error) {
+        submitError.textContent = 'Order could not be placed. ' + error.message;
+        submitError.hidden = false;
         announce('Order could not be placed. ' + error.message);
+      } finally {
+        submitButton.disabled = false;
+        posForm.removeAttribute('aria-busy');
       }
     });
 
@@ -633,6 +741,7 @@
 
     renderCart();
     updatePizzaPreview();
+    updatePickupTimeValidity();
     updateDrinkButtonLabel();
     renderOrders();
     renderHistory();
