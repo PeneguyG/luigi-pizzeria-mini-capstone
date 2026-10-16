@@ -46,7 +46,7 @@
       <section id="pos-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="pos-tab" tabindex="0" style="background-color:#fffefa;">
         <div class="card-body p-3 p-md-4 p-xl-5">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-4">
-            <div><h3 class="h5 mb-1">Create an order</h3><p class="text-secondary mb-0">Build a cart with any number of pizzas and drinks, then send it to the active queue.</p></div>
+            <div><h3 id="pos-heading" class="h5 mb-1">Create an order</h3><p id="pos-description" class="text-secondary mb-0">Build a cart with any number of pizzas and drinks, then send it to the active queue.</p></div>
             <span class="badge align-self-start rounded-pill text-dark" style="background-color:#e4efe3;">Employee order entry</span>
           </div>
 
@@ -76,6 +76,11 @@
                     <div id="pickup-time-help" class="form-text">Optional. Choose a time later today.</div>
                     <p id="pickup-time-error" class="small text-danger mt-1 mb-0" role="alert" hidden>Pickup time must be later than the current time.</p>
                   </div>
+                  <div class="col-12">
+                    <label class="form-label" for="order-notes">Order notes</label>
+                    <textarea class="form-control" id="order-notes" name="notes" rows="2" maxlength="4000" aria-describedby="order-notes-help"></textarea>
+                    <div id="order-notes-help" class="form-text">Optional. Up to 4,000 characters.</div>
+                  </div>
                 </div>
               </fieldset>
 
@@ -86,7 +91,7 @@
                   <div class="col-12 col-sm-6 col-lg-3">
                     <label class="form-label" for="pizza-size">Size and base price</label>
                     <select class="form-select" id="pizza-size" name="pizzaSize" aria-label="Pizza size and base price">
-                      <option value="Small">Small, 12 inch — $5 base</option><option value="Medium" selected>Medium, 14 inch — $7 base</option><option value="Large">Large, 18 inch — $9 base</option>
+                      <option value="Small">Small 12 inch pizza  — $5</option><option value="Medium" selected>Medium 14 inch pizza — $7</option><option value="Large">Large 18 inch pizza — $9</option>
                     </select>
                   </div>
                   <div class="col-6 col-sm-3 col-lg-2">
@@ -98,23 +103,23 @@
                   </div>
                   <div class="col-12">
                     <fieldset id="pizza-toppings">
-                      <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(per pizza; enter 0 for none, up to 3 servings)</span></legend>
+                      <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(Toppings, # of servings from 0 - 3)</span></legend>
                       <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
-                        <div class="col"><label class="form-label small mb-1" for="topping-pepperoni">Pepperoni servings</label><input class="form-control form-control-sm pizza-topping" id="topping-pepperoni" type="number" min="0" max="3" step="1" value="0" data-topping="Pepperoni" aria-label="Pepperoni servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-sausage">Italian sausage servings</label><input class="form-control form-control-sm pizza-topping" id="topping-sausage" type="number" min="0" max="3" step="1" value="0" data-topping="Italian sausage" aria-label="Italian sausage servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-beef">Beef servings</label><input class="form-control form-control-sm pizza-topping" id="topping-beef" type="number" min="0" max="3" step="1" value="0" data-topping="Beef" aria-label="Beef servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-green-peppers">Green peppers servings</label><input class="form-control form-control-sm pizza-topping" id="topping-green-peppers" type="number" min="0" max="3" step="1" value="0" data-topping="Green peppers" aria-label="Green peppers servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-jalapenos">Jalapenos servings</label><input class="form-control form-control-sm pizza-topping" id="topping-jalapenos" type="number" min="0" max="3" step="1" value="0" data-topping="Jalapenos" aria-label="Jalapenos servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-pineapple">Pineapple servings</label><input class="form-control form-control-sm pizza-topping" id="topping-pineapple" type="number" min="0" max="3" step="1" value="0" data-topping="Pineapple" aria-label="Pineapple servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-onion">Onion servings</label><input class="form-control form-control-sm pizza-topping" id="topping-onion" type="number" min="0" max="3" step="1" value="0" data-topping="Onion" aria-label="Onion servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-black-olives">Black olives servings</label><input class="form-control form-control-sm pizza-topping" id="topping-black-olives" type="number" min="0" max="3" step="1" value="0" data-topping="Black olives" aria-label="Black olives servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-tomatoes">Diced tomatoes servings</label><input class="form-control form-control-sm pizza-topping" id="topping-tomatoes" type="number" min="0" max="3" step="1" value="0" data-topping="Diced tomatoes" aria-label="Diced tomatoes servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-pepperoni">Pepperoni</label><input class="form-control form-control-sm pizza-topping" id="topping-pepperoni" type="number" min="0" max="3" step="1" value="0" data-topping="Pepperoni" aria-label="Pepperoni servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-sausage">Italian sausage</label><input class="form-control form-control-sm pizza-topping" id="topping-sausage" type="number" min="0" max="3" step="1" value="0" data-topping="Italian sausage" aria-label="Italian sausage servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-beef">Beef</label><input class="form-control form-control-sm pizza-topping" id="topping-beef" type="number" min="0" max="3" step="1" value="0" data-topping="Beef" aria-label="Beef servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-green-peppers">Green peppers</label><input class="form-control form-control-sm pizza-topping" id="topping-green-peppers" type="number" min="0" max="3" step="1" value="0" data-topping="Green peppers" aria-label="Green peppers servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-jalapenos">Jalapenos</label><input class="form-control form-control-sm pizza-topping" id="topping-jalapenos" type="number" min="0" max="3" step="1" value="0" data-topping="Jalapenos" aria-label="Jalapenos servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-pineapple">Pineapple</label><input class="form-control form-control-sm pizza-topping" id="topping-pineapple" type="number" min="0" max="3" step="1" value="0" data-topping="Pineapple" aria-label="Pineapple servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-onion">Onion</label><input class="form-control form-control-sm pizza-topping" id="topping-onion" type="number" min="0" max="3" step="1" value="0" data-topping="Onion" aria-label="Onion servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-black-olives">Black olives</label><input class="form-control form-control-sm pizza-topping" id="topping-black-olives" type="number" min="0" max="3" step="1" value="0" data-topping="Black olives" aria-label="Black olives servings per pizza, 0 to 3"></div>
+                        <div class="col"><label class="form-label small mb-1" for="topping-tomatoes">Diced tomatoes</label><input class="form-control form-control-sm pizza-topping" id="topping-tomatoes" type="number" min="0" max="3" step="1" value="0" data-topping="Diced tomatoes" aria-label="Diced tomatoes servings per pizza, 0 to 3"></div>
                       </div>
                     </fieldset>
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Small: $5 base + $1 per serving (¼ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Medium: $7 base + $2 per serving (½ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Large: $9 base + $3 per serving (1 cup)</span>
+                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Small: $1 per serving (¼ cup)</span>
+                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Medium: $2 per serving (½ cup)</span>
+                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Large: $3 per serving (1 cup)</span>
                     </div>
                   </div>
                   <div class="col-12"><p class="small mb-0"><span class="fw-semibold">Current pizza estimate:</span> <span id="pizza-estimate">$7.00</span> <span class="text-secondary">per pizza</span></p></div>
@@ -145,7 +150,7 @@
               <section class="col-12 border-top pt-4" aria-labelledby="cart-heading">
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
                   <div><h4 id="cart-heading" class="h6 mb-1">Order cart</h4><p class="small text-secondary mb-0">Add a pizza or drink above to keep building this order.</p></div>
-                  <button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-auto" id="clear-cart" type="button" aria-label="Remove all items from the order cart" aria-controls="cart-items">Clear cart</button>
+                  <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" id="cancel-item-edit" type="button" hidden>Cancel item edit</button><button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-auto" id="clear-cart" type="button" aria-label="Remove all items from the order cart" aria-controls="cart-items">Clear cart</button></div>
                 </div>
                 <ul id="cart-items" class="list-group mb-3" aria-label="Items currently in order cart" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></ul>
                 <p id="cart-empty" class="small text-secondary border rounded p-3 mb-3">The cart is empty.</p>
@@ -162,7 +167,8 @@
               </section>
 
               <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center gap-3 border-top pt-4">
-                <button class="btn btn-danger px-4" type="submit" aria-label="Place order and add it to active orders" aria-controls="active-orders-list" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Place order</button>
+                <button id="submit-order-button" class="btn btn-danger px-4" type="submit" aria-label="Place order and add it to active orders" aria-controls="active-orders-list" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Place order</button>
+                <button id="cancel-order-edit" class="btn btn-outline-secondary" type="button" hidden>Cancel editing</button>
                 <p class="small text-secondary mb-0">Required fields are marked with an asterisk.</p>
               </div>
             </div>
@@ -224,6 +230,10 @@
     const historyList = document.getElementById('history-list');
     const cartItems = [];
     const posForm = document.getElementById('pos-form');
+    let editingOrderId = null;
+    let editingOriginalPickupTime = '';
+    let editingCartItemId = null;
+    let activeOrders = [];
 
     function formatMoney(amount) {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount) || 0);
@@ -263,8 +273,8 @@
         return topping.quantity + ' ' + (topping.quantity === 1 ? 'serving' : 'servings') + ' of ' + topping.name;
       }).join(', ');
       document.getElementById('add-pizza').setAttribute('aria-label',
-        'Add ' + config.quantity + ' ' + config.size.toLowerCase() + ' pizza' +
-        (toppingSummary ? ' with ' + toppingSummary : ' with no extra toppings') + ' to order');
+        (editingCartItemId === null ? 'Add ' : 'Update ') + config.quantity + ' ' + config.size.toLowerCase() + ' pizza' +
+        (toppingSummary ? ' with ' + toppingSummary : ' with no extra toppings') + ' ' + (editingCartItemId === null ? 'to order' : 'in order'));
       updateCartTotalAnnouncement();
     }
 
@@ -290,9 +300,9 @@
       const input = document.getElementById('pickup-time');
       const error = document.getElementById('pickup-time-error');
       const minimum = getMinimumPickupTime();
-      if (minimum) input.min = minimum;
+      if (minimum && input.value !== editingOriginalPickupTime) input.min = minimum;
       else input.removeAttribute('min');
-      const invalidPastTime = Boolean(input.value) && (!minimum || input.value < minimum);
+      const invalidPastTime = Boolean(input.value) && input.value !== editingOriginalPickupTime && (!minimum || input.value < minimum);
       input.setCustomValidity(invalidPastTime ? 'Pickup time must be later than the current time today.' : '');
       error.textContent = minimum
         ? 'Pickup time must be later than the current time today.'
@@ -308,12 +318,58 @@
       updateDrinkButtonLabel();
     }
 
+    function clearCartItemEditor(resetMenus) {
+      editingCartItemId = null;
+      document.getElementById('add-pizza').disabled = false;
+      document.getElementById('add-drink').disabled = false;
+      document.getElementById('add-pizza').textContent = 'Add pizza to order';
+      document.getElementById('add-drink').textContent = 'Add drink to order';
+      document.getElementById('cancel-item-edit').hidden = true;
+      if (resetMenus) {
+        clearPizzaSelection();
+        clearDrinkSelection();
+      } else {
+        updatePizzaPreview();
+        updateDrinkButtonLabel();
+      }
+    }
+
+    function startCartItemEdit(itemId) {
+      const item = cartItems.find(function (candidate) { return String(candidate.id) === String(itemId); });
+      if (!item) return;
+      editingCartItemId = item.id;
+      document.getElementById('cancel-item-edit').hidden = false;
+      if (item.type === 'Pizza') {
+        document.getElementById('pizza-size').value = item.pizzaSize;
+        document.getElementById('pizza-quantity').value = String(item.quantity);
+        document.querySelectorAll('.pizza-topping').forEach(function (input) {
+          const topping = (item.toppings || []).find(function (selected) { return selected.name === input.dataset.topping; });
+          input.value = topping ? String(topping.quantity) : '0';
+        });
+        document.getElementById('add-pizza').disabled = false;
+        document.getElementById('add-drink').disabled = true;
+        document.getElementById('add-pizza').textContent = 'Update pizza in order';
+      } else {
+        document.getElementById('drink-option').value = item.drinkName;
+        document.getElementById('drink-size').value = item.drinkSize;
+        document.getElementById('drink-quantity').value = String(item.quantity);
+        document.getElementById('add-pizza').disabled = true;
+        document.getElementById('add-drink').disabled = false;
+        document.getElementById('add-drink').textContent = 'Update drink in order';
+      }
+      updatePizzaPreview();
+      updateDrinkButtonLabel();
+      (item.type === 'Pizza' ? document.getElementById('pizza-size') : document.getElementById('drink-option')).focus();
+      announce('Editing ' + item.name + '. Change its options, then choose Update in order.');
+    }
+
     function updateDrinkButtonLabel() {
       const size = document.getElementById('drink-size').value;
       const drink = document.getElementById('drink-option').value;
       const quantity = Math.max(1, Math.min(50, Number(document.getElementById('drink-quantity').value) || 1));
       document.getElementById('add-drink').setAttribute('aria-label',
-        'Add ' + quantity + ' ' + size.toLowerCase() + ' ' + drink + (quantity === 1 ? '' : 's') + ' to order');
+        (editingCartItemId === null ? 'Add ' : 'Update ') + quantity + ' ' + size.toLowerCase() + ' ' + drink +
+        (quantity === 1 ? '' : 's') + ' ' + (editingCartItemId === null ? 'to order' : 'in order'));
     }
 
     function getCartSubtotalCents() {
@@ -358,8 +414,10 @@
           return '<li class="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">' +
             '<div><div class="fw-semibold">' + item.quantity + ' × ' + escapeHTML(item.name) + '</div>' + description +
             '<div class="small text-secondary">' + formatMoney(item.unitPrice) + ' each · ' + formatMoney(item.unitPrice * item.quantity) + ' line total</div></div>' +
-            '<button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-center" type="button" data-cart-remove="' + item.id +
-            '" aria-label="' + escapeHTML(removeLabel) + '" aria-controls="cart-items">Remove</button></li>';
+            '<div class="d-flex gap-2 align-self-start align-self-sm-center"><button class="btn btn-sm btn-outline-secondary" type="button" data-cart-edit="' + item.id +
+            '" aria-label="Edit ' + escapeHTML(item.quantity + ' ' + item.name) + ' in order">Edit</button>' +
+            '<button class="btn btn-sm btn-outline-danger" type="button" data-cart-remove="' + item.id +
+            '" aria-label="' + escapeHTML(removeLabel) + '" aria-controls="cart-items">Remove</button></div></li>';
         }).join('');
       }
       document.getElementById('cart-subtotal').textContent = formatMoney(getCartSubtotal());
@@ -381,16 +439,21 @@
       const toppingText = config.toppings.map(function (topping) {
         return topping.quantity + '× ' + topping.name;
       }).join(', ');
-      cartItems.push({
-        id: nextCartItemId++, type: 'Pizza', name: config.size + ' (' + config.pricing.inches + '-inch) pizza',
+      const wasEditing = editingCartItemId !== null;
+      const updatedItem = {
+        id: wasEditing ? editingCartItemId : nextCartItemId++, type: 'Pizza', name: config.size + ' (' + config.pricing.inches + '-inch) pizza',
         quantity: config.quantity, unitPrice: config.unitPrice,
         description: toppingText ? 'Toppings: ' + toppingText : '',
         pizzaSize: config.size, toppings: config.toppings.slice()
-      });
-      clearPizzaSelection();
+      };
+      const existingIndex = cartItems.findIndex(function (item) { return String(item.id) === String(updatedItem.id); });
+      if (existingIndex >= 0) cartItems[existingIndex] = updatedItem;
+      else cartItems.push(updatedItem);
+      if (!wasEditing) clearPizzaSelection();
+      clearCartItemEditor(wasEditing);
       renderCart();
       announce(config.quantity + ' ' + config.size.toLowerCase() + ' pizza' + (config.quantity === 1 ? '' : 's') +
-        ' added to the order cart. Pizza choices reset to Medium, quantity 1, and no extra toppings.');
+        (wasEditing ? ' updated in the order.' : ' added to the order cart.') + ' Pizza choices reset to Medium, quantity 1, and no extra toppings.');
     }
 
     function addDrinkToCart() {
@@ -403,14 +466,19 @@
       const size = document.getElementById('drink-size').value;
       const drink = document.getElementById('drink-option').value;
       const quantity = Number(quantityInput.value);
-      cartItems.push({
-        id: nextCartItemId++, type: 'Drink', name: size + ' ' + drink, quantity: quantity,
+      const wasEditing = editingCartItemId !== null;
+      const updatedItem = {
+        id: wasEditing ? editingCartItemId : nextCartItemId++, type: 'Drink', name: size + ' ' + drink, quantity: quantity,
         unitPrice: drinkPricing[size], description: '', drinkName: drink, drinkSize: size
-      });
-      clearDrinkSelection();
+      };
+      const existingIndex = cartItems.findIndex(function (item) { return String(item.id) === String(updatedItem.id); });
+      if (existingIndex >= 0) cartItems[existingIndex] = updatedItem;
+      else cartItems.push(updatedItem);
+      if (!wasEditing) clearDrinkSelection();
+      clearCartItemEditor(wasEditing);
       renderCart();
       announce(quantity + ' ' + size.toLowerCase() + ' ' + drink + (quantity === 1 ? '' : 's') +
-        ' added to the order cart. Drink choices reset to medium iced tea, quantity 1.');
+        (wasEditing ? ' updated in the order.' : ' added to the order cart.') + ' Drink choices reset to medium iced tea, quantity 1.');
     }
 
     async function apiRequest(path, options) {
@@ -448,6 +516,89 @@
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ status: status })
       });
+    }
+
+    async function saveOrderEdits(orderId, orderInput) {
+      return apiRequest('/api/employee/orders/' + encodeURIComponent(orderId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(orderInput)
+      });
+    }
+
+    function setOrderEditMode(orderId) {
+      editingOrderId = orderId == null ? null : String(orderId);
+      const editing = editingOrderId !== null;
+      document.getElementById('pos-heading').textContent = editing ? 'Edit order ' + editingOrderId : 'Create an order';
+      document.getElementById('pos-description').textContent = editing
+        ? 'Correct the customer details or cart, then save the changes.'
+        : 'Build a cart with any number of pizzas and drinks, then send it to the active queue.';
+      document.getElementById('submit-order-button').textContent = editing ? 'Save order changes' : 'Place order';
+      document.getElementById('submit-order-button').setAttribute('aria-label', editing
+        ? 'Save changes to order ' + editingOrderId
+        : 'Place order and add it to active orders');
+      document.getElementById('cancel-order-edit').hidden = !editing;
+    }
+
+    function beginOrderEdit(order) {
+      const hasDraft = cartItems.length > 0 || document.getElementById('customer-name').value.trim() !== '';
+      if (hasDraft && !window.confirm('Replace the current POS draft with order ' + order.id + ' for editing?')) return;
+
+      posForm.reset();
+      posForm.classList.remove('was-validated');
+      cartItems.length = 0;
+      clearCartItemEditor(false);
+      document.getElementById('customer-name').value = order.customerName || '';
+      document.getElementById('customer-phone').value = order.customerPhone || '';
+      document.getElementById('order-channel').value = order.channel || 'In-store';
+      document.getElementById('pickup-time').value = order.pickupTime || '';
+      document.getElementById('order-notes').value = order.notes || '';
+      editingOriginalPickupTime = order.pickupTime || '';
+      (order.items || []).forEach(function (item) {
+        const toppings = (item.toppings || []).map(function (topping) {
+          return { name: topping.name, quantity: Number(topping.quantity) || 1 };
+        });
+        cartItems.push({
+          id: nextCartItemId++,
+          type: item.type,
+          name: item.name,
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          description: item.description || (toppings.length ? 'Toppings: ' + toppings.map(function (topping) { return topping.quantity + '× ' + topping.name; }).join(', ') : ''),
+          pizzaSize: item.pizzaSize || null,
+          toppings: toppings,
+          drinkName: item.drinkName || null,
+          drinkSize: item.drinkSize || null
+        });
+      });
+      setOrderEditMode(order.id);
+      document.getElementById('pickup-time-error').hidden = true;
+      document.getElementById('cart-error').hidden = true;
+      document.getElementById('order-submit-error').hidden = true;
+      updatePickupTimeValidity();
+      renderCart();
+      updatePizzaPreview();
+      updateDrinkButtonLabel();
+      activateTab(document.getElementById('pos-tab'), false);
+      document.getElementById('customer-name').focus();
+      announce('Editing order ' + order.id + '. Cart items have Edit and Remove controls; save the order when finished.');
+    }
+
+    function cancelOrderEdit() {
+      if (editingOrderId === null) return;
+      const orderId = editingOrderId;
+      setOrderEditMode(null);
+      editingOriginalPickupTime = '';
+      posForm.reset();
+      posForm.classList.remove('was-validated');
+      cartItems.length = 0;
+      clearCartItemEditor(true);
+      document.getElementById('pickup-time-error').hidden = true;
+      document.getElementById('cart-error').hidden = true;
+      document.getElementById('order-submit-error').hidden = true;
+      updatePickupTimeValidity();
+      renderCart();
+      announce('Editing of order ' + orderId + ' canceled.');
     }
 
     function formatTimestamp(timestamp) {
@@ -512,6 +663,7 @@
         '" aria-label="Show details for order ' + id + '" aria-expanded="false" aria-controls="' + detailsId + '">Show order details</button>' +
         '<div id="' + detailsId + '" class="row g-2 small mt-1" hidden>' + details + '</div></div>' +
         '<div class="d-flex flex-column flex-sm-row flex-lg-column align-items-stretch gap-2" style="min-width:14rem;">' +
+        '<button class="btn btn-sm btn-outline-secondary" type="button" data-order-edit="' + id + '" aria-label="Edit order ' + id + '">Edit order</button>' +
         '<label class="visually-hidden" for="status-' + safeId + '">Status for order ' + id + '</label>' +
         '<select class="form-select form-select-sm" id="status-' + safeId + '" data-status-select="' + id + '" aria-label="Choose new status for order ' + id + '">' + statusOptions + '</select>' +
         '<button class="btn btn-sm btn-outline-danger" type="button" data-status-button="' + id + '" aria-label="Save status for order ' + id +
@@ -537,6 +689,7 @@
     async function renderOrders() {
       try {
         const orders = await listOrders();
+        activeOrders = orders;
         activeOrdersList.innerHTML = orders.map(orderCard).join('');
         const loadError = document.getElementById('orders-load-error');
         loadError.hidden = true;
@@ -617,21 +770,35 @@
     document.getElementById('add-drink').addEventListener('click', addDrinkToCart);
 
     document.getElementById('cart-items').addEventListener('click', function (event) {
-      const button = event.target.closest('[data-cart-remove]');
-      if (!button) return;
-      const index = cartItems.findIndex(function (item) { return String(item.id) === button.dataset.cartRemove; });
+      const editButton = event.target.closest('[data-cart-edit]');
+      if (editButton) {
+        startCartItemEdit(editButton.dataset.cartEdit);
+        return;
+      }
+      const removeButton = event.target.closest('[data-cart-remove]');
+      if (!removeButton) return;
+      const index = cartItems.findIndex(function (item) { return String(item.id) === removeButton.dataset.cartRemove; });
       if (index !== -1) {
         const removed = cartItems.splice(index, 1)[0];
+        if (String(editingCartItemId) === String(removed.id)) clearCartItemEditor(false);
         renderCart();
         announce(removed.name + ' removed from the order cart.');
       }
     });
 
+    document.getElementById('cancel-item-edit').addEventListener('click', function () {
+      clearCartItemEditor(true);
+      announce('Item editing canceled. The order cart was not changed.');
+    });
+
     document.getElementById('clear-cart').addEventListener('click', function () {
       cartItems.length = 0;
+      clearCartItemEditor(false);
       renderCart();
       announce('Order cart cleared.');
     });
+
+    document.getElementById('cancel-order-edit').addEventListener('click', cancelOrderEdit);
 
     posForm.addEventListener('submit', async function (event) {
       event.preventDefault();
@@ -648,6 +815,14 @@
         cartError.hidden = false;
         document.getElementById('add-pizza').focus();
         announce('Add at least one pizza or drink before placing the order.');
+        return;
+      }
+      if (editingCartItemId !== null) {
+        const editingItem = cartItems.find(function (item) { return String(item.id) === String(editingCartItemId); });
+        const updateButton = editingItem && editingItem.type === 'Drink'
+          ? document.getElementById('add-drink') : document.getElementById('add-pizza');
+        updateButton.focus();
+        announce('Finish or cancel the current item edit before saving the order.');
         return;
       }
       cartError.hidden = true;
@@ -670,15 +845,22 @@
             drinkSize: item.drinkSize || null
           };
         }),
-        notes: ''
+        notes: String(data.get('notes') || '')
       };
-      const submitButton = posForm.querySelector('[type="submit"]');
+      const submitButton = document.getElementById('submit-order-button');
       submitButton.disabled = true;
       posForm.setAttribute('aria-busy', 'true');
-      announce('Saving order.');
+      const wasEditingOrder = editingOrderId !== null;
+      const submittedOrderId = editingOrderId;
+      announce(wasEditingOrder ? 'Saving changes to order ' + submittedOrderId + '.' : 'Saving order.');
       try {
-        const created = await createOrder(orderInput);
+        const saved = wasEditingOrder
+          ? await saveOrderEdits(submittedOrderId, orderInput)
+          : await createOrder(orderInput);
+        setOrderEditMode(null);
+        editingOriginalPickupTime = '';
         cartItems.length = 0;
+        clearCartItemEditor(true);
         posForm.reset();
         posForm.classList.remove('was-validated');
         document.getElementById('pickup-time-error').hidden = true;
@@ -689,11 +871,13 @@
         updatePizzaPreview();
         updateDrinkButtonLabel();
         activateTab(document.getElementById('orders-tab'), true);
-        announce('Order ' + created.id + ' for ' + created.customerName + ' was placed and added to active orders.');
+        announce(wasEditingOrder
+          ? 'Order ' + saved.id + ' for ' + saved.customerName + ' was updated.'
+          : 'Order ' + saved.id + ' for ' + saved.customerName + ' was placed and added to active orders.');
       } catch (error) {
-        submitError.textContent = 'Order could not be placed. ' + error.message;
+        submitError.textContent = 'Order could not be ' + (wasEditingOrder ? 'updated. ' : 'placed. ') + error.message;
         submitError.hidden = false;
-        announce('Order could not be placed. ' + error.message);
+        announce('Order could not be ' + (wasEditingOrder ? 'updated. ' : 'placed. ') + error.message);
       } finally {
         submitButton.disabled = false;
         posForm.removeAttribute('aria-busy');
@@ -709,6 +893,13 @@
         detailsButton.setAttribute('aria-label', (expanded ? 'Show' : 'Hide') + ' details for order ' + detailsButton.dataset.detailsButton);
         detailsButton.textContent = expanded ? 'Show order details' : 'Hide order details';
         panel.hidden = expanded;
+        return;
+      }
+      const editButton = event.target.closest('[data-order-edit]');
+      if (editButton) {
+        const order = activeOrders.find(function (candidate) { return String(candidate.id) === editButton.dataset.orderEdit; });
+        if (order) beginOrderEdit(order);
+        else announce('That order is no longer in the active queue. Refresh orders and try again.');
         return;
       }
       const statusButton = event.target.closest('[data-status-button]');

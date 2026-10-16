@@ -187,7 +187,50 @@ def prepare_items(raw_items):
     return items, subtotal, tax_amount, subtotal + tax_amount
 
 
-def pickup_time_value(value):
+def save_customer(cursor, customer_name, customer_phone):
+    cursor.execute(
+        """
+        INSERT INTO customers (full_name, phone)
+        VALUES (%s, %s)
+        ON DUPLICATE KEY UPDATE
+            full_name = VALUES(full_name),
+            customer_id = LAST_INSERT_ID(customer_id)
+        """,
+        (customer_name, customer_phone),
+    )
+    return cursor.lastrowid
+
+
+def insert_order_items(cursor, order_id, items):
+    cursor.execute("SELECT topping_id, topping_name FROM toppings")
+    topping_ids = {row["topping_name"]: row["topping_id"] for row in cursor.fetchall()}
+    for line_number, item in enumerate(items, start=1):
+        cursor.execute(
+            """
+            INSERT INTO order_items
+                (order_id, line_number, item_type, item_name, pizza_size,
+                 drink_name, drink_size, quantity, unit_price, description)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                order_id, line_number, item["type"], item["name"], item["pizzaSize"],
+                item["drinkName"], item["drinkSize"], item["quantity"],
+                item["unitPrice"], item["description"],
+            ),
+        )
+        item_id = cursor.lastrowid
+        for topping in item["toppings"]:
+            cursor.execute(
+                """
+                INSERT INTO order_item_toppings
+                    (order_item_id, topping_id, quantity, portion, unit_price)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (item_id, topping_ids[topping["name"]], topping["quantity"], item["portion"], item["toppingUnitPrice"]),
+            )
+
+
+def pickup_time_value(value, allow_past=False):
     if value in (None, ""):
         return None
     if not isinstance(value, str):
@@ -202,7 +245,7 @@ def pickup_time_value(value):
     except ZoneInfoNotFoundError as exc:
         raise ApiError("BUSINESS_TIMEZONE must be a valid IANA timezone name.", 503) from exc
     current_minute = now.time().replace(tzinfo=None, second=0, microsecond=0)
-    if pickup_time <= current_minute:
+    if not allow_past and pickup_time <= current_minute:
         raise ApiError("Pickup time must be later than the current time today.")
     return pickup_time
 
@@ -356,17 +399,7 @@ def create_order():
         try:
             connection.begin()
             cursor = connection.cursor()
-            cursor.execute(
-                """
-                INSERT INTO customers (full_name, phone)
-                VALUES (%s, %s)
-                ON DUPLICATE KEY UPDATE
-                    full_name = VALUES(full_name),
-                    customer_id = LAST_INSERT_ID(customer_id)
-                """,
-                (customer_name, customer_phone),
-            )
-            customer_id = cursor.lastrowid
+            customer_id = save_customer(cursor, customer_name, customer_phone)
             cursor.execute(
                 """
                 INSERT INTO orders
@@ -378,32 +411,7 @@ def create_order():
             )
             order_id = cursor.lastrowid
 
-            cursor.execute("SELECT topping_id, topping_name FROM toppings")
-            topping_ids = {row["topping_name"]: row["topping_id"] for row in cursor.fetchall()}
-            for line_number, item in enumerate(items, start=1):
-                cursor.execute(
-                    """
-                    INSERT INTO order_items
-                        (order_id, line_number, item_type, item_name, pizza_size,
-                         drink_name, drink_size, quantity, unit_price, description)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        order_id, line_number, item["type"], item["name"], item["pizzaSize"],
-                        item["drinkName"], item["drinkSize"], item["quantity"],
-                        item["unitPrice"], item["description"],
-                    ),
-                )
-                item_id = cursor.lastrowid
-                for topping in item["toppings"]:
-                    cursor.execute(
-                        """
-                        INSERT INTO order_item_toppings
-                            (order_item_id, topping_id, quantity, portion, unit_price)
-                        VALUES (%s, %s, %s, %s, %s)
-                        """,
-                        (item_id, topping_ids[topping["name"]], topping["quantity"], item["portion"], item["toppingUnitPrice"]),
-                    )
+            insert_order_items(cursor, order_id, items)
             connection.commit()
         except Exception:
             connection.rollback()
@@ -452,6 +460,83 @@ def create_order():
     except Exception:
         app.logger.exception("Could not create order")
         return jsonify({"error": "Order could not be saved. Check that MariaDB is running, the connection settings are correct, and schema.sql has been applied."}), 503
+
+
+@app.put("/api/employee/orders/<int:order_id>")
+def edit_order(order_id):
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "Send order details as JSON."}), 400
+
+    connection = None
+    try:
+        customer_name = required_text(body.get("customerName"), "Customer name", 80)
+        customer_phone = required_text(body.get("customerPhone"), "Customer phone", 30)
+        channel = body.get("channel")
+        if not isinstance(channel, str) or channel not in ALLOWED_CHANNELS:
+            raise ApiError("Choose a valid order channel.")
+        pickup_value = body.get("pickupTime")
+        notes = body.get("notes", "")
+        if not isinstance(notes, str) or len(notes) > 4000:
+            raise ApiError("Order notes must be text no longer than 4000 characters.")
+        items, subtotal, tax_amount, total = prepare_items(body.get("items"))
+
+        connection = database_connection()
+        connection.begin()
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT status, pickup_time AS pickupTime FROM orders WHERE order_id = %s FOR UPDATE",
+            (order_id,),
+        )
+        order = cursor.fetchone()
+        if order is None:
+            connection.rollback()
+            return jsonify({"error": "Order was not found. Refresh the queue and try again."}), 404
+        if order["status"] == "Completed":
+            connection.rollback()
+            return jsonify({"error": "Completed orders cannot be edited from the employee dashboard."}), 409
+
+        existing_pickup = str(order["pickupTime"])[:5] if order["pickupTime"] else ""
+        same_pickup = pickup_value == existing_pickup
+        pickup_time = pickup_time_value(pickup_value, allow_past=same_pickup)
+        customer_id = save_customer(cursor, customer_name, customer_phone)
+        cursor.execute(
+            """
+            UPDATE orders
+               SET customer_id = %s, channel = %s, pickup_time = %s, notes = %s,
+                   subtotal = %s, tax_rate_bps = %s, tax_amount = %s, total = %s
+             WHERE order_id = %s
+            """,
+            (customer_id, channel, pickup_time, notes, subtotal, TAX_RATE_BPS, tax_amount, total, order_id),
+        )
+        cursor.execute("DELETE FROM order_items WHERE order_id = %s", (order_id,))
+        insert_order_items(cursor, order_id, items)
+        connection.commit()
+        return jsonify({
+            "id": order_id,
+            "customerName": customer_name,
+            "status": order["status"],
+            "subtotalPrice": float(subtotal),
+            "taxPrice": float(tax_amount),
+            "totalPrice": float(total),
+        })
+    except ApiError as exc:
+        if connection is not None:
+            connection.rollback()
+        return jsonify({"error": str(exc)}), exc.status_code
+    except RuntimeError as exc:
+        if connection is not None:
+            connection.rollback()
+        app.logger.error("MariaDB configuration error: %s", exc)
+        return jsonify({"error": "MariaDB is not configured: " + str(exc)}), 503
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        app.logger.exception("Could not edit order")
+        return jsonify({"error": "Order could not be updated. Check that MariaDB is running and the connection settings are correct."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
 
 
 @app.patch("/api/employee/orders/<int:order_id>")

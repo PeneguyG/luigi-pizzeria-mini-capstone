@@ -31,7 +31,7 @@ Create a least-privilege application account after importing the schema (replace
 
 ```sql
 CREATE USER 'luigis_app'@'localhost' IDENTIFIED BY 'choose-a-strong-password';
-GRANT SELECT, INSERT, UPDATE ON luigis_pizzeria.* TO 'luigis_app'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON luigis_pizzeria.* TO 'luigis_app'@'localhost';
 ```
 
 Configure the connection in PowerShell, using the MariaDB account you created for the app:
@@ -49,13 +49,24 @@ python app.py
 
 Open `http://127.0.0.1:5000/`. Keep database credentials in environment variables; the schema does not create a user or store credentials.
 
+## Load demo orders
+
+After applying `schema.sql`, load sample queue and history records from the repository directory:
+
+```powershell
+cmd /c "mariadb -u root -p luigis_pizzeria < demo_data.sql"
+```
+
+The script adds four active orders (Confirmed, In-Progress, Ready, and Overdue) and two completed orders. Each is marked `DEMO DATA:` in its notes. It skips existing seed orders with those notes, so it can be rerun as long as the demo markers remain unchanged. Refresh the dashboard to see the new records.
+
 ## API routes
 
 - `POST /api/employee/orders` validates and saves a POS order and its line items in one transaction.
 - `GET /api/employee/orders` returns all non-completed orders for the Bumper / active-orders view.
+- `PUT /api/employee/orders/<id>` edits an active order's customer, pickup details, notes, and cart items. Prices and tax are recalculated by the server; completed orders cannot be edited.
 - `PATCH /api/employee/orders/<id>` updates an order status. Completed orders move to history and cannot be reopened from the dashboard.
 - `GET /api/employee/order-history` returns completed orders with their items and toppings.
 
-The server recalculates pizza, topping, drink, and tax prices instead of trusting prices sent by the browser. Tax is 9.75% of the order subtotal, rounded to the nearest cent. Topping servings are counted per pizza, with up to 3 servings of each topping; each serving is priced according to pizza size. Order descriptions list only selected toppings and their counts. Pickup times are optional and must be later than the current time on the same day, using the server timezone or `BUSINESS_TIMEZONE`. Pizza and drink menus reset after each successful add, and the dashboard announces the reset and updated cart totals to assistive technology.
+The server recalculates pizza, topping, drink, and tax prices instead of trusting prices sent by the browser. Tax is 9.75% of the order subtotal, rounded to the nearest cent. Topping servings are counted per pizza, with up to 3 servings of each topping; each serving is priced according to pizza size. Order descriptions list only selected toppings and their counts. New pickup times are optional and must be later than the current time on the same day, using the server timezone or `BUSINESS_TIMEZONE`; an unchanged pickup time can remain while staff correct other order details. Pizza and drink menus reset after each successful add, and the dashboard announces the reset and updated cart totals to assistive technology.
 
 The employee API should be placed behind the restaurant's employee authentication before it is exposed beyond a trusted local network.
