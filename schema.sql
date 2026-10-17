@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS order_item_toppings (
   order_item_id BIGINT UNSIGNED NOT NULL,
   topping_id SMALLINT UNSIGNED NOT NULL,
   quantity SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  portion VARCHAR(20) NOT NULL,
+  `portion` VARCHAR(20) NOT NULL,
   unit_price DECIMAL(10, 2) UNSIGNED NOT NULL,
   PRIMARY KEY (order_item_id, topping_id),
   CONSTRAINT chk_item_toppings_quantity CHECK (quantity BETWEEN 1 AND 3),

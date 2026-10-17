@@ -35,12 +35,12 @@ INSERT INTO order_items
 SELECT @demo_order_1, 1, 'Pizza', 'Large (18-inch) pizza', 'Large', NULL, NULL, 1, 24.00,
        'Toppings: 2× Italian sausage, 3× Green peppers'
   FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = @demo_order_1 AND line_number = 1);
-INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, portion, unit_price)
+INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, `portion`, unit_price)
 SELECT oi.order_item_id, t.topping_id, 2, '1 cup', 3.00
   FROM order_items AS oi JOIN toppings AS t ON t.topping_name = 'Italian sausage'
  WHERE oi.order_id = @demo_order_1 AND oi.line_number = 1
    AND NOT EXISTS (SELECT 1 FROM order_item_toppings AS x WHERE x.order_item_id = oi.order_item_id AND x.topping_id = t.topping_id);
-INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, portion, unit_price)
+INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, `portion`, unit_price)
 SELECT oi.order_item_id, t.topping_id, 3, '1 cup', 3.00
   FROM order_items AS oi JOIN toppings AS t ON t.topping_name = 'Green peppers'
  WHERE oi.order_id = @demo_order_1 AND oi.line_number = 1
@@ -63,7 +63,7 @@ INSERT INTO order_items
   (order_id, line_number, item_type, item_name, pizza_size, drink_name, drink_size, quantity, unit_price, description)
 SELECT @demo_order_2, 1, 'Pizza', 'Small (12-inch) pizza', 'Small', NULL, NULL, 1, 6.00, 'Toppings: 1× Beef'
   FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = @demo_order_2 AND line_number = 1);
-INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, portion, unit_price)
+INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, `portion`, unit_price)
 SELECT oi.order_item_id, t.topping_id, 1, '¼ cup', 1.00
   FROM order_items AS oi JOIN toppings AS t ON t.topping_name = 'Beef'
  WHERE oi.order_id = @demo_order_2 AND oi.line_number = 1
@@ -86,7 +86,7 @@ INSERT INTO order_items
   (order_id, line_number, item_type, item_name, pizza_size, drink_name, drink_size, quantity, unit_price, description)
 SELECT @demo_order_3, 1, 'Pizza', 'Large (18-inch) pizza', 'Large', NULL, NULL, 1, 12.00, 'Toppings: 1× Pepperoni'
   FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = @demo_order_3 AND line_number = 1);
-INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, portion, unit_price)
+INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, `portion`, unit_price)
 SELECT oi.order_item_id, t.topping_id, 1, '1 cup', 3.00
   FROM order_items AS oi JOIN toppings AS t ON t.topping_name = 'Pepperoni'
  WHERE oi.order_id = @demo_order_3 AND oi.line_number = 1
@@ -122,7 +122,7 @@ INSERT INTO order_items
   (order_id, line_number, item_type, item_name, pizza_size, drink_name, drink_size, quantity, unit_price, description)
 SELECT @demo_order_5, 1, 'Pizza', 'Small (12-inch) pizza', 'Small', NULL, NULL, 1, 8.00, 'Toppings: 3× Onion'
   FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = @demo_order_5 AND line_number = 1);
-INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, portion, unit_price)
+INSERT INTO order_item_toppings (order_item_id, topping_id, quantity, `portion`, unit_price)
 SELECT oi.order_item_id, t.topping_id, 3, '¼ cup', 1.00
   FROM order_items AS oi JOIN toppings AS t ON t.topping_name = 'Onion'
  WHERE oi.order_id = @demo_order_5 AND oi.line_number = 1

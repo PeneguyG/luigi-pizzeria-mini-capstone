@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS order_item_toppings (
 
   quantity SMALLINT UNSIGNED NOT NULL DEFAULT 1,
 
-  portion VARCHAR(20) NOT NULL,
+  `portion` VARCHAR(20) NOT NULL,
 
   unit_price DECIMAL(10, 2) UNSIGNED NOT NULL,
 

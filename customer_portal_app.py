@@ -858,7 +858,7 @@ def create_order():
 
                         INSERT INTO order_item_toppings
 
-                            (order_item_id, topping_id, quantity, portion, unit_price)
+                            (order_item_id, topping_id, quantity, `portion`, unit_price)
 
                         VALUES (%s, %s, %s, %s, %s)
 
