@@ -49,6 +49,35 @@ python app.py
 
 Open `http://127.0.0.1:5000/`. Keep database credentials in environment variables; the schema does not create a user or store credentials.
 
+## Deploy on Google Compute Engine
+
+`deploy-gce.sh` installs and configures the customer portal application for a Debian 13 (trixie) Compute Engine VM. It is sized for an `e2-micro`: MariaDB memory is limited, the app runs one Gunicorn worker, and the script creates a 1 GiB swap file. It clones this repository, applies `customer_portal.sql`, configures MariaDB, Nginx, systemd, and a recurring DuckDNS update, then requests an HTTPS certificate with Certbot.
+
+Before running the script:
+
+1. Create a Debian 13 VM with an external IPv4 address. A reserved static IP is recommended to avoid DNS changes when the VM is stopped and started.
+2. Allow ingress TCP ports 80 and 443 in the VM's Google Cloud VPC firewall rule. Do not expose MariaDB port 3306. SSH access is also needed for setup.
+3. Create a DuckDNS subdomain and have its token ready.
+4. Clone this repository on the VM and run the script:
+
+```bash
+git clone https://github.com/PeneguyG/luigi-pizzeria-mini-capstone.git
+cd luigi-pizzeria-mini-capstone
+sudo bash ./deploy-gce.sh
+```
+
+The script defaults to `luigispizzeriapickup.duckdns.org`; override `DUCKDNS_DOMAIN` if needed. It prompts for the DuckDNS token, a Let's Encrypt contact email, and a staff password. It generates and stores a database password locally in `/etc/luigi-pizzeria/app.env`. To select another repository or branch, pass `APP_REPO_URL` or `APP_REPO_BRANCH` as environment assignments to `sudo`, for example: `sudo APP_REPO_BRANCH=main bash ./deploy-gce.sh`.
+
+The landing page is served at `/`, customer ordering and receipt-based tracking at `/customer`, and employee order management at `/employee`. Employee pages and `/api/employee/*` require Nginx Basic Auth; the username defaults to `luigi-staff`, and the password is chosen during setup. Customer orders are guest orders; customer accounts are not implemented. The app and database are on the same VM, and the database listens only on localhost.
+
+Useful service commands:
+
+```bash
+sudo systemctl status luigi-pizzeria nginx mariadb
+sudo journalctl -u luigi-pizzeria -f
+sudo systemctl status luigi-pizzeria-duckdns.timer
+```
+
 ## Load demo orders
 
 After applying `schema.sql`, load sample queue and history records from the repository directory:

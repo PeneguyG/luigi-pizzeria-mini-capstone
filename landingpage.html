@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Welcome to Luigi's Pizzeria. Build a pizza and order it for carryout pickup.">
+  <meta name="theme-color" content="#f4f5ef">
+  <title>Luigi's Pizzeria | Carryout Pizza</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+    crossorigin="anonymous"
+  >
+
+  <style>
+    :root {
+      --green: #31543d;
+      --green-dark: #203d2b;
+      --green-pale: #e3eee3;
+      --red: #87373c;
+      --red-pale: #f2dddd;
+      --cream: #f7f7f2;
+      --ink: #25322b;
+      --muted: #4d5b52;
+      --border: #747c72;
+      --focus: #183c72;
+    }
+
+    body {
+      background: var(--cream);
+      color: var(--ink);
+    }
+
+    a {
+      color: var(--green-dark);
+    }
+
+    a:hover {
+      color: var(--red);
+    }
+
+    .skip-link {
+      position: absolute;
+      top: .5rem;
+      left: .5rem;
+      z-index: 1100;
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus) !important;
+      outline-offset: 3px;
+      box-shadow: none !important;
+    }
+
+    .site-header {
+      border-bottom: 1px solid #cbd3c9;
+      background: #fffefa;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 3rem;
+      height: 3rem;
+      place-items: center;
+      border: 2px solid #9caf9e;
+      border-radius: 50%;
+      background: var(--green-pale);
+      color: var(--green-dark);
+      font-weight: 800;
+    }
+
+    .flag-rule {
+      height: .45rem;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        #8eaa91 0 33.33%,
+        #fffefa 33.33% 66.66%,
+        #d49b9b 66.66% 100%
+      );
+    }
+
+    .hero {
+      overflow: hidden;
+      border: 1px solid #d4d8cf;
+      border-radius: 1.25rem;
+      background:
+        radial-gradient(circle at 85% 20%, #fffefa 0 9rem, transparent 9.1rem),
+        linear-gradient(135deg, #e6efe4, #fffefa 60%, #f4e2df);
+    }
+
+    .eyebrow {
+      color: var(--green-dark);
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      max-width: 14ch;
+      color: var(--green-dark);
+      font-size: clamp(2.5rem, 7vw, 5rem);
+      font-weight: 800;
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+
+    .hero-copy {
+      max-width: 38rem;
+      color: #37483d;
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .pizza-art {
+      display: block;
+      width: min(100%, 20rem);
+      height: auto;
+      margin-inline: auto;
+    }
+
+    .section-card {
+      border: 1px solid #d4d8cf;
+      border-radius: 1rem;
+      background: #fffefa;
+      box-shadow: 0 .5rem 1.5rem rgb(32 61 43 / 6%);
+    }
+
+    .btn-pizzeria {
+      --bs-btn-color: #fff;
+      --bs-btn-bg: var(--green);
+      --bs-btn-border-color: var(--green);
+      --bs-btn-hover-color: #fff;
+      --bs-btn-hover-bg: var(--green-dark);
+      --bs-btn-hover-border-color: var(--green-dark);
+      --bs-btn-active-color: #fff;
+      --bs-btn-active-bg: var(--green-dark);
+      --bs-btn-active-border-color: var(--green-dark);
+      --bs-btn-disabled-color: #fff;
+      --bs-btn-disabled-bg: #596b5d;
+      --bs-btn-disabled-border-color: #596b5d;
+    }
+
+    .btn-pizzeria-red {
+      --bs-btn-color: #fff;
+      --bs-btn-bg: var(--red);
+      --bs-btn-border-color: var(--red);
+      --bs-btn-hover-color: #fff;
+      --bs-btn-hover-bg: #67272c;
+      --bs-btn-hover-border-color: #67272c;
+      --bs-btn-active-color: #fff;
+      --bs-btn-active-bg: #67272c;
+      --bs-btn-active-border-color: #67272c;
+    }
+
+    .btn-outline-pizzeria {
+      --bs-btn-color: var(--green-dark);
+      --bs-btn-border-color: var(--green);
+      --bs-btn-hover-color: #fff;
+      --bs-btn-hover-bg: var(--green);
+      --bs-btn-hover-border-color: var(--green);
+      --bs-btn-active-color: #fff;
+      --bs-btn-active-bg: var(--green-dark);
+      --bs-btn-active-border-color: var(--green-dark);
+    }
+
+    .nav-pills .nav-link {
+      min-height: 44px;
+      color: var(--green-dark);
+      font-weight: 700;
+    }
+
+    .nav-pills .nav-link[aria-selected="true"] {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .form-control,
+    .form-select {
+      min-height: 44px;
+      border-color: var(--border);
+      color: var(--ink);
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 .2rem rgb(49 84 61 / 20%);
+    }
+
+    .form-text,
+    .text-secondary {
+      color: var(--muted) !important;
+    }
+
+    .auth-note {
+      border-left: .25rem solid var(--green);
+      background: var(--green-pale);
+      color: var(--green-dark);
+    }
+
+    .employee-area {
+      border-top: 1px solid #cbd3c9;
+      background: #f2e3e0;
+    }
+
+    .employee-card {
+      border: 1px solid #c99c9c;
+      border-radius: 1rem;
+      background: #fffefa;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 767.98px) {
+      .hero {
+        background: linear-gradient(145deg, #e6efe4, #fffefa 65%, #f4e2df);
+      }
+
+      .pizza-art {
+        width: min(75%, 15rem);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link btn btn-light border" href="#main-content">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container py-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <a class="d-inline-flex align-items-center gap-3 text-decoration-none" href="#home" aria-label="Luigi's Pizzeria home">
+          <span class="brand-mark" aria-hidden="true">LP</span>
+          <span>
+            <span class="d-block fw-bold fs-5" style="color: var(--green-dark);">Luigi's Pizzeria</span>
+            <span class="d-block small text-secondary">Fresh from our kitchen</span>
+          </span>
+        </a>
+
+        <nav aria-label="Main navigation">
+          <ul class="nav gap-2">
+            <li class="nav-item"><a class="nav-link" href="#welcome">Welcome</a></li>
+            <li class="nav-item"><a class="nav-link" href="#customer-access">Customer sign-in</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="flag-rule mt-3" aria-hidden="true"></div>
+    </div>
+  </header>
+
+  <main id="main-content" class="container py-4 py-lg-5">
+    <section id="welcome" class="hero p-4 p-md-5 mb-5" aria-labelledby="welcome-heading">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+          <p class="eyebrow mb-2">A neighborhood favorite</p>
+          <h1 id="welcome-heading" class="hero-title mb-3">Good pizza. Easy pickup.</h1>
+          <p class="hero-copy mb-4">
+            Welcome to Luigi's Pizzeria. Choose your favorite toppings and place an
+            order for carryout pickup, made fresh by our kitchen.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3">
+            <a class="btn btn-pizzeria btn-lg px-4" href="#customer-access">Order for pickup</a>
+            <a class="btn btn-outline-pizzeria btn-lg px-4" href="#customer-access">Log in or sign up</a>
+          </div>
+          <p class="small mt-3 mb-0">Carryout and pickup orders only.</p>
+        </div>
+
+        <div class="col-lg-5">
+          <svg class="pizza-art" viewBox="0 0 320 300" role="img" aria-labelledby="pizza-title pizza-description">
+            <title id="pizza-title">Illustration of a freshly baked pizza</title>
+            <desc id="pizza-description">A round pizza with tomato, basil, and cheese toppings.</desc>
+            <ellipse cx="160" cy="265" rx="112" ry="14" fill="#203d2b" opacity=".12"/>
+            <circle cx="160" cy="150" r="112" fill="#d6a66d"/>
+            <circle cx="160" cy="150" r="96" fill="#a94d43"/>
+            <circle cx="160" cy="150" r="84" fill="#f2d991"/>
+            <g fill="#b94d43">
+              <circle cx="125" cy="112" r="13"/>
+              <circle cx="189" cy="104" r="12"/>
+              <circle cx="211" cy="159" r="14"/>
+              <circle cx="151" cy="184" r="13"/>
+              <circle cx="105" cy="165" r="11"/>
+              <circle cx="180" cy="213" r="10"/>
+            </g>
+            <g fill="#47734d">
+              <path d="M153 92c-16-19-3-31 9-17 8 9 4 18-9 17Zm4 3c14-19 30-10 18 4-8 8-17 7-18-4Z"/>
+              <path d="M226 125c-14-17-2-28 9-15 7 8 4 16-9 15Zm4 4c12-17 27-9 16 4-7 8-15 6-16-4Z"/>
+              <path d="M104 204c-14-17-2-28 9-15 7 8 4 16-9 15Zm4 4c12-17 27-9 16 4-7 8-15 6-16-4Z"/>
+            </g>
+            <g fill="#fff4d2">
+              <circle cx="137" cy="145" r="5"/>
+              <circle cx="186" cy="140" r="5"/>
+              <circle cx="173" cy="179" r="5"/>
+              <circle cx="128" cy="192" r="4"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section id="customer-access" class="row justify-content-center mb-5" aria-labelledby="customer-heading">
+      <div class="col-12 col-lg-8 col-xl-7">
+        <div class="section-card p-4 p-md-5">
+          <p class="eyebrow mb-2">Online ordering</p>
+          <h2 id="customer-heading" class="h3 mb-2">Ready for your next pizza?</h2>
+          <p class="text-secondary mb-4">Build a pickup order, check your total, and follow its progress from the customer dashboard. No customer account is needed.</p>
+          <div class="d-flex flex-wrap gap-3">
+            <a class="btn btn-pizzeria btn-lg" href="/customer">Start an order</a>
+            <a class="btn btn-outline-pizzeria btn-lg" href="/customer">Track an order</a>
+          </div>
+          <div class="auth-note rounded p-3 mt-4">
+            <p class="small mb-0"><strong>Pickup orders:</strong> place your order online and collect it at Luigi's. Keep the tracking link shown on your receipt to check kitchen updates.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="row g-3 mb-5" aria-label="Pizzeria details">
+      <div class="col-md-4">
+        <article class="section-card h-100 p-4">
+          <h2 class="h5">Made fresh</h2>
+          <p class="text-secondary mb-0">We prepare each pizza when you order.</p>
+        </article>
+      </div>
+      <div class="col-md-4">
+        <article class="section-card h-100 p-4">
+          <h2 class="h5">Your way</h2>
+          <p class="text-secondary mb-0">Choose a size, toppings, and drinks.</p>
+        </article>
+      </div>
+      <div class="col-md-4">
+        <article class="section-card h-100 p-4">
+          <h2 class="h5">Simple pickup</h2>
+          <p class="text-secondary mb-0">Order for carryout and pick up at the pizzeria.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer id="employee-sign-in" class="employee-area py-5" aria-labelledby="employee-heading">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-7 col-xl-6">
+          <div class="employee-card p-4 p-md-5">
+            <p class="eyebrow mb-2">Employee access</p>
+            <h2 id="employee-heading" class="h3 mb-2">Staff sign in</h2>
+            <p class="text-secondary mb-4">For Luigi's team members managing pickup orders.</p>
+
+            <p class="text-secondary mb-4">The employee dashboard asks for staff credentials before opening order management.</p>
+            <a class="btn btn-pizzeria-red btn-lg w-100" href="/employee">Open employee dashboard</a>
+          </div>
+        </div>
+      </div>
+
+      <p class="small text-center text-secondary mt-4 mb-0">
+        © <span id="current-year"></span> Luigi's Pizzeria
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    'use strict';
+
+    // Customer orders are placed as a guest; staff credentials are checked by Nginx.
+
+    document.getElementById('current-year').textContent = String(new Date().getFullYear());
+  </script>
+</body>
+</html>

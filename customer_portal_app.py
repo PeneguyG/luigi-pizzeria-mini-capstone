@@ -574,11 +574,15 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 
 @app.get("/")
 
+def landing_page():
+
+    return send_from_directory(BASE_DIR, "landingpage.html")
+
 @app.get("/employee")
 
 def dashboard():
 
-    return send_from_directory(BASE_DIR, "employee-portal-integrated.html")
+    return send_from_directory(BASE_DIR, "employee-dashboard.html")
 
 @app.get("/customer")
 
