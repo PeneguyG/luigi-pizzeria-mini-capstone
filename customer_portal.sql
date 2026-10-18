@@ -172,6 +172,8 @@ CREATE TABLE IF NOT EXISTS order_item_toppings (
 
   CONSTRAINT chk_item_toppings_quantity CHECK (quantity BETWEEN 1 AND 3),
 
+  CONSTRAINT chk_item_toppings_max_three CHECK (quantity <= 3),
+
   CONSTRAINT fk_item_toppings_item FOREIGN KEY (order_item_id)
 
     REFERENCES order_items (order_item_id) ON DELETE CASCADE,

@@ -1,5 +1,6 @@
 -- Apply once to an existing database after the topping quantity migration.
 -- The additional check tightens the earlier 1-10 limit to 1-3.
+-- Fresh installations get the same named check from customer_portal.sql and schema.sql.
 USE luigis_pizzeria;
 
 ALTER TABLE order_item_toppings

@@ -16,6 +16,8 @@ let menu = {
 
 };
 
+const MAX_ORDER_ITEMS = 20;
+
 let cart = [];
 
 let menuReady = false;
@@ -147,6 +149,57 @@ function totals(items) {
 
 }
 
+function getCartItemCount() {
+
+  return cart.reduce(function (sum, item) { return sum + item.quantity; }, 0);
+
+}
+
+function clearCartLimitError() {
+
+  const error = element('cart-limit-error');
+
+  error.textContent = '';
+
+  error.hidden = true;
+
+  ['pizza-quantity', 'drink-quantity'].forEach(function (id) {
+
+    element(id).setAttribute('aria-describedby', 'order-limit-help');
+
+  });
+
+}
+
+function canAddToCart(quantity, input) {
+
+  const currentCount = getCartItemCount();
+
+  if (currentCount + quantity <= MAX_ORDER_ITEMS) {
+
+    clearCartLimitError();
+
+    return true;
+
+  }
+
+  const remaining = Math.max(0, MAX_ORDER_ITEMS - currentCount);
+
+  const error = element('cart-limit-error');
+
+  error.textContent = 'An order can contain up to ' + MAX_ORDER_ITEMS + ' total items. There are ' + currentCount +
+    ' already in your order, so you can add at most ' + remaining + ' more.';
+
+  error.hidden = false;
+
+  input.setAttribute('aria-describedby', 'order-limit-help cart-limit-error');
+
+  input.focus();
+
+  return false;
+
+}
+
 function totalsHTML(items) {
 
   const prices = totals(items);
@@ -175,7 +228,7 @@ function itemsHTML(items, removable) {
 
 function renderCart() {
 
-  element('cart-count').textContent = cart.reduce(function (sum, item) { return sum + item.quantity; }, 0) + ' items';
+  element('cart-count').textContent = getCartItemCount() + ' of ' + MAX_ORDER_ITEMS + ' items';
 
   element('cart-items').innerHTML = cart.length ? itemsHTML(cart, true) : '<p class="text-secondary py-3">Your cart is waiting for something delicious. Add a pizza or drink to get started.</p>';
 
@@ -207,7 +260,11 @@ function addPizza(event) {
 
   });
 
-  cart.push({type: 'Pizza', name: size + ' pizza', pizzaSize: size, quantity: Number(element('pizza-quantity').value), toppings: toppings, unitPrice: currentPizzaPrice()});
+  const quantity = Number(element('pizza-quantity').value);
+
+  if (!canAddToCart(quantity, element('pizza-quantity'))) return;
+
+  cart.push({type: 'Pizza', name: size + ' pizza', pizzaSize: size, quantity: quantity, toppings: toppings, unitPrice: currentPizzaPrice()});
 
   element('pizza-form').reset();
 
@@ -215,7 +272,7 @@ function addPizza(event) {
 
   renderCart();
 
-  announce('Pizza added to your order. Pizza choices reset.');
+  announce('Pizza added to your order. Pizza choices reset. Your order has ' + getCartItemCount() + ' of ' + MAX_ORDER_ITEMS + ' items.');
 
 }
 
@@ -229,13 +286,17 @@ function addDrink(event) {
 
   const name = element('drink-name').value;
 
-  cart.push({type: 'Drink', name: size + ' ' + name, drinkName: name, drinkSize: size, quantity: Number(element('drink-quantity').value), toppings: [], unitPrice: menu.drinkPrices[size]});
+  const quantity = Number(element('drink-quantity').value);
+
+  if (!canAddToCart(quantity, element('drink-quantity'))) return;
+
+  cart.push({type: 'Drink', name: size + ' ' + name, drinkName: name, drinkSize: size, quantity: quantity, toppings: [], unitPrice: menu.drinkPrices[size]});
 
   element('drink-form').reset();
 
   renderCart();
 
-  announce('Drink added to your order.');
+  announce('Drink added to your order. Your order has ' + getCartItemCount() + ' of ' + MAX_ORDER_ITEMS + ' items.');
 
 }
 
@@ -503,6 +564,8 @@ async function placeOrder(event) {
 
   if (!cart.length) { showCheckoutError(new Error('Add a pizza or drink before placing your order.')); return; }
 
+  if (getCartItemCount() > MAX_ORDER_ITEMS) { showCheckoutError(new Error('An order can contain no more than ' + MAX_ORDER_ITEMS + ' total items.')); return; }
+
   try {
 
     const payload = {
@@ -695,6 +758,8 @@ element('cart-items').addEventListener('click', function (event) {
   if (!button) return;
 
   cart.splice(Number(button.dataset.remove), 1);
+
+  clearCartLimitError();
 
   renderCart();
 

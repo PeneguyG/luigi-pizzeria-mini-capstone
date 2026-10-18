@@ -106,7 +106,7 @@ elif [[ -e "$APP_DIR" ]]; then
 else
   git clone --branch "$APP_REPO_BRANCH" --depth 1 "$APP_REPO_URL" "$APP_DIR"
 fi
-[[ -f "$APP_DIR/customer_portal_app.py" && -f "$APP_DIR/customer_portal.sql" && -f "$APP_DIR/landingpage.html" && -f "$APP_DIR/customer-portal.html" && -f "$APP_DIR/employee-dashboard.html" ]] || die "The repository is missing one or more landing page, dashboard, or customer portal files."
+[[ -f "$APP_DIR/customer_portal_app.py" && -f "$APP_DIR/customer_portal.sql" && -f "$APP_DIR/landingpage.html" && -f "$APP_DIR/customer-portal.html" && -f "$APP_DIR/employee-dashboard.html" && -f "$APP_DIR/static/luigis-vintage-pizza-badge.png" ]] || die "The repository is missing one or more app pages, the customer portal schema, or the pizzeria logo."
 
 say "Configuring MariaDB for the small VM."
 cat >/etc/mysql/mariadb.conf.d/60-luigi-pizzeria.cnf <<'EOF'

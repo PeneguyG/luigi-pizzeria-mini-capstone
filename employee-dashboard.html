@@ -15,13 +15,11 @@
     <div class="container py-3">
       <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
-          <!-- Replace this marked box with the approved company logo when available. -->
-          <div class="border border-2 rounded d-flex align-items-center justify-content-center text-center fw-semibold flex-shrink-0" style="width:4.5rem;height:4.5rem;border-color:#c99c9c !important;background-color:#fbfaf5;color:#603b3b;" role="img" aria-label="Company logo placeholder">LOGO<br>PLACEHOLDER</div>
+          <img class="rounded-3 flex-shrink-0" src="/static/luigis-vintage-pizza-badge.png" width="80" height="80" alt="Luigi's Pizzeria vintage badge logo" style="object-fit:contain;background-color:#fbfaf5;">
           <div><p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Employee portal</p><h1 class="h3 mb-0">Pizzeria Operations</h1></div>
         </div>
         <div class="d-flex align-items-center gap-2">
           <span class="badge rounded-pill text-dark border" style="background-color:#fbfaf5;border-color:#d9bcbc !important;">Staff workspace</span>
-          <span class="small text-secondary">Demo data</span>
         </div>
       </div>
     </div>
@@ -62,13 +60,14 @@
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="customer-phone">Phone number <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" autocomplete="tel" required maxlength="30" aria-label="Customer phone number, required" aria-describedby="customer-phone-help customer-phone-error">
+                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" pattern="(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\)|[2-9][0-9]{2})[ .-]?[2-9][0-9]{2}[ .-]?[0-9]{4}" aria-label="Customer phone number, required. Enter a 10-digit US number." aria-describedby="customer-phone-help customer-phone-error">
                     <div id="customer-phone-help" class="form-text">Used to contact the customer about this order.</div>
-                    <div id="customer-phone-error" class="invalid-feedback">Enter a phone number.</div>
+                    <div id="customer-phone-error" class="invalid-feedback">Enter a valid 10-digit US phone number. Letters are not allowed.</div>
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="order-channel">Order channel <span aria-hidden="true" class="text-danger">*</span></label>
-                    <select class="form-select" id="order-channel" name="channel" required aria-label="Order channel, required"><option value="In-store">In-store</option><option value="Phone pickup">Phone pickup</option></select>
+                    <select class="form-select" id="order-channel" name="channel" required aria-label="Order channel, required" aria-describedby="order-channel-error"><option value="In-store">In-store</option><option value="Phone pickup">Phone pickup</option></select>
+                    <div id="order-channel-error" class="invalid-feedback">Choose an order channel.</div>
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="pickup-time">Requested pickup time</label>
@@ -96,7 +95,8 @@
                   </div>
                   <div class="col-6 col-sm-3 col-lg-2">
                     <label class="form-label" for="pizza-quantity">Quantity</label>
-                    <input class="form-control" id="pizza-quantity" name="pizzaQuantity" type="number" min="1" max="20" value="1" required aria-label="Pizza quantity, from 1 to 20">
+                    <input class="form-control" id="pizza-quantity" name="pizzaQuantity" type="number" min="1" max="20" value="1" aria-label="Pizza quantity, from 1 to 20" aria-describedby="pizza-quantity-help pizza-quantity-error">
+                    <div id="pizza-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 20.</div>
                   </div>
                   <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-end gap-2">
                     <button class="btn btn-danger w-100 w-sm-auto" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add pizza to order</button>
@@ -139,7 +139,8 @@
                   </div>
                   <div class="col-6 col-sm-3 col-lg-2">
                     <label class="form-label" for="drink-quantity">Quantity</label>
-                    <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="50" value="1" required aria-label="Drink quantity, from 1 to 50">
+                    <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="20" value="1" aria-label="Drink quantity, from 1 to 20" aria-describedby="drink-quantity-help drink-quantity-error">
+                    <div id="drink-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 20.</div>
                   </div>
                   <div class="col-12 col-lg-5">
                     <button class="btn btn-danger w-100" id="add-drink" type="button" aria-label="Add 1 medium iced tea to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add drink to order</button>
@@ -149,8 +150,8 @@
 
               <section class="col-12 border-top pt-4" aria-labelledby="cart-heading">
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
-                  <div><h4 id="cart-heading" class="h6 mb-1">Order cart</h4><p class="small text-secondary mb-0">Add a pizza or drink above to keep building this order.</p></div>
-                  <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" id="cancel-item-edit" type="button" hidden>Cancel item edit</button><button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-auto" id="clear-cart" type="button" aria-label="Remove all items from the order cart" aria-controls="cart-items">Clear cart</button></div>
+                  <div><h4 id="cart-heading" class="h6 mb-1">Order cart</h4><p class="small text-secondary mb-0">Add up to 20 pizzas and drinks combined.</p></div>
+                  <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-auto" id="clear-cart" type="button" aria-label="Remove all items from the order cart" aria-controls="cart-items">Clear cart</button></div>
                 </div>
                 <ul id="cart-items" class="list-group mb-3" aria-label="Items currently in order cart" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></ul>
                 <p id="cart-empty" class="small text-secondary border rounded p-3 mb-3">The cart is empty.</p>
@@ -168,7 +169,6 @@
 
               <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center gap-3 border-top pt-4">
                 <button id="submit-order-button" class="btn btn-danger px-4" type="submit" aria-label="Place order and add it to active orders" aria-controls="active-orders-list" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Place order</button>
-                <button id="cancel-order-edit" class="btn btn-outline-secondary" type="button" hidden>Cancel editing</button>
                 <p class="small text-secondary mb-0">Required fields are marked with an asterisk.</p>
               </div>
             </div>
@@ -184,6 +184,7 @@
           </div>
           <div id="active-orders-list" class="d-grid gap-3" aria-label="Current active orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
           <p id="orders-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
+          <p id="overdue-update-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-orders" class="border rounded p-4 text-center text-secondary" hidden>No active orders are waiting.</div>
         </div>
       </section>
@@ -202,7 +203,7 @@
     </section>
   </main>
 
-  <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management · Demo interface</p></footer>
+  <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
   <script>
     'use strict';
@@ -229,11 +230,11 @@
     const activeOrdersList = document.getElementById('active-orders-list');
     const historyList = document.getElementById('history-list');
     const cartItems = [];
+    const MAX_ORDER_ITEMS = 20;
     const posForm = document.getElementById('pos-form');
-    let editingOrderId = null;
-    let editingOriginalPickupTime = '';
-    let editingCartItemId = null;
     let activeOrders = [];
+    let overdueCheckRunning = false;
+    const overdueUpdatesInProgress = new Set();
 
     function formatMoney(amount) {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount) || 0);
@@ -273,8 +274,8 @@
         return topping.quantity + ' ' + (topping.quantity === 1 ? 'serving' : 'servings') + ' of ' + topping.name;
       }).join(', ');
       document.getElementById('add-pizza').setAttribute('aria-label',
-        (editingCartItemId === null ? 'Add ' : 'Update ') + config.quantity + ' ' + config.size.toLowerCase() + ' pizza' +
-        (toppingSummary ? ' with ' + toppingSummary : ' with no extra toppings') + ' ' + (editingCartItemId === null ? 'to order' : 'in order'));
+        'Add ' + config.quantity + ' ' + config.size.toLowerCase() + ' pizza' +
+        (toppingSummary ? ' with ' + toppingSummary : ' with no extra toppings') + ' to order');
       updateCartTotalAnnouncement();
     }
 
@@ -300,15 +301,44 @@
       const input = document.getElementById('pickup-time');
       const error = document.getElementById('pickup-time-error');
       const minimum = getMinimumPickupTime();
-      if (minimum && input.value !== editingOriginalPickupTime) input.min = minimum;
+      if (minimum) input.min = minimum;
       else input.removeAttribute('min');
-      const invalidPastTime = Boolean(input.value) && input.value !== editingOriginalPickupTime && (!minimum || input.value < minimum);
+      const invalidPastTime = Boolean(input.value) && (!minimum || input.value < minimum);
       input.setCustomValidity(invalidPastTime ? 'Pickup time must be later than the current time today.' : '');
       error.textContent = minimum
         ? 'Pickup time must be later than the current time today.'
         : 'There are no later pickup times available today.';
       error.hidden = !invalidPastTime;
       return !invalidPastTime;
+    }
+
+    const customerPhoneInput = document.getElementById('customer-phone');
+    const customerNameInput = document.getElementById('customer-name');
+    const customerPhonePattern = /^(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\)|[2-9][0-9]{2})[ .-]?[2-9][0-9]{2}[ .-]?[0-9]{4}$/;
+    const orderValidationFields = [
+      customerNameInput,
+      customerPhoneInput,
+      document.getElementById('order-channel'),
+      document.getElementById('pickup-time')
+    ];
+
+    function validateCustomerName() {
+      const name = customerNameInput.value.trim();
+      customerNameInput.setCustomValidity(name ? '' : 'Enter the customer\'s name.');
+      return customerNameInput.validity.valid;
+    }
+
+    function validateCustomerPhone() {
+      const phone = customerPhoneInput.value.trim();
+      const phoneError = document.getElementById('customer-phone-error');
+      const malformed = phone.length > 0 && !customerPhonePattern.test(phone);
+      customerPhoneInput.setCustomValidity(malformed
+        ? 'Enter a valid 10-digit US phone number. Letters are not allowed.'
+        : '');
+      phoneError.textContent = phone
+        ? 'Enter a valid 10-digit US phone number. Use digits with optional spaces, parentheses, periods, or hyphens; letters are not allowed.'
+        : 'Enter the customer\'s phone number.';
+      return customerPhoneInput.validity.valid;
     }
 
     function clearDrinkSelection() {
@@ -318,58 +348,13 @@
       updateDrinkButtonLabel();
     }
 
-    function clearCartItemEditor(resetMenus) {
-      editingCartItemId = null;
-      document.getElementById('add-pizza').disabled = false;
-      document.getElementById('add-drink').disabled = false;
-      document.getElementById('add-pizza').textContent = 'Add pizza to order';
-      document.getElementById('add-drink').textContent = 'Add drink to order';
-      document.getElementById('cancel-item-edit').hidden = true;
-      if (resetMenus) {
-        clearPizzaSelection();
-        clearDrinkSelection();
-      } else {
-        updatePizzaPreview();
-        updateDrinkButtonLabel();
-      }
-    }
-
-    function startCartItemEdit(itemId) {
-      const item = cartItems.find(function (candidate) { return String(candidate.id) === String(itemId); });
-      if (!item) return;
-      editingCartItemId = item.id;
-      document.getElementById('cancel-item-edit').hidden = false;
-      if (item.type === 'Pizza') {
-        document.getElementById('pizza-size').value = item.pizzaSize;
-        document.getElementById('pizza-quantity').value = String(item.quantity);
-        document.querySelectorAll('.pizza-topping').forEach(function (input) {
-          const topping = (item.toppings || []).find(function (selected) { return selected.name === input.dataset.topping; });
-          input.value = topping ? String(topping.quantity) : '0';
-        });
-        document.getElementById('add-pizza').disabled = false;
-        document.getElementById('add-drink').disabled = true;
-        document.getElementById('add-pizza').textContent = 'Update pizza in order';
-      } else {
-        document.getElementById('drink-option').value = item.drinkName;
-        document.getElementById('drink-size').value = item.drinkSize;
-        document.getElementById('drink-quantity').value = String(item.quantity);
-        document.getElementById('add-pizza').disabled = true;
-        document.getElementById('add-drink').disabled = false;
-        document.getElementById('add-drink').textContent = 'Update drink in order';
-      }
-      updatePizzaPreview();
-      updateDrinkButtonLabel();
-      (item.type === 'Pizza' ? document.getElementById('pizza-size') : document.getElementById('drink-option')).focus();
-      announce('Editing ' + item.name + '. Change its options, then choose Update in order.');
-    }
-
     function updateDrinkButtonLabel() {
       const size = document.getElementById('drink-size').value;
       const drink = document.getElementById('drink-option').value;
-      const quantity = Math.max(1, Math.min(50, Number(document.getElementById('drink-quantity').value) || 1));
+      const quantity = Math.max(1, Math.min(MAX_ORDER_ITEMS, Number(document.getElementById('drink-quantity').value) || 1));
       document.getElementById('add-drink').setAttribute('aria-label',
-        (editingCartItemId === null ? 'Add ' : 'Update ') + quantity + ' ' + size.toLowerCase() + ' ' + drink +
-        (quantity === 1 ? '' : 's') + ' ' + (editingCartItemId === null ? 'to order' : 'in order'));
+        'Add ' + quantity + ' ' + size.toLowerCase() + ' ' + drink +
+        (quantity === 1 ? '' : 's') + ' to order');
     }
 
     function getCartSubtotalCents() {
@@ -388,6 +373,25 @@
       return getCartTaxCents() / 100;
     }
 
+    function getCartItemCount() {
+      return cartItems.reduce(function (sum, item) { return sum + item.quantity; }, 0);
+    }
+
+    function canAddToCart(quantity, input) {
+      const currentCount = getCartItemCount();
+      if (currentCount + quantity <= MAX_ORDER_ITEMS) {
+        document.getElementById('cart-error').hidden = true;
+        return true;
+      }
+      const remaining = Math.max(0, MAX_ORDER_ITEMS - currentCount);
+      const error = document.getElementById('cart-error');
+      error.textContent = 'An order can contain up to ' + MAX_ORDER_ITEMS + ' total items. There are ' + currentCount +
+        ' already in the cart, so you can add at most ' + remaining + ' more.';
+      error.hidden = false;
+      input.focus();
+      return false;
+    }
+
     function getCartTotal() {
       return (getCartSubtotalCents() + getCartTaxCents()) / 100;
     }
@@ -403,6 +407,9 @@
     function renderCart() {
       const list = document.getElementById('cart-items');
       const emptyMessage = document.getElementById('cart-empty');
+      const cartError = document.getElementById('cart-error');
+      cartError.textContent = 'Add at least one item before placing the order.';
+      cartError.hidden = true;
       if (cartItems.length === 0) {
         list.innerHTML = '';
         emptyMessage.hidden = false;
@@ -414,9 +421,7 @@
           return '<li class="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">' +
             '<div><div class="fw-semibold">' + item.quantity + ' × ' + escapeHTML(item.name) + '</div>' + description +
             '<div class="small text-secondary">' + formatMoney(item.unitPrice) + ' each · ' + formatMoney(item.unitPrice * item.quantity) + ' line total</div></div>' +
-            '<div class="d-flex gap-2 align-self-start align-self-sm-center"><button class="btn btn-sm btn-outline-secondary" type="button" data-cart-edit="' + item.id +
-            '" aria-label="Edit ' + escapeHTML(item.quantity + ' ' + item.name) + ' in order">Edit</button>' +
-            '<button class="btn btn-sm btn-outline-danger" type="button" data-cart-remove="' + item.id +
+            '<div class="d-flex gap-2 align-self-start align-self-sm-center"><button class="btn btn-sm btn-outline-danger" type="button" data-cart-remove="' + item.id +
             '" aria-label="' + escapeHTML(removeLabel) + '" aria-controls="cart-items">Remove</button></div></li>';
         }).join('');
       }
@@ -426,9 +431,30 @@
       updateCartTotalAnnouncement();
     }
 
+    function validateItemQuantity(input, itemLabel, maximum) {
+      const value = input.value.trim();
+      const quantity = Number(value);
+      let message = '';
+      if (!value) message = 'Enter a quantity before adding ' + itemLabel + '.';
+      else if (!Number.isInteger(quantity) || quantity < 1 || quantity > maximum) {
+        message = 'Enter a whole number from 1 to ' + maximum + '.';
+      }
+      input.setCustomValidity(message);
+      const valid = input.checkValidity();
+      input.classList.toggle('is-invalid', !valid);
+      if (valid) input.removeAttribute('aria-invalid');
+      else input.setAttribute('aria-invalid', 'true');
+      return valid;
+    }
+
     function addPizzaToCart() {
       const quantityInput = document.getElementById('pizza-quantity');
-      const invalidInput = [quantityInput].concat(Array.from(document.querySelectorAll('.pizza-topping')))
+      if (!validateItemQuantity(quantityInput, 'pizza', MAX_ORDER_ITEMS)) {
+        quantityInput.reportValidity();
+        quantityInput.focus();
+        return;
+      }
+      const invalidInput = Array.from(document.querySelectorAll('.pizza-topping'))
         .find(function (input) { return !input.checkValidity(); });
       if (invalidInput) {
         invalidInput.reportValidity();
@@ -436,29 +462,28 @@
         return;
       }
       const config = getPizzaConfiguration();
+      if (!canAddToCart(config.quantity, quantityInput)) return;
       const toppingText = config.toppings.map(function (topping) {
         return topping.quantity + '× ' + topping.name;
       }).join(', ');
-      const wasEditing = editingCartItemId !== null;
-      const updatedItem = {
-        id: wasEditing ? editingCartItemId : nextCartItemId++, type: 'Pizza', name: config.size + ' (' + config.pricing.inches + '-inch) pizza',
+      const item = {
+        id: nextCartItemId++, type: 'Pizza', name: config.size + ' (' + config.pricing.inches + '-inch) pizza',
         quantity: config.quantity, unitPrice: config.unitPrice,
         description: toppingText ? 'Toppings: ' + toppingText : '',
         pizzaSize: config.size, toppings: config.toppings.slice()
       };
-      const existingIndex = cartItems.findIndex(function (item) { return String(item.id) === String(updatedItem.id); });
-      if (existingIndex >= 0) cartItems[existingIndex] = updatedItem;
-      else cartItems.push(updatedItem);
-      if (!wasEditing) clearPizzaSelection();
-      clearCartItemEditor(wasEditing);
+      cartItems.push(item);
+      clearPizzaSelection();
+      quantityInput.classList.remove('is-invalid');
+      quantityInput.removeAttribute('aria-invalid');
       renderCart();
       announce(config.quantity + ' ' + config.size.toLowerCase() + ' pizza' + (config.quantity === 1 ? '' : 's') +
-        (wasEditing ? ' updated in the order.' : ' added to the order cart.') + ' Pizza choices reset to Medium, quantity 1, and no extra toppings.');
+        ' added to the order cart. Pizza choices reset to Medium, quantity 1, and no extra toppings.');
     }
 
     function addDrinkToCart() {
       const quantityInput = document.getElementById('drink-quantity');
-      if (!quantityInput.checkValidity()) {
+      if (!validateItemQuantity(quantityInput, 'drinks', MAX_ORDER_ITEMS)) {
         quantityInput.reportValidity();
         quantityInput.focus();
         return;
@@ -466,19 +491,18 @@
       const size = document.getElementById('drink-size').value;
       const drink = document.getElementById('drink-option').value;
       const quantity = Number(quantityInput.value);
-      const wasEditing = editingCartItemId !== null;
-      const updatedItem = {
-        id: wasEditing ? editingCartItemId : nextCartItemId++, type: 'Drink', name: size + ' ' + drink, quantity: quantity,
+      if (!canAddToCart(quantity, quantityInput)) return;
+      const item = {
+        id: nextCartItemId++, type: 'Drink', name: size + ' ' + drink, quantity: quantity,
         unitPrice: drinkPricing[size], description: '', drinkName: drink, drinkSize: size
       };
-      const existingIndex = cartItems.findIndex(function (item) { return String(item.id) === String(updatedItem.id); });
-      if (existingIndex >= 0) cartItems[existingIndex] = updatedItem;
-      else cartItems.push(updatedItem);
-      if (!wasEditing) clearDrinkSelection();
-      clearCartItemEditor(wasEditing);
+      cartItems.push(item);
+      clearDrinkSelection();
+      quantityInput.classList.remove('is-invalid');
+      quantityInput.removeAttribute('aria-invalid');
       renderCart();
       announce(quantity + ' ' + size.toLowerCase() + ' ' + drink + (quantity === 1 ? '' : 's') +
-        (wasEditing ? ' updated in the order.' : ' added to the order cart.') + ' Drink choices reset to medium iced tea, quantity 1.');
+        ' added to the order cart. Drink choices reset to medium iced tea, quantity 1.');
     }
 
     async function apiRequest(path, options) {
@@ -518,89 +542,6 @@
       });
     }
 
-    async function saveOrderEdits(orderId, orderInput) {
-      return apiRequest('/api/employee/orders/' + encodeURIComponent(orderId), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(orderInput)
-      });
-    }
-
-    function setOrderEditMode(orderId) {
-      editingOrderId = orderId == null ? null : String(orderId);
-      const editing = editingOrderId !== null;
-      document.getElementById('pos-heading').textContent = editing ? 'Edit order ' + editingOrderId : 'Create an order';
-      document.getElementById('pos-description').textContent = editing
-        ? 'Correct the customer details or cart, then save the changes.'
-        : 'Build a cart with any number of pizzas and drinks, then send it to the active queue.';
-      document.getElementById('submit-order-button').textContent = editing ? 'Save order changes' : 'Place order';
-      document.getElementById('submit-order-button').setAttribute('aria-label', editing
-        ? 'Save changes to order ' + editingOrderId
-        : 'Place order and add it to active orders');
-      document.getElementById('cancel-order-edit').hidden = !editing;
-    }
-
-    function beginOrderEdit(order) {
-      const hasDraft = cartItems.length > 0 || document.getElementById('customer-name').value.trim() !== '';
-      if (hasDraft && !window.confirm('Replace the current POS draft with order ' + order.id + ' for editing?')) return;
-
-      posForm.reset();
-      posForm.classList.remove('was-validated');
-      cartItems.length = 0;
-      clearCartItemEditor(false);
-      document.getElementById('customer-name').value = order.customerName || '';
-      document.getElementById('customer-phone').value = order.customerPhone || '';
-      document.getElementById('order-channel').value = order.channel || 'In-store';
-      document.getElementById('pickup-time').value = order.pickupTime || '';
-      document.getElementById('order-notes').value = order.notes || '';
-      editingOriginalPickupTime = order.pickupTime || '';
-      (order.items || []).forEach(function (item) {
-        const toppings = (item.toppings || []).map(function (topping) {
-          return { name: topping.name, quantity: Number(topping.quantity) || 1 };
-        });
-        cartItems.push({
-          id: nextCartItemId++,
-          type: item.type,
-          name: item.name,
-          quantity: Number(item.quantity) || 1,
-          unitPrice: Number(item.unitPrice) || 0,
-          description: item.description || (toppings.length ? 'Toppings: ' + toppings.map(function (topping) { return topping.quantity + '× ' + topping.name; }).join(', ') : ''),
-          pizzaSize: item.pizzaSize || null,
-          toppings: toppings,
-          drinkName: item.drinkName || null,
-          drinkSize: item.drinkSize || null
-        });
-      });
-      setOrderEditMode(order.id);
-      document.getElementById('pickup-time-error').hidden = true;
-      document.getElementById('cart-error').hidden = true;
-      document.getElementById('order-submit-error').hidden = true;
-      updatePickupTimeValidity();
-      renderCart();
-      updatePizzaPreview();
-      updateDrinkButtonLabel();
-      activateTab(document.getElementById('pos-tab'), false);
-      document.getElementById('customer-name').focus();
-      announce('Editing order ' + order.id + '. Cart items have Edit and Remove controls; save the order when finished.');
-    }
-
-    function cancelOrderEdit() {
-      if (editingOrderId === null) return;
-      const orderId = editingOrderId;
-      setOrderEditMode(null);
-      editingOriginalPickupTime = '';
-      posForm.reset();
-      posForm.classList.remove('was-validated');
-      cartItems.length = 0;
-      clearCartItemEditor(true);
-      document.getElementById('pickup-time-error').hidden = true;
-      document.getElementById('cart-error').hidden = true;
-      document.getElementById('order-submit-error').hidden = true;
-      updatePickupTimeValidity();
-      renderCart();
-      announce('Editing of order ' + orderId + ' canceled.');
-    }
-
     function formatTimestamp(timestamp) {
       const date = new Date(timestamp);
       if (Number.isNaN(date.getTime())) return { label: 'Timestamp unavailable', iso: '' };
@@ -629,10 +570,10 @@
       }).join('');
     }
 
-    function statusBadge(status) {
+    function statusBadge(status, orderId) {
       if (status === 'Completed') return '<span class="badge rounded-pill text-dark" style="background-color:#e4efe3;">Completed</span>';
       const style = statusStyles[status] || statusStyles.Confirmed;
-      return '<span class="badge rounded-pill" style="background-color:' + style.background + ';color:' + style.color + ';">' + escapeHTML(status) + '</span>';
+      return '<span data-order-status-badge="' + escapeHTML(orderId) + '" class="badge rounded-pill" style="background-color:' + style.background + ';color:' + style.color + ';">' + escapeHTML(status) + '</span>';
     }
 
     function orderCard(order) {
@@ -651,10 +592,10 @@
       ].join('');
       const taxDetails = Number.isFinite(Number(order.taxPrice))
         ? ' <span class="small text-secondary">(includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
-      return '<article class="card" style="border-color:#ded5d2;"><div class="card-body p-3 p-md-4">' +
+      return '<article class="card" data-order-card="' + id + '" style="border-color:#ded5d2;"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div class="flex-grow-1">' +
         '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
-        statusBadge(order.status) + '<span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">' + escapeHTML(order.source || 'Order system') + '</span></div>' +
+        statusBadge(order.status, order.id) + '<span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">' + escapeHTML(order.source || 'Order system') + '</span></div>' +
         '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p><p class="small mb-2"><span class="fw-semibold">Items:</span></p>' +
         '<ul class="small mb-2">' + formatOrderItems(order.items) + '</ul>' +
         '<p class="small mb-2"><span class="fw-semibold">Order total:</span> ' + formatMoney(getOrderTotal(order)) + taxDetails +
@@ -663,11 +604,40 @@
         '" aria-label="Show details for order ' + id + '" aria-expanded="false" aria-controls="' + detailsId + '">Show order details</button>' +
         '<div id="' + detailsId + '" class="row g-2 small mt-1" hidden>' + details + '</div></div>' +
         '<div class="d-flex flex-column flex-sm-row flex-lg-column align-items-stretch gap-2" style="min-width:14rem;">' +
-        '<button class="btn btn-sm btn-outline-secondary" type="button" data-order-edit="' + id + '" aria-label="Edit order ' + id + '">Edit order</button>' +
         '<label class="visually-hidden" for="status-' + safeId + '">Status for order ' + id + '</label>' +
         '<select class="form-select form-select-sm" id="status-' + safeId + '" data-status-select="' + id + '" aria-label="Choose new status for order ' + id + '">' + statusOptions + '</select>' +
         '<button class="btn btn-sm btn-outline-danger" type="button" data-status-button="' + id + '" aria-label="Save status for order ' + id +
         '" aria-controls="active-orders-list">Update status</button></div></div></div></article>';
+    }
+
+    function synchronizeActiveOrders(orders) {
+      const existingCards = new Map();
+      const previousOrders = new Map(activeOrders.map(function (order) { return [String(order.id), order]; }));
+      activeOrdersList.querySelectorAll('[data-order-card]').forEach(function (card) {
+        existingCards.set(card.dataset.orderCard, card);
+      });
+      const nextIds = new Set(orders.map(function (order) { return String(order.id); }));
+
+      existingCards.forEach(function (card, id) {
+        if (nextIds.has(id)) return;
+        if (card.contains(document.activeElement)) document.getElementById('refresh-orders').focus();
+        card.remove();
+      });
+
+      for (let index = orders.length - 1; index >= 0; index -= 1) {
+        const order = orders[index];
+        const existingCard = existingCards.get(String(order.id));
+        if (existingCard && existingCard.isConnected) {
+          const previousOrder = previousOrders.get(String(order.id));
+          if (!previousOrder || previousOrder.status !== order.status) updateOrderStatusInUi(order, true);
+        } else {
+          activeOrdersList.insertAdjacentHTML('afterbegin', orderCard(order));
+        }
+      }
+
+      activeOrders = orders;
+      document.getElementById('empty-orders').hidden = orders.length !== 0;
+      document.getElementById('order-count').textContent = String(orders.length);
     }
 
     function historyCard(order) {
@@ -696,12 +666,90 @@
         loadError.textContent = '';
         document.getElementById('empty-orders').hidden = orders.length !== 0;
         document.getElementById('order-count').textContent = String(orders.length);
+        await checkForOverdueOrders();
       } catch (error) {
         const loadError = document.getElementById('orders-load-error');
         loadError.textContent = 'Could not load active orders. ' + error.message;
         loadError.hidden = false;
         document.getElementById('empty-orders').hidden = true;
         announce('Could not load active orders. ' + error.message);
+      }
+    }
+
+    function pickupTimeHasPassed(pickupTime, now) {
+      const match = /^([01][0-9]|2[0-3]):([0-5][0-9])$/.exec(String(pickupTime || ''));
+      if (!match) return false;
+      const pickupSeconds = Number(match[1]) * 3600 + Number(match[2]) * 60;
+      const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000;
+      return currentSeconds > pickupSeconds;
+    }
+
+    function updateOrderStatusInUi(order, preserveFocusedSelection) {
+      const card = activeOrdersList.querySelector('[data-order-card="' + CSS.escape(String(order.id)) + '"]');
+      if (!card) return;
+      const badge = card.querySelector('[data-order-status-badge]');
+      const style = statusStyles[order.status] || statusStyles.Confirmed;
+      if (badge) {
+        badge.textContent = order.status;
+        badge.style.backgroundColor = style.background;
+        badge.style.color = style.color;
+      }
+      const statusSelect = card.querySelector('[data-status-select]');
+      if (statusSelect && !(preserveFocusedSelection && statusSelect === document.activeElement)) {
+        statusSelect.value = order.status;
+      }
+    }
+
+    async function checkForOverdueOrders(refreshFromApi) {
+      if (overdueCheckRunning) return;
+      overdueCheckRunning = true;
+      const overdueError = document.getElementById('overdue-update-error');
+      const changedOrders = [];
+      const failedOrders = [];
+
+      try {
+        if (refreshFromApi) synchronizeActiveOrders(await listOrders());
+        const now = new Date();
+        const candidates = activeOrders.filter(function (order) {
+          return order.status !== 'Completed' && order.status !== 'Overdue' && pickupTimeHasPassed(order.pickupTime, now);
+        });
+
+        for (const order of candidates) {
+          const id = String(order.id);
+          if (overdueUpdatesInProgress.has(id)) continue;
+          overdueUpdatesInProgress.add(id);
+          try {
+            const result = await updateOrderStatus(order.id, 'Overdue');
+            order.status = result && result.status ? result.status : 'Overdue';
+            updateOrderStatusInUi(order, true);
+            changedOrders.push(order);
+          } catch (error) {
+            failedOrders.push({ id: id, message: error.message });
+          } finally {
+            overdueUpdatesInProgress.delete(id);
+          }
+        }
+
+        if (failedOrders.length) {
+          const failedIds = failedOrders.map(function (item) { return item.id; }).join(', ');
+          overdueError.textContent = 'Could not mark order' + (failedOrders.length === 1 ? ' ' : 's ') + failedIds +
+            ' overdue. ' + failedOrders[0].message + ' Refresh orders and try again.';
+          overdueError.hidden = false;
+        } else {
+          overdueError.hidden = true;
+          overdueError.textContent = '';
+        }
+
+        if (changedOrders.length) {
+          const ids = changedOrders.map(function (order) { return String(order.id); }).join(', ');
+          announce('Order' + (changedOrders.length === 1 ? ' ' : 's ') + ids +
+            ' automatically marked overdue because the requested pickup time passed.');
+        }
+      } catch (error) {
+        overdueError.textContent = 'Could not check active orders for overdue pickup times. ' + error.message;
+        overdueError.hidden = false;
+      } finally {
+        overdueCheckRunning = false;
       }
     }
 
@@ -756,73 +804,77 @@
     });
 
     document.getElementById('pizza-size').addEventListener('change', updatePizzaPreview);
-    document.getElementById('pizza-quantity').addEventListener('input', updatePizzaPreview);
+    document.getElementById('pizza-quantity').addEventListener('input', function () {
+      if (this.classList.contains('is-invalid')) validateItemQuantity(this, 'pizza', MAX_ORDER_ITEMS);
+      updatePizzaPreview();
+    });
     document.querySelectorAll('.pizza-topping').forEach(function (input) {
       input.addEventListener('input', updatePizzaPreview);
       input.addEventListener('change', updatePizzaPreview);
     });
     document.getElementById('pickup-time').addEventListener('input', updatePickupTimeValidity);
     document.getElementById('pickup-time').addEventListener('change', updatePickupTimeValidity);
+    posForm.addEventListener('input', function (event) {
+      if (event.target === customerNameInput) validateCustomerName();
+      if (event.target === customerPhoneInput) validateCustomerPhone();
+      if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
+        event.target.setAttribute('aria-invalid', String(!event.target.validity.valid));
+      }
+    });
+    posForm.addEventListener('change', function (event) {
+      if (event.target === customerNameInput) validateCustomerName();
+      if (event.target === customerPhoneInput) validateCustomerPhone();
+      if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
+        event.target.setAttribute('aria-invalid', String(!event.target.validity.valid));
+      }
+    });
     document.getElementById('drink-size').addEventListener('change', updateDrinkButtonLabel);
     document.getElementById('drink-option').addEventListener('change', updateDrinkButtonLabel);
-    document.getElementById('drink-quantity').addEventListener('input', updateDrinkButtonLabel);
+    document.getElementById('drink-quantity').addEventListener('input', function () {
+      if (this.classList.contains('is-invalid')) validateItemQuantity(this, 'drinks', MAX_ORDER_ITEMS);
+      updateDrinkButtonLabel();
+    });
     document.getElementById('add-pizza').addEventListener('click', addPizzaToCart);
     document.getElementById('add-drink').addEventListener('click', addDrinkToCart);
 
     document.getElementById('cart-items').addEventListener('click', function (event) {
-      const editButton = event.target.closest('[data-cart-edit]');
-      if (editButton) {
-        startCartItemEdit(editButton.dataset.cartEdit);
-        return;
-      }
       const removeButton = event.target.closest('[data-cart-remove]');
       if (!removeButton) return;
       const index = cartItems.findIndex(function (item) { return String(item.id) === removeButton.dataset.cartRemove; });
       if (index !== -1) {
         const removed = cartItems.splice(index, 1)[0];
-        if (String(editingCartItemId) === String(removed.id)) clearCartItemEditor(false);
         renderCart();
         announce(removed.name + ' removed from the order cart.');
       }
     });
 
-    document.getElementById('cancel-item-edit').addEventListener('click', function () {
-      clearCartItemEditor(true);
-      announce('Item editing canceled. The order cart was not changed.');
-    });
-
     document.getElementById('clear-cart').addEventListener('click', function () {
       cartItems.length = 0;
-      clearCartItemEditor(false);
       renderCart();
       announce('Order cart cleared.');
     });
 
-    document.getElementById('cancel-order-edit').addEventListener('click', cancelOrderEdit);
-
     posForm.addEventListener('submit', async function (event) {
       event.preventDefault();
+      validateCustomerName();
+      validateCustomerPhone();
       updatePickupTimeValidity();
       posForm.classList.add('was-validated');
+      orderValidationFields.forEach(function (control) {
+        control.setAttribute('aria-invalid', String(!control.validity.valid));
+      });
       const cartError = document.getElementById('cart-error');
-      if (!posForm.checkValidity()) {
-        const invalid = posForm.querySelector(':invalid');
-        if (invalid) invalid.focus();
+      const invalid = orderValidationFields.find(function (control) { return !control.validity.valid; });
+      if (invalid) {
+        invalid.focus();
         announce('Please correct the required or invalid fields before placing the order.');
         return;
       }
       if (cartItems.length === 0) {
+        cartError.textContent = 'Add at least one item before placing the order.';
         cartError.hidden = false;
         document.getElementById('add-pizza').focus();
         announce('Add at least one pizza or drink before placing the order.');
-        return;
-      }
-      if (editingCartItemId !== null) {
-        const editingItem = cartItems.find(function (item) { return String(item.id) === String(editingCartItemId); });
-        const updateButton = editingItem && editingItem.type === 'Drink'
-          ? document.getElementById('add-drink') : document.getElementById('add-pizza');
-        updateButton.focus();
-        announce('Finish or cancel the current item edit before saving the order.');
         return;
       }
       cartError.hidden = true;
@@ -850,19 +902,16 @@
       const submitButton = document.getElementById('submit-order-button');
       submitButton.disabled = true;
       posForm.setAttribute('aria-busy', 'true');
-      const wasEditingOrder = editingOrderId !== null;
-      const submittedOrderId = editingOrderId;
-      announce(wasEditingOrder ? 'Saving changes to order ' + submittedOrderId + '.' : 'Saving order.');
+      announce('Saving order.');
       try {
-        const saved = wasEditingOrder
-          ? await saveOrderEdits(submittedOrderId, orderInput)
-          : await createOrder(orderInput);
-        setOrderEditMode(null);
-        editingOriginalPickupTime = '';
+        const saved = await createOrder(orderInput);
         cartItems.length = 0;
-        clearCartItemEditor(true);
         posForm.reset();
         posForm.classList.remove('was-validated');
+        posForm.querySelectorAll('[aria-invalid]').forEach(function (control) { control.removeAttribute('aria-invalid'); });
+        posForm.querySelectorAll('.is-invalid').forEach(function (control) { control.classList.remove('is-invalid'); });
+        customerNameInput.setCustomValidity('');
+        customerPhoneInput.setCustomValidity('');
         document.getElementById('pickup-time-error').hidden = true;
         updatePickupTimeValidity();
         cartError.hidden = true;
@@ -871,13 +920,11 @@
         updatePizzaPreview();
         updateDrinkButtonLabel();
         activateTab(document.getElementById('orders-tab'), true);
-        announce(wasEditingOrder
-          ? 'Order ' + saved.id + ' for ' + saved.customerName + ' was updated.'
-          : 'Order ' + saved.id + ' for ' + saved.customerName + ' was placed and added to active orders.');
+        announce('Order ' + saved.id + ' for ' + saved.customerName + ' was placed and added to active orders.');
       } catch (error) {
-        submitError.textContent = 'Order could not be ' + (wasEditingOrder ? 'updated. ' : 'placed. ') + error.message;
+        submitError.textContent = 'Order could not be placed. ' + error.message;
         submitError.hidden = false;
-        announce('Order could not be ' + (wasEditingOrder ? 'updated. ' : 'placed. ') + error.message);
+        announce('Order could not be placed. ' + error.message);
       } finally {
         submitButton.disabled = false;
         posForm.removeAttribute('aria-busy');
@@ -893,13 +940,6 @@
         detailsButton.setAttribute('aria-label', (expanded ? 'Show' : 'Hide') + ' details for order ' + detailsButton.dataset.detailsButton);
         detailsButton.textContent = expanded ? 'Show order details' : 'Hide order details';
         panel.hidden = expanded;
-        return;
-      }
-      const editButton = event.target.closest('[data-order-edit]');
-      if (editButton) {
-        const order = activeOrders.find(function (candidate) { return String(candidate.id) === editButton.dataset.orderEdit; });
-        if (order) beginOrderEdit(order);
-        else announce('That order is no longer in the active queue. Refresh orders and try again.');
         return;
       }
       const statusButton = event.target.closest('[data-status-button]');
@@ -936,6 +976,10 @@
     updateDrinkButtonLabel();
     renderOrders();
     renderHistory();
+    window.setInterval(function () { checkForOverdueOrders(true); }, 30000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) checkForOverdueOrders(true);
+    });
   </script>
 </body>
 </html>

@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS order_item_toppings (
   unit_price DECIMAL(10, 2) UNSIGNED NOT NULL,
   PRIMARY KEY (order_item_id, topping_id),
   CONSTRAINT chk_item_toppings_quantity CHECK (quantity BETWEEN 1 AND 3),
+  CONSTRAINT chk_item_toppings_max_three CHECK (quantity <= 3),
   CONSTRAINT fk_item_toppings_item FOREIGN KEY (order_item_id)
     REFERENCES order_items (order_item_id) ON DELETE CASCADE,
   CONSTRAINT fk_item_toppings_topping FOREIGN KEY (topping_id)

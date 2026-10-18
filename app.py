@@ -19,6 +19,7 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 TAX_RATE_BPS = 975
 TAX_RATE = Decimal(TAX_RATE_BPS) / Decimal(10000)
 CENT = Decimal("0.01")
+MAX_ORDER_ITEMS = 20
 ALLOWED_STATUSES = {"Confirmed", "In-Progress", "Ready", "Overdue", "Completed"}
 ALLOWED_CHANNELS = {"In-store", "Phone pickup"}
 DRINKS = {"Iced tea", "Dr. Pepper", "Cola", "Un-cola"}
@@ -74,7 +75,7 @@ def required_text(value, label, max_length):
     return value
 
 
-def parse_quantity(value, item_type):
+def parse_quantity(value):
     if isinstance(value, bool):
         raise ApiError("Item quantity must be a whole number.")
     try:
@@ -83,7 +84,7 @@ def parse_quantity(value, item_type):
             raise ValueError()
     except (TypeError, ValueError):
         raise ApiError("Item quantity must be a whole number.")
-    maximum = 20 if item_type == "Pizza" else 50
+    maximum = MAX_ORDER_ITEMS
     if quantity < 1 or quantity > maximum:
         raise ApiError("Quantity must be between 1 and " + str(maximum) + ".")
     return quantity
@@ -116,7 +117,7 @@ def prepare_items(raw_items):
         item_type = raw.get("type")
         if not isinstance(item_type, str) or item_type not in {"Pizza", "Drink"}:
             raise ApiError("Unsupported cart item type.")
-        quantity = parse_quantity(raw.get("quantity"), item_type)
+        quantity = parse_quantity(raw.get("quantity"))
 
         if item_type == "Pizza":
             size = raw.get("pizzaSize")
@@ -180,6 +181,9 @@ def prepare_items(raw_items):
                 "portion": None,
                 "toppingUnitPrice": None,
             })
+
+    if sum(item["quantity"] for item in items) > MAX_ORDER_ITEMS:
+        raise ApiError("An order can contain no more than {} total items.".format(MAX_ORDER_ITEMS))
 
     subtotal = sum((item["unitPrice"] * item["quantity"] for item in items), Decimal("0.00"))
     subtotal = subtotal.quantize(CENT, rounding=ROUND_HALF_UP)

@@ -65,15 +65,11 @@
     }
 
     .brand-mark {
-      display: grid;
+      display: block;
       width: 3rem;
       height: 3rem;
-      place-items: center;
-      border: 2px solid #9caf9e;
       border-radius: 50%;
-      background: var(--green-pale);
-      color: var(--green-dark);
-      font-weight: 800;
+      object-fit: cover;
     }
 
     .flag-rule {
@@ -251,7 +247,7 @@
     <div class="container py-3">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <a class="d-inline-flex align-items-center gap-3 text-decoration-none" href="#home" aria-label="Luigi's Pizzeria home">
-          <span class="brand-mark" aria-hidden="true">LP</span>
+          <img class="brand-mark" src="/static/luigis-vintage-pizza-badge.png" alt="">
           <span>
             <span class="d-block fw-bold fs-5" style="color: var(--green-dark);">Luigi's Pizzeria</span>
             <span class="d-block small text-secondary">Fresh from our kitchen</span>
