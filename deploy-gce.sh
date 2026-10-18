@@ -106,7 +106,7 @@ elif [[ -e "$APP_DIR" ]]; then
 else
   git clone --branch "$APP_REPO_BRANCH" --depth 1 "$APP_REPO_URL" "$APP_DIR"
 fi
-[[ -f "$APP_DIR/customer_portal_app.py" && -f "$APP_DIR/customer_portal.sql" && -f "$APP_DIR/landingpage.html" && -f "$APP_DIR/customer-portal.html" && -f "$APP_DIR/employee-dashboard.html" && -f "$APP_DIR/static/luigis-vintage-pizza-badge.png" ]] || die "The repository is missing one or more app pages, the customer portal schema, or the pizzeria logo."
+[[ -f "$APP_DIR/backend/customer_portal_app.py" && -f "$APP_DIR/database/customer_portal.sql" && -f "$APP_DIR/templates/landingpage.html" && -f "$APP_DIR/templates/customer-portal.html" && -f "$APP_DIR/templates/employee-dashboard.html" && -f "$APP_DIR/static/images/luigis-vintage-pizza-badge.png" && -f "$APP_DIR/static/js/customer-portal.js" ]] || die "The repository is missing one or more backend, template, static, or database files."
 
 say "Configuring MariaDB for the small VM."
 cat >/etc/mysql/mariadb.conf.d/60-luigi-pizzeria.cnf <<'EOF'
@@ -123,7 +123,7 @@ systemctl enable --now mariadb
 systemctl restart mariadb
 
 # Apply the current schema, then add portal fields for an older local database.
-mariadb --protocol=socket --user=root < "$APP_DIR/customer_portal.sql"
+mariadb --protocol=socket --user=root < "$APP_DIR/database/customer_portal.sql"
 ensure_column() {
   local column="$1" definition="$2" exists
   exists="$(mariadb --protocol=socket --user=root --batch --skip-column-names \
@@ -205,7 +205,7 @@ User=luigiapp
 Group=luigiapp
 WorkingDirectory=${APP_DIR}
 EnvironmentFile=/etc/luigi-pizzeria/app.env
-ExecStart=${APP_DIR}/.venv/bin/gunicorn --workers 1 --threads 4 --timeout 60 --bind 127.0.0.1:8000 customer_portal_app:app
+ExecStart=${APP_DIR}/.venv/bin/gunicorn --workers 1 --threads 4 --timeout 60 --bind 127.0.0.1:8000 backend.customer_portal_app:app
 Restart=on-failure
 RestartSec=3
 PrivateTmp=true

@@ -16,15 +16,18 @@ import os
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, render_template, request
 
 import pymysql
 
 from pymysql.cursors import DictCursor
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder="../templates",
+    static_folder="../static",
+    static_url_path="/static",
+)
 
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
 
@@ -581,26 +584,17 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 @app.get("/")
 
 def landing_page():
-
-    return send_from_directory(BASE_DIR, "landingpage.html")
+    return render_template("landingpage.html")
 
 @app.get("/employee")
 
 def dashboard():
-
-    return send_from_directory(BASE_DIR, "employee-dashboard.html")
+    return render_template("employee-dashboard.html")
 
 @app.get("/customer")
 
 def customer_dashboard():
-
-    return send_from_directory(BASE_DIR, "customer-portal.html")
-
-@app.get("/customer-portal.js")
-
-def customer_script():
-
-    return send_from_directory(BASE_DIR, "customer-portal.js")
+    return render_template("customer-portal.html")
 
 @app.after_request
 
@@ -976,7 +970,7 @@ def create_order():
 
         app.logger.exception("Could not create order")
 
-        return jsonify({"error": "Order could not be saved. Check that MariaDB is running, the connection settings are correct, and customer-portal-schema.sql has been applied."}), 503
+        return jsonify({"error": "Order could not be saved. Check that MariaDB is running, the connection settings are correct, and database/customer_portal.sql has been applied."}), 503
 
 @app.patch("/api/employee/orders/<int:order_id>")
 

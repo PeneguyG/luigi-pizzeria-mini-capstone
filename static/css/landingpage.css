@@ -1,0 +1,222 @@
+:root {
+      --green: #31543d;
+      --green-dark: #203d2b;
+      --green-pale: #e3eee3;
+      --red: #87373c;
+      --red-pale: #f2dddd;
+      --cream: #f7f7f2;
+      --ink: #25322b;
+      --muted: #4d5b52;
+      --border: #747c72;
+      --focus: #183c72;
+    }
+
+    body {
+      background: var(--cream);
+      color: var(--ink);
+    }
+
+    a {
+      color: var(--green-dark);
+    }
+
+    a:hover {
+      color: var(--red);
+    }
+
+    .skip-link {
+      position: absolute;
+      top: .5rem;
+      left: .5rem;
+      z-index: 1100;
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus) !important;
+      outline-offset: 3px;
+      box-shadow: none !important;
+    }
+
+    .site-header {
+      border-bottom: 1px solid #cbd3c9;
+      background: #fffefa;
+    }
+
+    .brand-mark {
+      display: block;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .flag-rule {
+      height: .45rem;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        #8eaa91 0 33.33%,
+        #fffefa 33.33% 66.66%,
+        #d49b9b 66.66% 100%
+      );
+    }
+
+    .hero {
+      overflow: hidden;
+      border: 1px solid #d4d8cf;
+      border-radius: 1.25rem;
+      background:
+        radial-gradient(circle at 85% 20%, #fffefa 0 9rem, transparent 9.1rem),
+        linear-gradient(135deg, #e6efe4, #fffefa 60%, #f4e2df);
+    }
+
+    .eyebrow {
+      color: var(--green-dark);
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      max-width: 14ch;
+      color: var(--green-dark);
+      font-size: clamp(2.5rem, 7vw, 5rem);
+      font-weight: 800;
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+
+    .hero-copy {
+      max-width: 38rem;
+      color: #37483d;
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .pizza-art {
+      display: block;
+      width: min(100%, 20rem);
+      height: auto;
+      margin-inline: auto;
+    }
+
+    .section-card {
+      border: 1px solid #d4d8cf;
+      border-radius: 1rem;
+      background: #fffefa;
+      box-shadow: 0 .5rem 1.5rem rgb(32 61 43 / 6%);
+    }
+
+    .btn-pizzeria {
+      --bs-btn-color: #fff;
+      --bs-btn-bg: var(--green);
+      --bs-btn-border-color: var(--green);
+      --bs-btn-hover-color: #fff;
+      --bs-btn-hover-bg: var(--green-dark);
+      --bs-btn-hover-border-color: var(--green-dark);
+      --bs-btn-active-color: #fff;
+      --bs-btn-active-bg: var(--green-dark);
+      --bs-btn-active-border-color: var(--green-dark);
+      --bs-btn-disabled-color: #fff;
+      --bs-btn-disabled-bg: #596b5d;
+      --bs-btn-disabled-border-color: #596b5d;
+    }
+
+    .btn-pizzeria-red {
+      --bs-btn-color: #fff;
+      --bs-btn-bg: var(--red);
+      --bs-btn-border-color: var(--red);
+      --bs-btn-hover-color: #fff;
+      --bs-btn-hover-bg: #67272c;
+      --bs-btn-hover-border-color: #67272c;
+      --bs-btn-active-color: #fff;
+      --bs-btn-active-bg: #67272c;
+      --bs-btn-active-border-color: #67272c;
+    }
+
+    .btn-outline-pizzeria {
+      --bs-btn-color: var(--green-dark);
+      --bs-btn-border-color: var(--green);
+      --bs-btn-hover-color: #fff;
+      --bs-btn-hover-bg: var(--green);
+      --bs-btn-hover-border-color: var(--green);
+      --bs-btn-active-color: #fff;
+      --bs-btn-active-bg: var(--green-dark);
+      --bs-btn-active-border-color: var(--green-dark);
+    }
+
+    .nav-pills .nav-link {
+      min-height: 44px;
+      color: var(--green-dark);
+      font-weight: 700;
+    }
+
+    .nav-pills .nav-link[aria-selected="true"] {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .form-control,
+    .form-select {
+      min-height: 44px;
+      border-color: var(--border);
+      color: var(--ink);
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 .2rem rgb(49 84 61 / 20%);
+    }
+
+    .form-text,
+    .text-secondary {
+      color: var(--muted) !important;
+    }
+
+    .auth-note {
+      border-left: .25rem solid var(--green);
+      background: var(--green-pale);
+      color: var(--green-dark);
+    }
+
+    .employee-area {
+      border-top: 1px solid #cbd3c9;
+      background: #f2e3e0;
+    }
+
+    .employee-card {
+      border: 1px solid #c99c9c;
+      border-radius: 1rem;
+      background: #fffefa;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 767.98px) {
+      .hero {
+        background: linear-gradient(145deg, #e6efe4, #fffefa 65%, #f4e2df);
+      }
+
+      .pizza-art {
+        width: min(75%, 15rem);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }

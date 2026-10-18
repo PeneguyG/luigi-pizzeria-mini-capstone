@@ -6,13 +6,17 @@ import logging
 import os
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, render_template, request
 import pymysql
 from pymysql.cursors import DictCursor
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder="../templates",
+    static_folder="../static",
+    static_url_path="/static",
+)
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 
@@ -354,7 +358,7 @@ def load_orders(completed):
 
 @app.get("/")
 def dashboard():
-    return send_from_directory(BASE_DIR, "employee-dashboard.html")
+    return render_template("employee-dashboard.html")
 
 
 @app.get("/api/employee/orders")
@@ -463,7 +467,7 @@ def create_order():
         return jsonify({"error": "MariaDB is not configured: " + str(exc)}), 503
     except Exception:
         app.logger.exception("Could not create order")
-        return jsonify({"error": "Order could not be saved. Check that MariaDB is running, the connection settings are correct, and schema.sql has been applied."}), 503
+        return jsonify({"error": "Order could not be saved. Check that MariaDB is running, the connection settings are correct, and database/schema.sql has been applied."}), 503
 
 
 @app.put("/api/employee/orders/<int:order_id>")

@@ -1,212 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Employee order entry, active order management, and pizzeria order history.">
-  <title>Employee Dashboard | Pizzeria</title>
-  <!-- Bootstrap 5 provides the layout, spacing, typography, and component styles. -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-</head>
-<body class="min-vh-100" style="background-color:#f7f5ed;color:#302c2b;">
-  <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 p-2 bg-white text-dark rounded" href="#main-content">Skip to main content</a>
-
-  <header class="border-bottom" style="background-color:#f1dada;border-color:#d9bcbc !important;">
-    <div class="container py-3">
-      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-        <div class="d-flex align-items-center gap-3">
-          <img class="rounded-3 flex-shrink-0" src="/static/luigis-vintage-pizza-badge.png" width="80" height="80" alt="Luigi's Pizzeria vintage badge logo" style="object-fit:contain;background-color:#fbfaf5;">
-          <div><p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Employee portal</p><h1 class="h3 mb-0">Pizzeria Operations</h1></div>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge rounded-pill text-dark border" style="background-color:#fbfaf5;border-color:#d9bcbc !important;">Staff workspace</span>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <main id="main-content" class="container py-4 py-lg-5">
-    <section aria-labelledby="dashboard-heading">
-      <div class="mb-4">
-        <h2 id="dashboard-heading" class="h4 mb-1">Order management</h2>
-        <p class="text-secondary mb-0">Enter counter and phone orders, manage the kitchen queue, and review completed orders.</p>
-      </div>
-
-      <nav aria-label="Dashboard views" class="mb-4">
-        <div class="nav nav-pills gap-2" role="tablist" aria-label="Employee dashboard sections">
-          <button class="nav-link active" id="pos-tab" type="button" role="tab" aria-label="Point of Sales tab" aria-selected="true" aria-controls="pos-panel" tabindex="0" data-panel="pos-panel" style="background-color:#f1dada;color:#592f2f;">Point of Sales</button>
-          <button class="nav-link text-dark" id="orders-tab" type="button" role="tab" aria-label="Active orders tab" aria-selected="false" aria-controls="orders-panel" tabindex="-1" data-panel="orders-panel">Active orders <span id="order-count" class="badge rounded-pill ms-1 text-dark" style="background-color:#f1dada;">0</span></button>
-          <button class="nav-link text-dark" id="history-tab" type="button" role="tab" aria-label="Order history tab" aria-selected="false" aria-controls="history-panel" tabindex="-1" data-panel="history-panel">Order history <span id="history-count" class="badge rounded-pill ms-1 text-dark" style="background-color:#e4efe3;">0</span></button>
-        </div>
-      </nav>
-      <div id="dashboard-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
-
-      <section id="pos-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="pos-tab" tabindex="0" style="background-color:#fffefa;">
-        <div class="card-body p-3 p-md-4 p-xl-5">
-          <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-4">
-            <div><h3 id="pos-heading" class="h5 mb-1">Create an order</h3><p id="pos-description" class="text-secondary mb-0">Build a cart with any number of pizzas and drinks, then send it to the active queue.</p></div>
-            <span class="badge align-self-start rounded-pill text-dark" style="background-color:#e4efe3;">Employee order entry</span>
-          </div>
-
-          <form id="pos-form" novalidate aria-label="Point of Sales order form">
-            <div class="row g-4">
-              <fieldset class="col-12">
-                <legend class="h6 mb-3">Customer and pickup details</legend>
-                <div class="row g-3">
-                  <div class="col-12 col-md-6">
-                    <label class="form-label" for="customer-name">Customer name <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-name" name="customerName" type="text" autocomplete="name" required maxlength="80" aria-label="Customer name, required" aria-describedby="customer-name-error">
-                    <div id="customer-name-error" class="invalid-feedback">Enter the customer's name.</div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <label class="form-label" for="customer-phone">Phone number <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" pattern="(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\)|[2-9][0-9]{2})[ .-]?[2-9][0-9]{2}[ .-]?[0-9]{4}" aria-label="Customer phone number, required. Enter a 10-digit US number." aria-describedby="customer-phone-help customer-phone-error">
-                    <div id="customer-phone-help" class="form-text">Used to contact the customer about this order.</div>
-                    <div id="customer-phone-error" class="invalid-feedback">Enter a valid 10-digit US phone number. Letters are not allowed.</div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <label class="form-label" for="order-channel">Order channel <span aria-hidden="true" class="text-danger">*</span></label>
-                    <select class="form-select" id="order-channel" name="channel" required aria-label="Order channel, required" aria-describedby="order-channel-error"><option value="In-store">In-store</option><option value="Phone pickup">Phone pickup</option></select>
-                    <div id="order-channel-error" class="invalid-feedback">Choose an order channel.</div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <label class="form-label" for="pickup-time">Requested pickup time</label>
-                    <input class="form-control" id="pickup-time" name="pickupTime" type="time" aria-describedby="pickup-time-help pickup-time-error" aria-label="Requested pickup time, optional">
-                    <div id="pickup-time-help" class="form-text">Optional. Choose a time later today.</div>
-                    <p id="pickup-time-error" class="small text-danger mt-1 mb-0" role="alert" hidden>Pickup time must be later than the current time.</p>
-                  </div>
-                  <div class="col-12">
-                    <label class="form-label" for="order-notes">Order notes</label>
-                    <textarea class="form-control" id="order-notes" name="notes" rows="2" maxlength="4000" aria-describedby="order-notes-help"></textarea>
-                    <div id="order-notes-help" class="form-text">Optional. Up to 4,000 characters.</div>
-                  </div>
-                </div>
-              </fieldset>
-
-              <fieldset class="col-12 border-top pt-4">
-                <legend class="h6 mb-1">Pizza</legend>
-                <p class="small text-secondary mb-3">Each pizza includes crust, marinara, and cheese. Topping portions and prices vary by size.</p>
-                <div class="row g-3">
-                  <div class="col-12 col-sm-6 col-lg-3">
-                    <label class="form-label" for="pizza-size">Size and base price</label>
-                    <select class="form-select" id="pizza-size" name="pizzaSize" aria-label="Pizza size and base price">
-                      <option value="Small">Small 12 inch pizza  — $5</option><option value="Medium" selected>Medium 14 inch pizza — $7</option><option value="Large">Large 18 inch pizza — $9</option>
-                    </select>
-                  </div>
-                  <div class="col-6 col-sm-3 col-lg-2">
-                    <label class="form-label" for="pizza-quantity">Quantity</label>
-                    <input class="form-control" id="pizza-quantity" name="pizzaQuantity" type="number" min="1" max="20" value="1" aria-label="Pizza quantity, from 1 to 20" aria-describedby="pizza-quantity-help pizza-quantity-error">
-                    <div id="pizza-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 20.</div>
-                  </div>
-                  <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-end gap-2">
-                    <button class="btn btn-danger w-100 w-sm-auto" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add pizza to order</button>
-                  </div>
-                  <div class="col-12">
-                    <fieldset id="pizza-toppings">
-                      <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(Toppings, # of servings from 0 - 3)</span></legend>
-                      <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
-                        <div class="col"><label class="form-label small mb-1" for="topping-pepperoni">Pepperoni</label><input class="form-control form-control-sm pizza-topping" id="topping-pepperoni" type="number" min="0" max="3" step="1" value="0" data-topping="Pepperoni" aria-label="Pepperoni servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-sausage">Italian sausage</label><input class="form-control form-control-sm pizza-topping" id="topping-sausage" type="number" min="0" max="3" step="1" value="0" data-topping="Italian sausage" aria-label="Italian sausage servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-beef">Beef</label><input class="form-control form-control-sm pizza-topping" id="topping-beef" type="number" min="0" max="3" step="1" value="0" data-topping="Beef" aria-label="Beef servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-green-peppers">Green peppers</label><input class="form-control form-control-sm pizza-topping" id="topping-green-peppers" type="number" min="0" max="3" step="1" value="0" data-topping="Green peppers" aria-label="Green peppers servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-jalapenos">Jalapenos</label><input class="form-control form-control-sm pizza-topping" id="topping-jalapenos" type="number" min="0" max="3" step="1" value="0" data-topping="Jalapenos" aria-label="Jalapenos servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-pineapple">Pineapple</label><input class="form-control form-control-sm pizza-topping" id="topping-pineapple" type="number" min="0" max="3" step="1" value="0" data-topping="Pineapple" aria-label="Pineapple servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-onion">Onion</label><input class="form-control form-control-sm pizza-topping" id="topping-onion" type="number" min="0" max="3" step="1" value="0" data-topping="Onion" aria-label="Onion servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-black-olives">Black olives</label><input class="form-control form-control-sm pizza-topping" id="topping-black-olives" type="number" min="0" max="3" step="1" value="0" data-topping="Black olives" aria-label="Black olives servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-tomatoes">Diced tomatoes</label><input class="form-control form-control-sm pizza-topping" id="topping-tomatoes" type="number" min="0" max="3" step="1" value="0" data-topping="Diced tomatoes" aria-label="Diced tomatoes servings per pizza, 0 to 3"></div>
-                      </div>
-                    </fieldset>
-                    <div class="d-flex flex-wrap gap-2 mt-3">
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Small: $1 per serving (¼ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Medium: $2 per serving (½ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Large: $3 per serving (1 cup)</span>
-                    </div>
-                  </div>
-                  <div class="col-12"><p class="small mb-0"><span class="fw-semibold">Current pizza estimate:</span> <span id="pizza-estimate">$7.00</span> <span class="text-secondary">per pizza</span></p></div>
-                </div>
-              </fieldset>
-
-              <fieldset class="col-12 border-top pt-4">
-                <legend class="h6 mb-3">Drinks</legend>
-                <div class="row g-3 align-items-end">
-                  <div class="col-12 col-sm-6 col-lg-3">
-                    <label class="form-label" for="drink-option">Drink</label>
-                    <select class="form-select" id="drink-option" name="drinkOption" aria-label="Drink selection"><option>Iced tea</option><option>Dr. Pepper</option><option>Cola</option><option>Un-cola</option></select>
-                  </div>
-                  <div class="col-6 col-sm-3 col-lg-2">
-                    <label class="form-label" for="drink-size">Size and price</label>
-                    <select class="form-select" id="drink-size" name="drinkSize" aria-label="Drink size and price"><option value="Small">Small — $1</option><option value="Medium" selected>Medium — $2</option><option value="Large">Large — $3</option></select>
-                  </div>
-                  <div class="col-6 col-sm-3 col-lg-2">
-                    <label class="form-label" for="drink-quantity">Quantity</label>
-                    <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="20" value="1" aria-label="Drink quantity, from 1 to 20" aria-describedby="drink-quantity-help drink-quantity-error">
-                    <div id="drink-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 20.</div>
-                  </div>
-                  <div class="col-12 col-lg-5">
-                    <button class="btn btn-danger w-100" id="add-drink" type="button" aria-label="Add 1 medium iced tea to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add drink to order</button>
-                  </div>
-                </div>
-              </fieldset>
-
-              <section class="col-12 border-top pt-4" aria-labelledby="cart-heading">
-                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
-                  <div><h4 id="cart-heading" class="h6 mb-1">Order cart</h4><p class="small text-secondary mb-0">Add up to 20 pizzas and drinks combined.</p></div>
-                  <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-auto" id="clear-cart" type="button" aria-label="Remove all items from the order cart" aria-controls="cart-items">Clear cart</button></div>
-                </div>
-                <ul id="cart-items" class="list-group mb-3" aria-label="Items currently in order cart" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></ul>
-                <p id="cart-empty" class="small text-secondary border rounded p-3 mb-3">The cart is empty.</p>
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 border rounded p-3" style="background-color:#f8f5eb;">
-                  <div>
-                    <p class="small mb-1">Subtotal: <span id="cart-subtotal">$0.00</span></p>
-                    <p class="small mb-1">Tax (9.75%): <span id="cart-tax">$0.00</span></p>
-                    <p class="h6 mb-0">Order total: <span id="cart-total">$0.00</span></p>
-                  </div>
-                  <p id="cart-total-live" class="small mb-0" role="status" aria-live="polite" aria-atomic="true">Subtotal $0.00. Tax at 9.75% is $0.00. Order total $0.00. Current pizza estimate $7.00 per pizza.</p>
-                </div>
-                <p id="cart-error" class="small text-danger mt-2 mb-0" role="alert" hidden>Add at least one item before placing the order.</p>
-                <p id="order-submit-error" class="alert alert-danger mt-2 mb-0" role="alert" hidden></p>
-              </section>
-
-              <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center gap-3 border-top pt-4">
-                <button id="submit-order-button" class="btn btn-danger px-4" type="submit" aria-label="Place order and add it to active orders" aria-controls="active-orders-list" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Place order</button>
-                <p class="small text-secondary mb-0">Required fields are marked with an asterisk.</p>
-              </div>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <section id="orders-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="orders-tab" tabindex="0" hidden style="background-color:#fffefa;">
-        <div class="card-body p-3 p-md-4 p-xl-5">
-          <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
-            <div><h3 class="h5 mb-1">Active orders</h3><p class="text-secondary mb-0">Customer portal and employee POS orders share this kitchen queue.</p></div>
-            <button id="refresh-orders" class="btn btn-outline-danger" type="button" aria-label="Refresh active orders" aria-controls="active-orders-list">Refresh orders</button>
-          </div>
-          <div id="active-orders-list" class="d-grid gap-3" aria-label="Current active orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
-          <p id="orders-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
-          <p id="overdue-update-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
-          <div id="empty-orders" class="border rounded p-4 text-center text-secondary" hidden>No active orders are waiting.</div>
-        </div>
-      </section>
-
-      <section id="history-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="history-tab" tabindex="0" hidden style="background-color:#fffefa;">
-        <div class="card-body p-3 p-md-4 p-xl-5">
-          <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
-            <div><h3 class="h5 mb-1">Order history</h3><p class="text-secondary mb-0">Completed orders with customer, items, total, and completion time.</p></div>
-            <button id="refresh-history" class="btn btn-outline-danger" type="button" aria-label="Refresh completed order history" aria-controls="history-list">Refresh history</button>
-          </div>
-          <div id="history-list" class="d-grid gap-3" aria-label="Completed and archived orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
-          <p id="history-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
-          <div id="empty-history" class="border rounded p-4 text-center text-secondary" hidden>No completed orders are in history yet.</div>
-        </div>
-      </section>
-    </section>
-  </main>
-
-  <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
-
-  <script>
-    'use strict';
+'use strict';
 
     /* Same-origin Flask API. The server recalculates item prices and tax before saving. */
     const pizzaPricing = {
@@ -772,33 +564,153 @@
     }
 
     const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+    const managerOnlyElements = Array.from(document.querySelectorAll('[data-manager-only]'));
+    const rolePreview = document.getElementById('role-preview');
+    let previewRole = rolePreview.value;
+
+    function availableTabs() {
+      return tabs.filter(function (tab) { return !tab.hidden; });
+    }
+
     function activateTab(tab, moveFocus) {
+      if (!tab || tab.hidden) return;
       tabs.forEach(function (item) {
         const selected = item === tab;
+        const panel = document.getElementById(item.dataset.panel);
         item.setAttribute('aria-selected', String(selected));
         item.tabIndex = selected ? 0 : -1;
         item.classList.toggle('active', selected);
         item.classList.toggle('text-dark', !selected);
         item.style.backgroundColor = selected ? '#f1dada' : 'transparent';
         item.style.color = selected ? '#592f2f' : '#302c2b';
-        document.getElementById(item.dataset.panel).hidden = !selected;
+        const restricted = item.hasAttribute('data-manager-only') && previewRole === 'employee';
+        panel.hidden = !selected || restricted;
+        panel.setAttribute('aria-hidden', String(panel.hidden));
       });
       if (moveFocus !== false) tab.focus();
       if (tab.id === 'orders-tab') renderOrders();
       if (tab.id === 'history-tab') renderHistory();
     }
 
-    tabs.forEach(function (tab, index) {
+    function updateRolePreview() {
+      previewRole = rolePreview.value;
+      const managerView = previewRole === 'manager' || previewRole === 'owner';
+      managerOnlyElements.forEach(function (element) {
+        element.hidden = !managerView;
+        element.setAttribute('aria-hidden', String(!managerView));
+      });
+
+      const selectedTab = tabs.find(function (tab) { return tab.getAttribute('aria-selected') === 'true'; });
+      if (!managerView && selectedTab && selectedTab.hasAttribute('data-manager-only')) {
+        activateTab(document.getElementById('pos-tab'), true);
+      } else if (selectedTab) {
+        activateTab(selectedTab, false);
+      }
+
+      const roleName = previewRole.charAt(0).toUpperCase() + previewRole.slice(1);
+      announce(roleName + ' preview selected. ' + (managerView
+        ? 'Manager dashboard and employee access are available.'
+        : 'Only Point of Sales, active orders, and order history are available.'));
+    }
+
+    managerOnlyElements.forEach(function (element) {
+      element.hidden = previewRole === 'employee';
+      element.setAttribute('aria-hidden', String(previewRole === 'employee'));
+    });
+    rolePreview.addEventListener('change', updateRolePreview);
+
+    tabs.forEach(function (tab) {
       tab.addEventListener('click', function () { activateTab(tab, false); });
       tab.addEventListener('keydown', function (event) {
+        const visibleTabs = availableTabs();
+        const currentIndex = visibleTabs.indexOf(tab);
+        if (currentIndex === -1) return;
         let nextIndex = null;
-        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % tabs.length;
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + tabs.length) % tabs.length;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % visibleTabs.length;
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + visibleTabs.length) % visibleTabs.length;
         if (event.key === 'Home') nextIndex = 0;
-        if (event.key === 'End') nextIndex = tabs.length - 1;
+        if (event.key === 'End') nextIndex = visibleTabs.length - 1;
         if (nextIndex !== null) {
           event.preventDefault();
-          activateTab(tabs[nextIndex], true);
+          activateTab(visibleTabs[nextIndex], true);
+        }
+      });
+    });
+    activateTab(document.getElementById('pos-tab'), false);
+
+    const employeeAccessForm = document.getElementById('employee-access-form');
+    const employeePreviewList = document.getElementById('employee-preview-list');
+    const employeePreviewRecords = [];
+    employeeAccessForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      const nameInput = document.getElementById('employee-name');
+      const emailInput = document.getElementById('employee-email');
+      const roleInput = document.getElementById('employee-role');
+      const emailError = document.getElementById('employee-email-error');
+      const inputs = [nameInput, emailInput];
+      nameInput.setCustomValidity(nameInput.value.trim() ? '' : 'Enter the employee\'s name.');
+      emailInput.setCustomValidity('');
+      emailError.textContent = 'Enter a valid email address.';
+      employeeAccessForm.classList.add('was-validated');
+      inputs.forEach(function (input) {
+        input.setAttribute('aria-invalid', String(!input.validity.valid));
+      });
+
+      const invalidInput = inputs.find(function (input) { return !input.validity.valid; });
+      if (invalidInput) {
+        invalidInput.focus();
+        announce('Please enter a valid employee name and email address.');
+        return;
+      }
+
+      const email = emailInput.value.trim().toLowerCase();
+      if (employeePreviewRecords.some(function (record) { return record.email === email; })) {
+        emailInput.setCustomValidity('This employee preview already uses that email address.');
+        emailError.textContent = 'This email address is already in the employee preview.';
+        emailInput.setAttribute('aria-invalid', 'true');
+        emailInput.focus();
+        announce('That email address is already in the employee preview.');
+        return;
+      }
+      emailInput.setCustomValidity('');
+      emailInput.removeAttribute('aria-invalid');
+
+      const record = {
+        name: nameInput.value.trim(),
+        email: email,
+        role: roleInput.value
+      };
+      employeePreviewRecords.push(record);
+      document.getElementById('employee-preview-empty')?.remove();
+
+      const listItem = document.createElement('li');
+      listItem.className = 'list-group-item d-flex flex-column flex-sm-row justify-content-between gap-1';
+      const employeeName = document.createElement('span');
+      employeeName.className = 'fw-semibold';
+      employeeName.textContent = record.name;
+      const employeeDetails = document.createElement('span');
+      employeeDetails.className = 'text-secondary';
+      employeeDetails.textContent = record.email + ' · ' + record.role;
+      listItem.append(employeeName, employeeDetails);
+      employeePreviewList.append(listItem);
+
+      employeeAccessForm.reset();
+      employeeAccessForm.classList.remove('was-validated');
+      inputs.forEach(function (input) { input.removeAttribute('aria-invalid'); });
+      announce(record.name + ' added to the browser-only employee preview as ' + record.role + '.');
+      nameInput.focus();
+    });
+
+    [document.getElementById('employee-name'), document.getElementById('employee-email')].forEach(function (input) {
+      input.addEventListener('input', function () {
+        if (this.id === 'employee-name') {
+          this.setCustomValidity(this.value.trim() ? '' : 'Enter the employee\'s name.');
+        } else {
+          this.setCustomValidity('');
+          document.getElementById('employee-email-error').textContent = 'Enter a valid email address.';
+        }
+        if (employeeAccessForm.classList.contains('was-validated')) {
+          this.setAttribute('aria-invalid', String(!this.validity.valid));
         }
       });
     });
@@ -980,6 +892,3 @@
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) checkForOverdueOrders(true);
     });
-  </script>
-</body>
-</html>

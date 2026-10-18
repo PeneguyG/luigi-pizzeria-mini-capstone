@@ -2,6 +2,24 @@
 
 This project contains a Bootstrap 5 employee dashboard, a Flask JSON API, and a MariaDB schema. The dashboard is served by Flask so the browser can call the API using same-origin routes.
 
+## Project layout
+
+```text
+backend/                 Flask application entry points
+templates/               Jinja-rendered HTML pages
+static/
+  css/                   Page stylesheets
+  js/                    Browser JavaScript
+  images/                Logos and other image assets
+database/
+  migrations/            SQL upgrades for existing databases
+  *.sql                  Schemas and optional demo seed data
+deploy-gce.sh             Debian 13 / Google Compute Engine deployment
+requirements*.txt        Python dependencies
+```
+
+This is a Flask project, so HTML pages belong in `templates/` and browser assets belong in `static/`; a separate `public/` directory is not needed.
+
 ## Requirements
 
 - Python 3.9 or later
@@ -14,17 +32,19 @@ Install the Python dependencies:
 python -m pip install -r requirements.txt
 ```
 
-Create the database and tables from the repository directory:
+Create the database and tables for the full customer and employee app from the repository directory:
 
 ```powershell
-cmd /c "mariadb -u root -p < schema.sql"
+cmd /c "mariadb -u root -p < database/customer_portal.sql"
 ```
+
+`database/schema.sql` is the earlier employee-only schema. Use it only when running the legacy `backend.app` entry point. The main app and deployment use `database/customer_portal.sql`.
 
 If you already created the database using the earlier schema, apply the topping-count migration and then the three-serving limit migration. If the topping-count migration was already applied, only run the second command:
 
 ```powershell
-cmd /c "mariadb -u root -p luigis_pizzeria < migrations/20261014_add_topping_quantity.sql"
-cmd /c "mariadb -u root -p luigis_pizzeria < migrations/20261014_limit_topping_servings_to_three.sql"
+cmd /c "mariadb -u root -p luigis_pizzeria < database/migrations/20261014_add_topping_quantity.sql"
+cmd /c "mariadb -u root -p luigis_pizzeria < database/migrations/20261014_limit_topping_servings_to_three.sql"
 ```
 
 Create a least-privilege application account after importing the schema (replace the sample password):
@@ -44,14 +64,14 @@ $env:DB_USER = "luigis_app"
 $env:DB_PASSWORD = "your-local-database-password"
 # Optional: set BUSINESS_TIMEZONE to the restaurant's IANA timezone if it differs from the server timezone.
 # Example: $env:BUSINESS_TIMEZONE = "America/Chicago"
-python app.py
+python -m backend.customer_portal_app
 ```
 
 Open `http://127.0.0.1:5000/`. Keep database credentials in environment variables; the schema does not create a user or store credentials.
 
 ## Deploy on Google Compute Engine
 
-`deploy-gce.sh` installs and configures the customer portal application for a Debian 13 (trixie) Compute Engine VM. It is sized for an `e2-micro`: MariaDB memory is limited, the app runs one Gunicorn worker, and the script creates a 1 GiB swap file. It clones this repository, applies `customer_portal.sql`, configures MariaDB, Nginx, systemd, and a recurring DuckDNS update, then requests an HTTPS certificate with Certbot.
+`deploy-gce.sh` installs and configures the customer portal application for a Debian 13 (trixie) Compute Engine VM. It is sized for an `e2-micro`: MariaDB memory is limited, the app runs one Gunicorn worker, and the script creates a 1 GiB swap file. It clones this repository, applies `database/customer_portal.sql`, configures MariaDB, Nginx, systemd, and a recurring DuckDNS update, then requests an HTTPS certificate with Certbot.
 
 Before running the script:
 
@@ -80,10 +100,10 @@ sudo systemctl status luigi-pizzeria-duckdns.timer
 
 ## Load demo orders
 
-After applying `schema.sql`, load sample queue and history records from the repository directory:
+After applying `database/customer_portal.sql`, load sample queue and history records from the repository directory:
 
 ```powershell
-cmd /c "mariadb -u root -p luigis_pizzeria < demo_data.sql"
+cmd /c "mariadb -u root -p luigis_pizzeria < database/demo_data.sql"
 ```
 
 The script adds four active orders (Confirmed, In-Progress, Ready, and Overdue) and two completed orders. Each is marked `DEMO DATA:` in its notes. It skips existing seed orders with those notes, so it can be rerun as long as the demo markers remain unchanged. Refresh the dashboard to see the new records.
