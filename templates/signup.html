@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luigi's Pizzeria</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a href="/signup" class="brand">Luigi's <span>Pizzeria</span></a>
+    <div class="header-actions">
+      <span id="welcome" class="muted hidden"></span>
+      <button id="headerSignIn" class="btn secondary" type="button">Sign In</button>
+      <button id="signOut" class="btn secondary hidden" type="button">Sign Out</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>Fresh pizza, ordered your way</h1>
+    <p>Create an account to order online, customize your pizza, and send it straight to our kitchen.</p>
+    <a href="#account" id="heroCta" class="btn">Sign Up to Order</a>
+  </section>
+
+  <main class="container">
+    <h2>Customer Favorites</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Margherita</h3>
+        <p class="muted">Tomato, fresh mozzarella, basil.</p>
+        <span class="price">From $12.99</span>
+      </div>
+      <div class="card">
+        <h3>Pepperoni</h3>
+        <p class="muted">Classic pepperoni with extra cheese.</p>
+        <span class="price">From $14.99</span>
+      </div>
+      <div class="card">
+        <h3>Supreme</h3>
+        <p class="muted">Sausage, peppers, onions, olives, mushrooms.</p>
+        <span class="price">From $17.99</span>
+      </div>
+      <div class="card">
+        <h3>Build Your Own</h3>
+        <p class="muted">Pick your crust, sauce, and toppings.</p>
+        <span class="price">From $11.99</span>
+      </div>
+    </div>
+  </main>
+
+  <section class="container" id="account">
+    <!-- Shown when signed out -->
+    <div id="authPanel" class="auth-wrap card">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="signup" type="button" role="tab">Create Account</button>
+        <button class="tab" data-tab="signin" type="button" role="tab">Sign In</button>
+      </div>
+
+      <form id="signupForm" novalidate>
+        <label for="suName">Full name</label>
+        <input id="suName" type="text" autocomplete="name" required>
+
+        <label for="suEmail">Email</label>
+        <input id="suEmail" type="email" autocomplete="email" required>
+
+        <label for="suPhone">Phone number</label>
+        <input id="suPhone" type="tel" autocomplete="tel" placeholder="(555) 555-5555" required>
+
+        <label for="suPassword">Password</label>
+        <input id="suPassword" type="password" autocomplete="new-password" minlength="8" required>
+
+        <label for="suConfirm">Confirm password</label>
+        <input id="suConfirm" type="password" autocomplete="new-password" required>
+
+        <button class="btn block" type="submit">Create Account</button>
+      </form>
+
+      <form id="signinForm" class="hidden" novalidate>
+        <label for="siEmail">Email</label>
+        <input id="siEmail" type="email" autocomplete="email" required>
+
+        <label for="siPassword">Password</label>
+        <input id="siPassword" type="password" autocomplete="current-password" required>
+
+        <button class="btn block" type="submit">Sign In</button>
+      </form>
+
+      <div id="authMessage" class="message" role="alert"></div>
+    </div>
+
+    <!-- Shown when signed in -->
+    <div id="accountPanel" class="auth-wrap card hidden">
+      <h2 id="accountGreeting" style="margin-top:0"></h2>
+      <p class="muted">You're signed in. Online ordering with the full menu is coming next.</p>
+      <button class="btn block" type="button" disabled>Start an Order (coming soon)</button>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    &copy; Luigi's Pizzeria &middot; <a href="/staff-signin">Employee Login</a>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
+</body>
+</html>

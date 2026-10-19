@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Luigi's Staff Portal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
+</head>
+<body class="staff">
+  <header class="site-header">
+    <span class="brand">Luigi's <span>Staff Portal</span></span>
+    <div class="header-actions">
+      <span id="staffWelcome" class="muted hidden"></span>
+      <button id="staffSignOut" class="btn secondary hidden" type="button">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Employee login -->
+  <section id="loginView" class="container">
+    <div class="staff-login card">
+      <h2 style="margin-top:0">Employee Sign In</h2>
+      <p class="muted">For Luigi's staff only. Ask your manager if you need a login.</p>
+
+      <form id="staffForm" novalidate>
+        <label for="employeeId">Employee ID</label>
+        <input id="employeeId" type="text" autocomplete="username" required>
+
+        <label for="staffPassword">Password</label>
+        <input id="staffPassword" type="password" autocomplete="current-password" required>
+
+        <button class="btn block" type="submit">Sign In</button>
+      </form>
+
+      <div id="staffMessage" class="message" role="alert"></div>
+    </div>
+  </section>
+
+  <!-- Placeholder dashboard shown after sign in -->
+  <main id="dashboardView" class="container hidden">
+    <h2>Order Dashboard <span id="roleBadge" class="badge"></span></h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Incoming Online Orders</h3>
+        <p class="muted">Orders placed on the website will appear here.</p>
+      </div>
+      <div class="card">
+        <h3>New Phone / Walk-in Order</h3>
+        <p class="muted">Punch in orders from calls or the front counter.</p>
+      </div>
+      <div class="card">
+        <h3>Edit an Order</h3>
+        <p class="muted">Look up an existing order and make changes.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <a href="/signup">Back to customer site</a>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/staff-signin.js') }}"></script>
+</body>
+</html>
