@@ -596,6 +596,7 @@ def signup_page():
 def staff_signin_page():
     return render_template("staff-signin.html")
 
+@app.get("/employee-dashboard.html")
 @app.get("/employee")
 
 def dashboard():

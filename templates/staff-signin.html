@@ -18,16 +18,16 @@
   <main id="staff-main" class="container py-4 py-lg-5" tabindex="-1">
     <section class="staff-login card" aria-labelledby="staff-heading">
       <h1 id="staff-heading" tabindex="-1">Employee sign in</h1>
-      <p class="muted">For Luigi's staff. Enter your employee ID and password to open the matching role view.</p>
-      <p class="demo-warning" id="demo-warning">Prototype only: demo accounts are stored in this page's JavaScript. This is not real authentication or a secure role check. On the deployed VM, the employee dashboard also prompts for the separate Nginx staff password.</p>
+      <p class="muted">For Luigi's staff. Enter your employee ID and password to open the employee dashboard.</p>
+      <p class="demo-warning" id="demo-warning">Prototype only: demo credentials are checked in this page's JavaScript. This is not real authentication. On the deployed VM, the employee dashboard also prompts for the separate Nginx staff password.</p>
 
       <details class="demo-accounts">
         <summary>Show demo accounts for testing</summary>
         <ul>
-          <li>Admin: ID <code>1001</code>, password <code>pizza1001</code></li>
-          <li>Manager: ID <code>1002</code>, password <code>pizza1002</code></li>
-          <li>Employee: ID <code>1003</code>, password <code>pizza1003</code></li>
-          <li>Employee: ID <code>1004</code>, password <code>pizza1004</code></li>
+          <li>ID <code>1001</code>, password <code>pizza1001</code></li>
+          <li>ID <code>1002</code>, password <code>pizza1002</code></li>
+          <li>ID <code>1003</code>, password <code>pizza1003</code></li>
+          <li>ID <code>1004</code>, password <code>pizza1004</code></li>
         </ul>
       </details>
 
@@ -42,15 +42,6 @@
       </form>
       <p id="staffMessage" class="message" role="alert" aria-atomic="true"></p>
 
-      <section id="staffSession" class="staff-session hidden" hidden aria-labelledby="session-heading">
-        <h2 id="session-heading" class="h4">You're signed in</h2>
-        <p id="staffWelcome" class="muted"></p>
-        <p id="rolePermissions" class="muted"></p>
-        <div class="d-flex flex-column flex-sm-row gap-2">
-          <a id="openDashboard" class="btn text-center" href="/employee?focus=dashboard">Open employee dashboard</a>
-          <button id="staffSignOut" class="btn secondary" type="button">Sign out</button>
-        </div>
-      </section>
     </section>
   </main>
 

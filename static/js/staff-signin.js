@@ -1,36 +1,18 @@
 'use strict';
 
-// Front-end demonstration only. Credentials and role checks in browser code
-// are visible and editable; production RBAC must be enforced by the server.
+// Temporary browser-only demo credentials. Authentication and authorization
+// must move to the server before this is used with real employee accounts.
 const EMPLOYEES = Object.freeze([
-  { id: '1001', name: 'Luigi', role: 'admin', password: 'pizza1001' },
-  { id: '1002', name: 'Maria', role: 'manager', password: 'pizza1002' },
-  { id: '1003', name: 'Tony', role: 'employee', password: 'pizza1003' },
-  { id: '1004', name: 'Rosa', role: 'employee', password: 'pizza1004' }
+  { id: '1001', password: 'pizza1001' },
+  { id: '1002', password: 'pizza1002' },
+  { id: '1003', password: 'pizza1003' },
+  { id: '1004', password: 'pizza1004' }
 ]);
 
-const STAFF_SESSION_KEY = 'luigis_staff_session';
 const form = document.getElementById('staffForm');
 const message = document.getElementById('staffMessage');
-const sessionPanel = document.getElementById('staffSession');
-
-const roleDetails = {
-  admin: 'Admin demo: access to employee, manager, and admin dashboard views.',
-  manager: 'Manager demo: access to employee and manager dashboard views.',
-  employee: 'Employee demo: access to point of sale, active orders, and order history.'
-};
-
-function employeeForSession() {
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(STAFF_SESSION_KEY) || 'null');
-    if (!saved || typeof saved.id !== 'string') return null;
-    return EMPLOYEES.find(function (employee) {
-      return employee.id === saved.id && employee.role === saved.role;
-    }) || null;
-  } catch (_error) {
-    return null;
-  }
-}
+const idInput = document.getElementById('employeeId');
+const passwordInput = document.getElementById('staffPassword');
 
 function showMessage(text) {
   message.textContent = text;
@@ -40,31 +22,14 @@ function showMessage(text) {
 function clearMessage() {
   message.textContent = '';
   message.className = 'message';
-  document.getElementById('employeeId').removeAttribute('aria-invalid');
-  document.getElementById('staffPassword').removeAttribute('aria-invalid');
-}
-
-function renderSession() {
-  const employee = employeeForSession();
-  const signedIn = Boolean(employee);
-  form.hidden = signedIn;
-  sessionPanel.hidden = !signedIn;
-  sessionPanel.classList.toggle('hidden', !signedIn);
-  document.getElementById('demo-warning').hidden = signedIn;
-  document.querySelector('.demo-accounts').hidden = signedIn;
-
-  if (signedIn) {
-    document.getElementById('staffWelcome').textContent = employee.name + ' · ' + employee.role;
-    document.getElementById('rolePermissions').textContent = roleDetails[employee.role];
-  }
+  idInput.removeAttribute('aria-invalid');
+  passwordInput.removeAttribute('aria-invalid');
 }
 
 form.addEventListener('submit', function (event) {
   event.preventDefault();
   clearMessage();
 
-  const idInput = document.getElementById('employeeId');
-  const passwordInput = document.getElementById('staffPassword');
   const employee = EMPLOYEES.find(function (entry) {
     return entry.id === idInput.value.trim() && entry.password === passwordInput.value;
   });
@@ -77,36 +42,22 @@ form.addEventListener('submit', function (event) {
     return;
   }
 
+  // Do not persist a mock role session: the dashboard role dropdown remains
+  // available for testing until backend authentication and RBAC are added.
   try {
-    sessionStorage.setItem(STAFF_SESSION_KEY, JSON.stringify({
-      id: employee.id,
-      name: employee.name,
-      role: employee.role
-    }));
+    sessionStorage.removeItem('luigis_staff_session');
   } catch (_error) {
-    showMessage('This browser could not start a staff session. Enable session storage and try again.');
-    return;
+    // Storage is optional for this temporary, role-free redirect.
   }
 
-  // The dashboard reads this role to show its matching mock permissions.
-  // Nginx still applies its separate shared Basic Auth check on /employee.
-  window.location.assign('/employee?focus=dashboard');
-});
-
-document.getElementById('staffSignOut').addEventListener('click', function () {
-  sessionStorage.removeItem(STAFF_SESSION_KEY);
-  renderSession();
-  clearMessage();
-  document.getElementById('employeeId').focus();
+  // The dashboard reads this query parameter and moves focus to its heading.
+  window.location.assign('/employee-dashboard.html?focus=dashboard');
 });
 
 form.querySelectorAll('input').forEach(function (input) {
-  input.addEventListener('input', function () {
-    clearMessage();
-  });
+  input.addEventListener('input', clearMessage);
 });
 
-renderSession();
-if (new URLSearchParams(window.location.search).get('focus') === 'signin' && !employeeForSession()) {
-  window.requestAnimationFrame(function () { document.getElementById('employeeId').focus(); });
+if (new URLSearchParams(window.location.search).get('focus') === 'signin') {
+  window.requestAnimationFrame(function () { idInput.focus(); });
 }
