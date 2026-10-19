@@ -27,6 +27,20 @@ body {
 
 a { color: var(--red-text); }
 
+.skip-link {
+  position: absolute;
+  top: .5rem;
+  left: .5rem;
+  z-index: 1100;
+  padding: .65rem 1rem;
+  color: var(--ink);
+  background: var(--off-white);
+  border: 2px solid var(--green-text);
+  border-radius: var(--radius);
+  transform: translateY(-160%);
+}
+.skip-link:focus { transform: translateY(0); }
+
 /* ---------- Header ---------- */
 .site-header {
   display: flex;
@@ -98,6 +112,14 @@ a { color: var(--red-text); }
   margin-bottom: -2px;
 }
 .tab.active { color: var(--red-text); border-bottom-color: var(--pastel-red-deep); }
+.tab:focus-visible,
+summary:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--green-text);
+  outline-offset: 3px;
+}
 
 form label { display: block; font-weight: 600; margin: 12px 0 4px; font-size: 0.95rem; }
 form input {
@@ -139,6 +161,16 @@ form .btn { margin-top: 18px; }
   color: var(--ink);
 }
 .staff-login { max-width: 380px; margin: 64px auto; }
+.demo-warning {
+  padding: 12px;
+  color: #5c3113;
+  background: #fff2d8;
+  border-left: 4px solid #9b6326;
+  border-radius: 6px;
+}
+.demo-accounts { margin: 1rem 0; }
+.demo-accounts summary { cursor: pointer; font-weight: 700; }
+.staff-session { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #cbd3c9; }
 
 @media (max-width: 600px) {
   .hero h1 { font-size: 1.8rem; }

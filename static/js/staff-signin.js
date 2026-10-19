@@ -1,59 +1,112 @@
-// Employee sign in for the prototype.
-// Employees don't sign up themselves; a manager creates their login.
-// Until the database exists, the employee list lives here. These are
-// DEMO accounts only — never ship real passwords in front-end code.
+'use strict';
 
-const EMPLOYEES = [
-  { id: "1001", name: "Luigi", role: "Manager", password: "pizza1001" },
-  { id: "1002", name: "Maria", role: "Cashier", password: "pizza1002" },
-  { id: "1003", name: "Tony", role: "Kitchen", password: "pizza1003" },
-];
+// Front-end demonstration only. Credentials and role checks in browser code
+// are visible and editable; production RBAC must be enforced by the server.
+const EMPLOYEES = Object.freeze([
+  { id: '1001', name: 'Luigi', role: 'admin', password: 'pizza1001' },
+  { id: '1002', name: 'Maria', role: 'manager', password: 'pizza1002' },
+  { id: '1003', name: 'Tony', role: 'employee', password: 'pizza1003' },
+  { id: '1004', name: 'Rosa', role: 'employee', password: 'pizza1004' }
+]);
 
-const STAFF_SESSION_KEY = "luigis_staff_session";
+const STAFF_SESSION_KEY = 'luigis_staff_session';
+const form = document.getElementById('staffForm');
+const message = document.getElementById('staffMessage');
+const sessionPanel = document.getElementById('staffSession');
 
-function showStaffMessage(text) {
-  const box = document.getElementById("staffMessage");
-  box.textContent = text;
-  box.className = "message error";
+const roleDetails = {
+  admin: 'Admin demo: access to employee, manager, and admin dashboard views.',
+  manager: 'Manager demo: access to employee and manager dashboard views.',
+  employee: 'Employee demo: access to point of sale, active orders, and order history.'
+};
+
+function employeeForSession() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STAFF_SESSION_KEY) || 'null');
+    if (!saved || typeof saved.id !== 'string') return null;
+    return EMPLOYEES.find(function (employee) {
+      return employee.id === saved.id && employee.role === saved.role;
+    }) || null;
+  } catch (_error) {
+    return null;
+  }
 }
 
-function renderStaffSession() {
-  const id = sessionStorage.getItem(STAFF_SESSION_KEY);
-  const employee = EMPLOYEES.find((e) => e.id === id);
-  const signedIn = Boolean(employee);
+function showMessage(text) {
+  message.textContent = text;
+  message.className = 'message error';
+}
 
-  document.getElementById("loginView").classList.toggle("hidden", signedIn);
-  document.getElementById("dashboardView").classList.toggle("hidden", !signedIn);
-  document.getElementById("staffWelcome").classList.toggle("hidden", !signedIn);
-  document.getElementById("staffSignOut").classList.toggle("hidden", !signedIn);
+function clearMessage() {
+  message.textContent = '';
+  message.className = 'message';
+  document.getElementById('employeeId').removeAttribute('aria-invalid');
+  document.getElementById('staffPassword').removeAttribute('aria-invalid');
+}
+
+function renderSession() {
+  const employee = employeeForSession();
+  const signedIn = Boolean(employee);
+  form.hidden = signedIn;
+  sessionPanel.hidden = !signedIn;
+  sessionPanel.classList.toggle('hidden', !signedIn);
+  document.getElementById('demo-warning').hidden = signedIn;
+  document.querySelector('.demo-accounts').hidden = signedIn;
 
   if (signedIn) {
-    document.getElementById("staffWelcome").textContent = employee.name + " (#" + employee.id + ")";
-    document.getElementById("roleBadge").textContent = employee.role;
+    document.getElementById('staffWelcome').textContent = employee.name + ' · ' + employee.role;
+    document.getElementById('rolePermissions').textContent = roleDetails[employee.role];
   }
 }
 
-document.getElementById("staffForm").addEventListener("submit", (event) => {
+form.addEventListener('submit', function (event) {
   event.preventDefault();
-  const id = document.getElementById("employeeId").value.trim();
-  const password = document.getElementById("staffPassword").value;
+  clearMessage();
 
-  const employee = EMPLOYEES.find((e) => e.id === id && e.password === password);
+  const idInput = document.getElementById('employeeId');
+  const passwordInput = document.getElementById('staffPassword');
+  const employee = EMPLOYEES.find(function (entry) {
+    return entry.id === idInput.value.trim() && entry.password === passwordInput.value;
+  });
+
   if (!employee) {
-    return showStaffMessage("Incorrect employee ID or password.");
+    showMessage('Employee ID or password is incorrect. Check both fields and try again.');
+    idInput.setAttribute('aria-invalid', 'true');
+    passwordInput.setAttribute('aria-invalid', 'true');
+    passwordInput.focus();
+    return;
   }
 
-  // sessionStorage: staff are signed out when the browser tab closes,
-  // which suits shared restaurant computers.
-  sessionStorage.setItem(STAFF_SESSION_KEY, employee.id);
-  event.target.reset();
-  document.getElementById("staffMessage").className = "message";
-  renderStaffSession();
+  try {
+    sessionStorage.setItem(STAFF_SESSION_KEY, JSON.stringify({
+      id: employee.id,
+      name: employee.name,
+      role: employee.role
+    }));
+  } catch (_error) {
+    showMessage('This browser could not start a staff session. Enable session storage and try again.');
+    return;
+  }
+
+  // The dashboard reads this role to show its matching mock permissions.
+  // Nginx still applies its separate shared Basic Auth check on /employee.
+  window.location.assign('/employee?focus=dashboard');
 });
 
-document.getElementById("staffSignOut").addEventListener("click", () => {
+document.getElementById('staffSignOut').addEventListener('click', function () {
   sessionStorage.removeItem(STAFF_SESSION_KEY);
-  renderStaffSession();
+  renderSession();
+  clearMessage();
+  document.getElementById('employeeId').focus();
 });
 
-renderStaffSession();
+form.querySelectorAll('input').forEach(function (input) {
+  input.addEventListener('input', function () {
+    clearMessage();
+  });
+});
+
+renderSession();
+if (new URLSearchParams(window.location.search).get('focus') === 'signin' && !employeeForSession()) {
+  window.requestAnimationFrame(function () { document.getElementById('employeeId').focus(); });
+}

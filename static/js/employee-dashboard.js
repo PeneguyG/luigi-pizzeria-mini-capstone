@@ -564,9 +564,25 @@
     }
 
     const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-    const managerOnlyElements = Array.from(document.querySelectorAll('[data-manager-only]'));
     const rolePreview = document.getElementById('role-preview');
-    let previewRole = rolePreview.value;
+    const rolePreviewSection = document.getElementById('role-preview-section');
+    const roleLevels = { employee: 1, manager: 2, admin: 3 };
+    const roleNames = { employee: 'Employee', manager: 'Manager', admin: 'Admin' };
+    let staffSession = null;
+    try {
+      const savedSession = JSON.parse(sessionStorage.getItem('luigis_staff_session') || 'null');
+      if (savedSession && typeof savedSession.id === 'string' && typeof savedSession.name === 'string' && roleLevels[savedSession.role]) {
+        staffSession = savedSession;
+      }
+    } catch (_error) {
+      staffSession = null;
+    }
+    let activeRole = staffSession ? staffSession.role : rolePreview.value;
+
+    function roleCanSee(element) {
+      const requiredRole = element.dataset.minimumRole;
+      return !requiredRole || roleLevels[activeRole] >= roleLevels[requiredRole];
+    }
 
     function availableTabs() {
       return tabs.filter(function (tab) { return !tab.hidden; });
@@ -583,8 +599,9 @@
         item.classList.toggle('text-dark', !selected);
         item.style.backgroundColor = selected ? '#f1dada' : 'transparent';
         item.style.color = selected ? '#592f2f' : '#302c2b';
-        const restricted = item.hasAttribute('data-manager-only') && previewRole === 'employee';
-        panel.hidden = !selected || restricted;
+        const allowed = roleCanSee(item);
+        item.hidden = !allowed;
+        panel.hidden = !selected || !allowed;
         panel.setAttribute('aria-hidden', String(panel.hidden));
       });
       if (moveFocus !== false) tab.focus();
@@ -592,32 +609,57 @@
       if (tab.id === 'history-tab') renderHistory();
     }
 
-    function updateRolePreview() {
-      previewRole = rolePreview.value;
-      const managerView = previewRole === 'manager' || previewRole === 'owner';
-      managerOnlyElements.forEach(function (element) {
-        element.hidden = !managerView;
-        element.setAttribute('aria-hidden', String(!managerView));
-      });
+    function applyRole(role, announceChange) {
+      activeRole = roleLevels[role] ? role : 'employee';
+      rolePreview.value = activeRole;
+      rolePreview.disabled = Boolean(staffSession);
+      rolePreviewSection.hidden = Boolean(staffSession);
 
-      const selectedTab = tabs.find(function (tab) { return tab.getAttribute('aria-selected') === 'true'; });
-      if (!managerView && selectedTab && selectedTab.hasAttribute('data-manager-only')) {
-        activateTab(document.getElementById('pos-tab'), true);
-      } else if (selectedTab) {
-        activateTab(selectedTab, false);
+      const sessionLabel = document.getElementById('staff-session-label');
+      const signOutButton = document.getElementById('dashboard-staff-signout');
+      sessionLabel.hidden = !staffSession;
+      signOutButton.hidden = !staffSession;
+      if (staffSession) {
+        sessionLabel.textContent = 'Demo sign-in: ' + staffSession.name + ' (' + roleNames[activeRole] + ')';
       }
 
-      const roleName = previewRole.charAt(0).toUpperCase() + previewRole.slice(1);
-      announce(roleName + ' preview selected. ' + (managerView
-        ? 'Manager dashboard and employee access are available.'
-        : 'Only Point of Sales, active orders, and order history are available.'));
+      document.querySelectorAll('[data-minimum-role]').forEach(function (element) {
+        if (element.getAttribute('role') === 'tabpanel') {
+          if (!roleCanSee(element)) {
+            element.hidden = true;
+            element.setAttribute('aria-hidden', 'true');
+          }
+        } else {
+          element.hidden = !roleCanSee(element);
+          element.setAttribute('aria-hidden', String(element.hidden));
+        }
+      });
+
+      const selectedTab = tabs.find(function (tab) {
+        return tab.getAttribute('aria-selected') === 'true' && roleCanSee(tab);
+      });
+      const firstAvailableTab = tabs.find(roleCanSee);
+      activateTab(selectedTab || firstAvailableTab, false);
+
+      if (announceChange) {
+        const message = activeRole === 'admin'
+          ? 'Admin role selected. All dashboard views are available in this demo.'
+          : activeRole === 'manager'
+            ? 'Manager role selected. Manager tools and order views are available.'
+            : 'Employee role selected. Point of Sales, active orders, and order history are available.';
+        announce(message);
+      }
     }
 
-    managerOnlyElements.forEach(function (element) {
-      element.hidden = previewRole === 'employee';
-      element.setAttribute('aria-hidden', String(previewRole === 'employee'));
+    rolePreview.addEventListener('change', function () {
+      staffSession = null;
+      applyRole(rolePreview.value, true);
     });
-    rolePreview.addEventListener('change', updateRolePreview);
+
+    document.getElementById('dashboard-staff-signout').addEventListener('click', function () {
+      sessionStorage.removeItem('luigis_staff_session');
+      window.location.assign('/staff-signin.html?focus=signin');
+    });
 
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () { activateTab(tab, false); });
@@ -636,7 +678,12 @@
         }
       });
     });
-    activateTab(document.getElementById('pos-tab'), false);
+    applyRole(activeRole, false);
+    if (new URLSearchParams(window.location.search).get('focus') === 'dashboard') {
+      window.requestAnimationFrame(function () {
+        document.getElementById('dashboard-heading').focus();
+      });
+    }
 
     const employeeAccessForm = document.getElementById('employee-access-form');
     const employeePreviewList = document.getElementById('employee-preview-list');

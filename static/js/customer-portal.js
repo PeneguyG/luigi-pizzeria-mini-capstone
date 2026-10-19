@@ -416,6 +416,36 @@ function readReceipts() {
 
 }
 
+function prefillSignedInCustomer() {
+
+  try {
+
+    const email = localStorage.getItem('luigis_customer_session');
+
+    const customers = JSON.parse(localStorage.getItem('luigis_customers') || '[]');
+
+    const customer = Array.isArray(customers) ? customers.find(function (record) {
+
+      return record && typeof record.email === 'string' && record.email.toLowerCase() === String(email || '').toLowerCase();
+
+    }) : null;
+
+    if (!customer) return;
+
+    if (customer.name && !element('customer-name').value) element('customer-name').value = customer.name;
+
+    if (customer.phone && !element('customer-phone').value) element('customer-phone').value = customer.phone;
+
+    if (customer.email && !element('customer-email').value) element('customer-email').value = customer.email;
+
+  } catch (_error) {
+
+    // Guest ordering remains available when browser storage is disabled.
+
+  }
+
+}
+
 function rememberOrder(order) {
 
   selectedOrder = {id: order.id, token: order.trackingToken};
@@ -642,6 +672,8 @@ async function initializeCustomerDashboard() {
 
   readReceipts();
 
+  prefillSignedInCustomer();
+
   try {
 
     menu = await apiRequest('/api/customer/menu');
@@ -669,6 +701,22 @@ async function initializeCustomerDashboard() {
   } catch (error) { showMessage(error.message); }
 
   if (selectedOrder) refreshTracker();
+
+  const requestedFocus = new URLSearchParams(window.location.search).get('focus');
+
+  if (requestedFocus === 'order') {
+
+    showView('menu');
+
+    window.requestAnimationFrame(function () { element('menu-tab').focus(); });
+
+  } else if (requestedFocus === 'tracker') {
+
+    showView('tracker');
+
+    window.requestAnimationFrame(function () { element('tracker-tab').focus(); });
+
+  }
 
 }
 

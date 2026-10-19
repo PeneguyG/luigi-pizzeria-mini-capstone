@@ -34,7 +34,7 @@
         <nav aria-label="Main navigation">
           <ul class="nav gap-2">
             <li class="nav-item"><a class="nav-link" href="#welcome">Welcome</a></li>
-            <li class="nav-item"><a class="nav-link" href="#customer-access">Customer sign-in</a></li>
+            <li class="nav-item"><a class="nav-link" href="#customer-access">Customer ordering</a></li>
           </ul>
         </nav>
       </div>
@@ -54,7 +54,7 @@
           </p>
           <div class="d-flex flex-column flex-sm-row gap-3">
             <a class="btn btn-pizzeria btn-lg px-4" href="#customer-access">Order for pickup</a>
-            <a class="btn btn-outline-pizzeria btn-lg px-4" href="#customer-access">Log in or sign up</a>
+            <a class="btn btn-outline-pizzeria btn-lg px-4" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Log in or sign up</a>
           </div>
           <p class="small mt-3 mb-0">Carryout and pickup orders only.</p>
         </div>
@@ -95,14 +95,15 @@
       <div class="col-12 col-lg-8 col-xl-7">
         <div class="section-card p-4 p-md-5">
           <p class="eyebrow mb-2">Online ordering</p>
-          <h2 id="customer-heading" class="h3 mb-2">Ready for your next pizza?</h2>
-          <p class="text-secondary mb-4">Build a pickup order, check your total, and follow its progress from the customer dashboard. No customer account is needed.</p>
-          <div class="d-flex flex-wrap gap-3">
-            <a class="btn btn-pizzeria btn-lg" href="/customer">Start an order</a>
-            <a class="btn btn-outline-pizzeria btn-lg" href="/customer">Track an order</a>
+          <h2 id="customer-heading" class="h3 mb-2">How would you like to order?</h2>
+          <p class="text-secondary mb-4">Sign in or create an account before ordering, or continue as a guest. Every order can be tracked from its receipt.</p>
+          <div class="d-flex flex-column flex-sm-row flex-wrap gap-3" role="group" aria-label="Customer ordering options">
+            <a class="btn btn-pizzeria btn-lg" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Create an account or sign in</a>
+            <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=order">Order as a Guest</a>
+            <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=tracker">Track an order</a>
           </div>
           <div class="auth-note rounded p-3 mt-4">
-            <p class="small mb-0"><strong>Pickup orders:</strong> place your order online and collect it at Luigi's. Keep the tracking link shown on your receipt to check kitchen updates.</p>
+            <p class="small mb-0"><strong>Pickup orders:</strong> no account is required when you choose guest checkout. Keep the receipt in this browser to check kitchen updates.</p>
           </div>
         </div>
       </div>
@@ -138,8 +139,8 @@
             <h2 id="employee-heading" class="h3 mb-2">Staff sign in</h2>
             <p class="text-secondary mb-4">For Luigi's team members managing pickup orders.</p>
 
-            <p class="text-secondary mb-4">The employee dashboard asks for staff credentials before opening order management.</p>
-            <a class="btn btn-pizzeria-red btn-lg w-100" href="/employee">Open employee dashboard</a>
+            <p class="text-secondary mb-4">Sign in with your staff demo account to open the role-specific order workspace.</p>
+            <a class="btn btn-pizzeria-red btn-lg w-100" href="/staff-signin.html?focus=signin">Staff sign in</a>
           </div>
         </div>
       </div>

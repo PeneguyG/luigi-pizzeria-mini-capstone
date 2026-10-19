@@ -586,6 +586,16 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 def landing_page():
     return render_template("landingpage.html")
 
+@app.get("/signup")
+@app.get("/signup.html")
+def signup_page():
+    return render_template("signup.html")
+
+@app.get("/staff-signin")
+@app.get("/staff-signin.html")
+def staff_signin_page():
+    return render_template("staff-signin.html")
+
 @app.get("/employee")
 
 def dashboard():

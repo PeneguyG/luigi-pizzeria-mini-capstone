@@ -88,7 +88,7 @@ sudo bash ./deploy-gce.sh
 
 The script defaults to `luigispizzeriapickup.duckdns.org`; override `DUCKDNS_DOMAIN` if needed. It prompts for the DuckDNS token, a Let's Encrypt contact email, and a staff password. It generates and stores a database password locally in `/etc/luigi-pizzeria/app.env`. To select another repository or branch, pass `APP_REPO_URL` or `APP_REPO_BRANCH` as environment assignments to `sudo`, for example: `sudo APP_REPO_BRANCH=main bash ./deploy-gce.sh`.
 
-The landing page is served at `/`, customer ordering and receipt-based tracking at `/customer`, and employee order management at `/employee`. Employee pages and `/api/employee/*` require Nginx Basic Auth; the username defaults to `luigi-staff`, and the password is chosen during setup. Customer orders are guest orders; customer accounts are not implemented. The app and database are on the same VM, and the database listens only on localhost.
+The landing page is served at `/`, customer ordering and receipt-based tracking at `/customer`, and employee order management at `/employee`. `/signup.html` and `/staff-signin.html` are browser-only sign-in prototypes: customer demo accounts are stored in local browser storage, and staff demo credentials and role checks are in JavaScript. They are not production authentication and do not enforce database or API permissions. The employee dashboard and `/api/employee/*` remain protected by Nginx Basic Auth; the username defaults to `luigi-staff`, and the shared password is chosen during setup. The app and database are on the same VM, and the database listens only on localhost.
 
 Useful service commands:
 
