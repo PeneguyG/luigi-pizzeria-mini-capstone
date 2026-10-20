@@ -44,6 +44,7 @@
           <button class="nav-link text-dark" id="history-tab" type="button" role="tab" aria-label="Order history tab" aria-selected="false" aria-controls="history-panel" tabindex="-1" data-panel="history-panel">Order history <span id="history-count" class="badge rounded-pill ms-1 text-dark" style="background-color:#e4efe3;">0</span></button>
           <button class="nav-link text-dark" id="manager-tab" type="button" role="tab" aria-selected="false" aria-controls="manager-panel" tabindex="-1" data-panel="manager-panel" data-minimum-role="manager" hidden>Manager dashboard</button>
           <button class="nav-link text-dark" id="access-tab" type="button" role="tab" aria-selected="false" aria-controls="access-panel" tabindex="-1" data-panel="access-panel" data-minimum-role="manager" hidden>Staff accounts</button>
+          <button class="nav-link text-dark" id="customers-tab" type="button" role="tab" aria-selected="false" aria-controls="customers-panel" tabindex="-1" data-panel="customers-panel" data-minimum-role="manager" hidden>Customers</button>
         </div>
       </nav>
       <div id="dashboard-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -61,9 +62,14 @@
                 <legend class="h6 mb-3">Customer and pickup details</legend>
                 <div class="row g-3">
                   <div class="col-12 col-md-6">
-                    <label class="form-label" for="customer-name">Customer name <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-name" name="customerName" type="text" autocomplete="name" required maxlength="80" aria-label="Customer name, required" aria-describedby="customer-name-error">
-                    <div id="customer-name-error" class="invalid-feedback">Enter the customer's name.</div>
+                    <label class="form-label" for="customer-first-name">First name <span aria-hidden="true" class="text-danger">*</span></label>
+                    <input class="form-control" id="customer-first-name" name="customerFirstName" type="text" autocomplete="given-name" required maxlength="80" aria-describedby="customer-first-name-error">
+                    <div id="customer-first-name-error" class="invalid-feedback">Enter the customer's first name.</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="customer-last-name">Last name <span aria-hidden="true" class="text-danger">*</span></label>
+                    <input class="form-control" id="customer-last-name" name="customerLastName" type="text" autocomplete="family-name" required maxlength="80" aria-describedby="customer-last-name-error">
+                    <div id="customer-last-name-error" class="invalid-feedback">Enter the customer's last name.</div>
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="customer-phone">Phone number <span aria-hidden="true" class="text-danger">*</span></label>
@@ -272,10 +278,13 @@
           <p id="staff-access-message" class="alert mb-3" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           <form id="employee-access-form" class="row g-3">
             <input id="employee-account-id" name="employeeAccountId" type="hidden" value="">
-            <div class="col-12 col-lg-4">
-              <label class="form-label" for="employee-name">Staff member name <span aria-hidden="true" class="text-danger">*</span></label>
-              <input class="form-control" id="employee-name" name="employeeName" autocomplete="name" maxlength="80" required aria-describedby="employee-name-error">
-              <div id="employee-name-error" class="invalid-feedback">Enter the employee's name.</div>
+            <div class="col-12 col-md-6 col-lg-2">
+              <label class="form-label" for="employee-first-name">First name <span aria-hidden="true" class="text-danger">*</span></label>
+              <input class="form-control" id="employee-first-name" name="employeeFirstName" autocomplete="given-name" maxlength="80" required>
+            </div>
+            <div class="col-12 col-md-6 col-lg-2">
+              <label class="form-label" for="employee-last-name">Last name <span aria-hidden="true" class="text-danger">*</span></label>
+              <input class="form-control" id="employee-last-name" name="employeeLastName" autocomplete="family-name" maxlength="80" required>
             </div>
             <div class="col-12 col-lg-4">
               <label class="form-label" for="employee-email">Work email <span aria-hidden="true" class="text-danger">*</span></label>
@@ -304,6 +313,36 @@
               <li id="staff-account-loading" class="list-group-item text-secondary">Staff accounts are loading.</li>
             </ul>
           </div>
+        </div>
+      </section>
+
+      <section id="customers-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="customers-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager" style="background-color:#fffefa;">
+        <div class="card-body p-3 p-md-4 p-xl-5">
+          <div class="mb-4">
+            <p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Manager tools</p>
+            <h3 id="customers-heading" class="h5 mb-1" tabindex="-1">Customer directory</h3>
+            <p class="text-secondary mb-0">Search customer contact details and open a customer to review all of their orders.</p>
+          </div>
+          <form id="customer-search-form" class="row g-2 mb-3" role="search">
+            <div class="col-12 col-md">
+              <label class="form-label" for="customer-search">Search customers</label>
+              <input class="form-control" id="customer-search" name="q" type="search" maxlength="100" autocomplete="off" aria-describedby="customer-search-help">
+              <div id="customer-search-help" class="form-text">Search by first or last name, phone number, or email address.</div>
+            </div>
+            <div class="col-12 col-md-auto d-flex align-items-end">
+              <button id="customer-search-submit" class="btn btn-outline-danger" type="submit">Search</button>
+            </div>
+          </form>
+          <p id="customer-directory-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true">Customer list is loading.</p>
+          <ul id="customer-directory-list" class="list-group mb-4" aria-label="Customers" aria-live="polite" aria-busy="false">
+            <li class="list-group-item text-secondary">Customers are loading.</li>
+          </ul>
+          <section id="customer-order-history" aria-labelledby="customer-order-history-heading" hidden>
+            <h4 id="customer-order-history-heading" class="h6" tabindex="-1">Customer order history</h4>
+            <p id="selected-customer-summary" class="text-secondary"></p>
+            <p id="customer-orders-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div id="customer-orders-list" class="d-grid gap-3" aria-live="polite" aria-relevant="additions text"></div>
+          </section>
         </div>
       </section>
     </section>

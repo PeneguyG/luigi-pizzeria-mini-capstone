@@ -432,7 +432,13 @@ function prefillSignedInCustomer() {
 
     if (!customer) return;
 
-    if (customer.name && !element('customer-name').value) element('customer-name').value = customer.name;
+    const legacyNameParts = String(customer.name || '').trim().split(/\s+/);
+    const firstName = customer.firstName || legacyNameParts.shift() || '';
+    const lastName = customer.lastName || legacyNameParts.join(' ');
+
+    if (firstName && !element('customer-first-name').value) element('customer-first-name').value = firstName;
+
+    if (lastName && !element('customer-last-name').value) element('customer-last-name').value = lastName;
 
     if (customer.phone && !element('customer-phone').value) element('customer-phone').value = customer.phone;
 
@@ -600,7 +606,9 @@ async function placeOrder(event) {
 
     const payload = {
 
-      customerName: element('customer-name').value.trim(),
+      customerFirstName: element('customer-first-name').value.trim(),
+
+      customerLastName: element('customer-last-name').value.trim(),
 
       customerPhone: element('customer-phone').value.trim(),
 
@@ -773,7 +781,7 @@ element('pizza-form').addEventListener('input', updatePizzaEstimate);
 
 element('checkout-form').addEventListener('submit', placeOrder);
 
-element('go-checkout').addEventListener('click', function () { showView('checkout'); element('customer-name').focus(); });
+element('go-checkout').addEventListener('click', function () { showView('checkout'); element('customer-first-name').focus(); });
 
 element('back-menu').addEventListener('click', function () { showView('menu'); element('menu-tab').focus(); });
 

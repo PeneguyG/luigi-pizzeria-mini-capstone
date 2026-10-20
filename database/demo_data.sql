@@ -1,13 +1,13 @@
 USE luigis_pizzeria;
 
 -- Demo customers use reserved 555-01xx numbers and can be safely inserted again.
-INSERT IGNORE INTO customers (full_name, phone) VALUES
-  ('Demo Joe Rivera', '555-0101'),
-  ('Demo Avery Kim', '555-0102'),
-  ('Demo Sam Patel', '555-0103'),
-  ('Demo Taylor Morgan', '555-0104'),
-  ('Demo Casey Brooks', '555-0105'),
-  ('Demo Jordan Lee', '555-0106');
+INSERT IGNORE INTO customers (full_name, first_name, last_name, phone) VALUES
+  ('Demo Joe Rivera', 'Demo Joe', 'Rivera', '555-0101'),
+  ('Demo Avery Kim', 'Demo Avery', 'Kim', '555-0102'),
+  ('Demo Sam Patel', 'Demo Sam', 'Patel', '555-0103'),
+  ('Demo Taylor Morgan', 'Demo Taylor', 'Morgan', '555-0104'),
+  ('Demo Casey Brooks', 'Demo Casey', 'Brooks', '555-0105'),
+  ('Demo Jordan Lee', 'Demo Jordan', 'Lee', '555-0106');
 
 SELECT customer_id INTO @demo_joe FROM customers WHERE phone = '555-0101';
 SELECT customer_id INTO @demo_avery FROM customers WHERE phone = '555-0102';

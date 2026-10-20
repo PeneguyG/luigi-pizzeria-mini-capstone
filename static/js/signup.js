@@ -106,7 +106,7 @@ function renderSession() {
   welcome.classList.toggle('hidden', !signedIn);
 
   if (signedIn) {
-    const firstName = customer.name.trim().split(/\s+/)[0] || 'there';
+    const firstName = (customer.firstName || (customer.name || '').trim().split(/\s+/)[0] || 'there').trim();
     welcome.textContent = 'Signed in as ' + firstName;
     document.getElementById('accountGreeting').textContent = 'Welcome back, ' + firstName + '!';
   }
@@ -119,22 +119,25 @@ function redirectToOrder() {
 async function handleSignup(event) {
   event.preventDefault();
   clearMessage();
-  const nameInput = document.getElementById('suName');
+  const firstNameInput = document.getElementById('suFirstName');
+  const lastNameInput = document.getElementById('suLastName');
   const emailInput = document.getElementById('suEmail');
   const phoneInput = document.getElementById('suPhone');
   const passwordInput = document.getElementById('suPassword');
   const confirmInput = document.getElementById('suConfirm');
-  const name = nameInput.value.trim();
+  const firstName = firstNameInput.value.trim();
+  const lastName = lastNameInput.value.trim();
   const email = emailInput.value.trim().toLowerCase();
   const phone = phoneInput.value.trim();
   const password = passwordInput.value;
   const confirm = confirmInput.value;
 
-  nameInput.setCustomValidity(name ? '' : 'Enter your full name.');
+  firstNameInput.setCustomValidity(firstName ? '' : 'Enter your first name.');
+  lastNameInput.setCustomValidity(lastName ? '' : 'Enter your last name.');
   phoneInput.setCustomValidity(phone.replace(/\D/g, '').length >= 10 ? '' : 'Enter a phone number with at least 10 digits.');
   passwordInput.setCustomValidity(password.length >= 8 ? '' : 'Use at least 8 characters.');
   confirmInput.setCustomValidity(password === confirm ? '' : 'The passwords do not match.');
-  const invalid = [nameInput, emailInput, phoneInput, passwordInput, confirmInput].find(function (input) {
+  const invalid = [firstNameInput, lastNameInput, emailInput, phoneInput, passwordInput, confirmInput].find(function (input) {
     return !input.validity.valid;
   });
   if (invalid) {
@@ -153,7 +156,9 @@ async function handleSignup(event) {
 
   try {
     customers.push({
-      name: name,
+      firstName: firstName,
+      lastName: lastName,
+      name: firstName + ' ' + lastName,
       email: email,
       phone: phone,
       passwordHash: await hashPassword(password),

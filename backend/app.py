@@ -79,6 +79,18 @@ def required_text(value, label, max_length):
     return value
 
 
+def customer_name_parts(body):
+    if "customerFirstName" in body or "customerLastName" in body:
+        first_name = required_text(body.get("customerFirstName"), "Customer first name", 80)
+        last_name = required_text(body.get("customerLastName"), "Customer last name", 80)
+    else:
+        full_name = required_text(body.get("customerName"), "Customer name", 200)
+        parts = full_name.split(None, 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ""
+    return first_name, last_name, " ".join((first_name, last_name)).strip()
+
+
 def parse_quantity(value):
     if isinstance(value, bool):
         raise ApiError("Item quantity must be a whole number.")
@@ -195,16 +207,18 @@ def prepare_items(raw_items):
     return items, subtotal, tax_amount, subtotal + tax_amount
 
 
-def save_customer(cursor, customer_name, customer_phone):
+def save_customer(cursor, customer_name, customer_phone, first_name, last_name):
     cursor.execute(
         """
-        INSERT INTO customers (full_name, phone)
-        VALUES (%s, %s)
+        INSERT INTO customers (full_name, first_name, last_name, phone)
+        VALUES (%s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             full_name = VALUES(full_name),
+            first_name = VALUES(first_name),
+            last_name = VALUES(last_name),
             customer_id = LAST_INSERT_ID(customer_id)
         """,
-        (customer_name, customer_phone),
+        (customer_name, first_name, last_name, customer_phone),
     )
     return cursor.lastrowid
 
@@ -392,7 +406,7 @@ def create_order():
         return jsonify({"error": "Send order details as JSON."}), 400
 
     try:
-        customer_name = required_text(body.get("customerName"), "Customer name", 80)
+        customer_first_name, customer_last_name, customer_name = customer_name_parts(body)
         customer_phone = required_text(body.get("customerPhone"), "Customer phone", 30)
         channel = body.get("channel")
         if not isinstance(channel, str) or channel not in ALLOWED_CHANNELS:
@@ -407,7 +421,7 @@ def create_order():
         try:
             connection.begin()
             cursor = connection.cursor()
-            customer_id = save_customer(cursor, customer_name, customer_phone)
+            customer_id = save_customer(cursor, customer_name, customer_phone, customer_first_name, customer_last_name)
             cursor.execute(
                 """
                 INSERT INTO orders
@@ -433,6 +447,8 @@ def create_order():
             "source": "Employee POS",
             "channel": channel,
             "customerName": customer_name,
+            "customerFirstName": customer_first_name,
+            "customerLastName": customer_last_name,
             "customerPhone": customer_phone,
             "items": [
                 {
@@ -478,7 +494,7 @@ def edit_order(order_id):
 
     connection = None
     try:
-        customer_name = required_text(body.get("customerName"), "Customer name", 80)
+        customer_first_name, customer_last_name, customer_name = customer_name_parts(body)
         customer_phone = required_text(body.get("customerPhone"), "Customer phone", 30)
         channel = body.get("channel")
         if not isinstance(channel, str) or channel not in ALLOWED_CHANNELS:
@@ -507,7 +523,7 @@ def edit_order(order_id):
         existing_pickup = str(order["pickupTime"])[:5] if order["pickupTime"] else ""
         same_pickup = pickup_value == existing_pickup
         pickup_time = pickup_time_value(pickup_value, allow_past=same_pickup)
-        customer_id = save_customer(cursor, customer_name, customer_phone)
+        customer_id = save_customer(cursor, customer_name, customer_phone, customer_first_name, customer_last_name)
         cursor.execute(
             """
             UPDATE orders
@@ -523,6 +539,8 @@ def edit_order(order_id):
         return jsonify({
             "id": order_id,
             "customerName": customer_name,
+            "customerFirstName": customer_first_name,
+            "customerLastName": customer_last_name,
             "status": order["status"],
             "subtotalPrice": float(subtotal),
             "taxPrice": float(tax_amount),

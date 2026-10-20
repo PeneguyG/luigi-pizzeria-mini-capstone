@@ -247,10 +247,13 @@ def valid_staff_email(value):
     return isinstance(value, str) and len(value) <= 254 and bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value))
 
 def public_staff_account(row):
+    legacy_parts = (row.get("full_name") or "").strip().split(None, 1)
     return {
         "id": int(row["staff_id"]),
         "email": row["email"],
         "fullName": row["full_name"],
+        "firstName": row.get("first_name") or (legacy_parts[0] if legacy_parts else ""),
+        "lastName": row.get("last_name") or (legacy_parts[1] if len(legacy_parts) > 1 else ""),
         "role": row["staff_role"],
         "isActive": bool(row["is_active"]),
         "mustChangePassword": bool(row["must_change_password"]),
@@ -274,6 +277,21 @@ def required_text(value, label, max_length):
         raise ApiError(label + " is too long.")
 
     return value
+
+def person_name_parts(body, first_key, last_key, legacy_key, label):
+    """Return validated first name, last name, and a compatible display name."""
+    if first_key in body or last_key in body:
+        first_name = required_text(body.get(first_key), label + " first name", 80)
+        last_name = required_text(body.get(last_key), label + " last name", 80)
+    else:
+        legacy_name = required_text(body.get(legacy_key), label, 200)
+        parts = legacy_name.split(None, 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ""
+    full_name = " ".join(part for part in (first_name, last_name) if part)
+    if len(full_name) > 200:
+        raise ApiError(label + " is too long.")
+    return first_name, last_name, full_name
 
 def parse_quantity(value, maximum):
 
@@ -537,6 +555,10 @@ def serialize_order_row(row):
 
         "customerName": row["customerName"],
 
+        "customerFirstName": row.get("customerFirstName", ""),
+
+        "customerLastName": row.get("customerLastName", ""),
+
         "customerPhone": row["customerPhone"],
 
         "items": [],
@@ -569,7 +591,7 @@ def serialize_order_row(row):
 
     }
 
-def load_orders(completed, order_id=None, tracking_hash=None):
+def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None):
 
     connection = database_connection()
 
@@ -579,13 +601,19 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 
         where_clause = "1 = 1" if completed is None else ("o.status = 'Completed'" if completed else "o.status <> 'Completed'")
 
-        parameters = ()
+        parameters = []
 
         if order_id is not None:
 
             where_clause += " AND o.order_id = %s AND o.tracking_token_hash = %s"
 
-            parameters = (order_id, tracking_hash)
+            parameters.extend((order_id, tracking_hash))
+
+        if customer_id is not None:
+
+            where_clause += " AND o.customer_id = %s"
+
+            parameters.append(customer_id)
 
         cursor.execute(
 
@@ -603,7 +631,8 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 
                    o.payment_method AS paymentMethod, o.payment_last_four AS paymentLastFour,
 
-                   c.full_name AS customerName, c.phone AS customerPhone
+                   c.full_name AS customerName, c.first_name AS customerFirstName,
+                   c.last_name AS customerLastName, c.phone AS customerPhone
 
               FROM orders AS o
 
@@ -611,7 +640,7 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 
              WHERE """ + where_clause + " ORDER BY " + ("o.completed_at" if completed else "o.created_at") + " DESC, o.order_id DESC",
 
-            parameters,
+            tuple(parameters),
 
         )
 
@@ -721,12 +750,14 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 def create_owner_command():
     """Create the initial owner account once, using an interactive prompt."""
     email = click.prompt("Owner email").strip().lower()
-    full_name = click.prompt("Owner full name").strip()
+    first_name = click.prompt("Owner first name").strip()
+    last_name = click.prompt("Owner last name").strip()
+    full_name = " ".join(part for part in (first_name, last_name) if part)
     password = click.prompt("Owner password", hide_input=True, confirmation_prompt=True)
     if not valid_staff_email(email):
         raise click.ClickException("Enter a valid email address.")
-    if not full_name or len(full_name) > 80:
-        raise click.ClickException("Owner name must be between 1 and 80 characters.")
+    if not first_name or len(first_name) > 80 or not last_name or len(last_name) > 80:
+        raise click.ClickException("Owner first and last names must each be between 1 and 80 characters.")
     if len(password) < PASSWORD_MIN_LENGTH or len(password) > 128:
         raise click.ClickException("Password must be between 12 and 128 characters.")
     if not password.strip():
@@ -743,10 +774,10 @@ def create_owner_command():
         cursor.execute(
             """
             INSERT INTO staff_users
-                (email, full_name, password_hash, staff_role, is_active, must_change_password)
-            VALUES (%s, %s, %s, 'owner', 1, 0)
+                (email, full_name, first_name, last_name, password_hash, staff_role, is_active, must_change_password)
+            VALUES (%s, %s, %s, %s, %s, 'owner', 1, 0)
             """,
-            (email, full_name, generate_password_hash(password)),
+            (email, full_name, first_name, last_name, generate_password_hash(password)),
         )
         connection.commit()
         click.echo("Initial owner account created.")
@@ -891,7 +922,7 @@ def list_staff_accounts():
         if g.staff_user["staff_role"] == "manager":
             cursor.execute(
                 """
-                SELECT staff_id, email, full_name, staff_role, is_active,
+                SELECT staff_id, email, full_name, first_name, last_name, staff_role, is_active,
                        must_change_password, created_at
                   FROM staff_users
                  WHERE staff_role = 'employee'
@@ -901,7 +932,7 @@ def list_staff_accounts():
         else:
             cursor.execute(
                 """
-                SELECT staff_id, email, full_name, staff_role, is_active,
+                SELECT staff_id, email, full_name, first_name, last_name, staff_role, is_active,
                        must_change_password, created_at
                   FROM staff_users
                  ORDER BY FIELD(staff_role, 'owner', 'manager', 'employee'), full_name, email
@@ -924,7 +955,9 @@ def create_staff_account():
     if not isinstance(body, dict):
         return jsonify({"error": "Send employee details as JSON."}), 400
     try:
-        full_name = required_text(body.get("fullName"), "Employee name", 80)
+        first_name, last_name, full_name = person_name_parts(
+            body, "firstName", "lastName", "fullName", "Employee"
+        )
     except ApiError as exc:
         return jsonify({"error": str(exc)}), exc.status_code
     email = body.get("email")
@@ -949,13 +982,15 @@ def create_staff_account():
         cursor.execute(
             """
             INSERT INTO staff_users
-                (email, full_name, password_hash, staff_role, is_active,
+                (email, full_name, first_name, last_name, password_hash, staff_role, is_active,
                  must_change_password, created_by)
-            VALUES (%s, %s, %s, %s, 1, 1, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, 1, 1, %s)
             """,
             (
                 email,
                 full_name,
+                first_name,
+                last_name,
                 generate_password_hash(temporary_password),
                 role,
                 g.staff_user["staff_id"],
@@ -964,7 +999,7 @@ def create_staff_account():
         new_staff_id = cursor.lastrowid
         cursor.execute(
             """
-            SELECT staff_id, email, full_name, staff_role, is_active,
+            SELECT staff_id, email, full_name, first_name, last_name, staff_role, is_active,
                    must_change_password, created_at
               FROM staff_users WHERE staff_id = %s
             """,
@@ -982,6 +1017,116 @@ def create_staff_account():
             connection.rollback()
         app.logger.exception("Could not create staff account")
         return jsonify({"error": "Staff account could not be created."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.get("/api/staff/customers")
+@staff_required
+@roles_required("manager", "owner")
+def list_customers():
+    query = request.args.get("q", "").strip()
+    if len(query) > 100:
+        return jsonify({"error": "Customer search must be 100 characters or fewer."}), 400
+    connection = None
+    try:
+        connection = database_connection()
+        cursor = connection.cursor()
+        where_clause = ""
+        parameters = []
+        if query:
+            pattern = "%" + query + "%"
+            where_clause = """
+             WHERE c.first_name LIKE %s OR c.last_name LIKE %s
+                OR c.full_name LIKE %s OR c.phone LIKE %s
+                OR EXISTS (
+                    SELECT 1 FROM orders AS searched_order
+                     WHERE searched_order.customer_id = c.customer_id
+                       AND searched_order.customer_email LIKE %s
+                )
+            """
+            parameters.extend([pattern] * 5)
+        cursor.execute(
+            """
+            SELECT c.customer_id AS id, c.first_name AS firstName,
+                   c.last_name AS lastName, c.full_name AS fullName,
+                   c.phone AS phone,
+                   COALESCE((
+                       SELECT o.customer_email FROM orders AS o
+                        WHERE o.customer_id = c.customer_id AND o.customer_email <> ''
+                        ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1
+                   ), '') AS email,
+                   (SELECT COUNT(*) FROM orders AS order_count
+                     WHERE order_count.customer_id = c.customer_id) AS orderCount,
+                   (SELECT MAX(order_date.created_at) FROM orders AS order_date
+                     WHERE order_date.customer_id = c.customer_id) AS lastOrderAt
+              FROM customers AS c
+            """ + where_clause + " ORDER BY c.last_name, c.first_name, c.full_name",
+            tuple(parameters),
+        )
+        customers = []
+        for row in cursor.fetchall():
+            parts = (row.get("fullName") or "").split(None, 1)
+            customers.append({
+                "id": int(row["id"]),
+                "firstName": row.get("firstName") or (parts[0] if parts else ""),
+                "lastName": row.get("lastName") or (parts[1] if len(parts) > 1 else ""),
+                "fullName": row["fullName"],
+                "phone": row["phone"],
+                "email": row["email"],
+                "orderCount": int(row["orderCount"]),
+                "lastOrderAt": iso_timestamp(row["lastOrderAt"]),
+            })
+        return jsonify({"customers": customers})
+    except Exception:
+        app.logger.exception("Could not load customer directory")
+        return jsonify({"error": "Customer list could not be loaded."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.get("/api/staff/customers/<int:customer_id>/orders")
+@staff_required
+@roles_required("manager", "owner")
+def get_customer_order_history(customer_id):
+    connection = None
+    try:
+        connection = database_connection()
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT c.customer_id AS id, c.first_name AS firstName,
+                   c.last_name AS lastName, c.full_name AS fullName,
+                   c.phone AS phone,
+                   COALESCE((
+                       SELECT o.customer_email FROM orders AS o
+                        WHERE o.customer_id = c.customer_id AND o.customer_email <> ''
+                        ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1
+                   ), '') AS email
+              FROM customers AS c
+             WHERE c.customer_id = %s
+            """,
+            (customer_id,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return jsonify({"error": "Customer not found."}), 404
+        parts = (row.get("fullName") or "").split(None, 1)
+        customer = {
+            "id": int(row["id"]),
+            "firstName": row.get("firstName") or (parts[0] if parts else ""),
+            "lastName": row.get("lastName") or (parts[1] if len(parts) > 1 else ""),
+            "fullName": row["fullName"],
+            "phone": row["phone"],
+            "email": row["email"],
+        }
+        connection.close()
+        connection = None
+        orders = load_orders(None, customer_id=customer_id)
+        return jsonify({"customer": customer, "orders": orders})
+    except Exception:
+        app.logger.exception("Could not load customer order history")
+        return jsonify({"error": "Customer order history could not be loaded."}), 503
     finally:
         if connection is not None:
             connection.close()
@@ -1028,7 +1173,9 @@ def update_staff_account(staff_id):
             return jsonify({"success": True, "isActive": body["isActive"]})
 
         try:
-            full_name = required_text(body.get("fullName"), "Staff name", 80)
+            first_name, last_name, full_name = person_name_parts(
+                body, "firstName", "lastName", "fullName", "Staff"
+            )
         except ApiError as exc:
             connection.rollback()
             return jsonify({"error": str(exc)}), exc.status_code
@@ -1050,15 +1197,17 @@ def update_staff_account(staff_id):
             UPDATE staff_users
                SET email = %s,
                    full_name = %s,
+                   first_name = %s,
+                   last_name = %s,
                    staff_role = %s,
                    auth_version = auth_version + %s
              WHERE staff_id = %s
             """,
-            (email, full_name, role, auth_version_increment, staff_id),
+            (email, full_name, first_name, last_name, role, auth_version_increment, staff_id),
         )
         cursor.execute(
             """
-            SELECT staff_id, email, full_name, staff_role, is_active,
+            SELECT staff_id, email, full_name, first_name, last_name, staff_role, is_active,
                    must_change_password, created_at
               FROM staff_users WHERE staff_id = %s
             """,
@@ -1359,7 +1508,9 @@ def create_order():
 
                     raise ApiError("Complete the demo card details.")
 
-        customer_name = required_text(body.get("customerName"), "Customer name", 80)
+        customer_first_name, customer_last_name, customer_name = person_name_parts(
+            body, "customerFirstName", "customerLastName", "customerName", "Customer"
+        )
 
         customer_phone = required_text(body.get("customerPhone"), "Customer phone", 30)
 
@@ -1391,19 +1542,21 @@ def create_order():
 
                 """
 
-                INSERT INTO customers (full_name, phone)
+                INSERT INTO customers (full_name, first_name, last_name, phone)
 
-                VALUES (%s, %s)
+                VALUES (%s, %s, %s, %s)
 
                 ON DUPLICATE KEY UPDATE
 
                     full_name = VALUES(full_name),
+                    first_name = VALUES(first_name),
+                    last_name = VALUES(last_name),
 
                     customer_id = LAST_INSERT_ID(customer_id)
 
                 """,
 
-                (customer_name, customer_phone),
+                (customer_name, customer_first_name, customer_last_name, customer_phone),
 
             )
 
@@ -1506,6 +1659,10 @@ def create_order():
             "channel": channel,
 
             "customerName": customer_name,
+
+            "customerFirstName": customer_first_name,
+
+            "customerLastName": customer_last_name,
 
             "customerPhone": customer_phone,
 

@@ -37,8 +37,11 @@
 
         <div id="signupPanel" role="tabpanel" aria-labelledby="signup-tab" tabindex="0">
           <form id="signupForm" aria-describedby="auth-help">
-            <label for="suName">Full name <span aria-hidden="true">(required)</span></label>
-            <input id="suName" name="name" type="text" autocomplete="name" maxlength="80" required>
+            <label for="suFirstName">First name <span aria-hidden="true">(required)</span></label>
+            <input id="suFirstName" name="given-name" type="text" autocomplete="given-name" maxlength="80" required>
+
+            <label for="suLastName">Last name <span aria-hidden="true">(required)</span></label>
+            <input id="suLastName" name="family-name" type="text" autocomplete="family-name" maxlength="80" required>
 
             <label for="suEmail">Email address <span aria-hidden="true">(required)</span></label>
             <input id="suEmail" name="email" type="email" autocomplete="email" maxlength="254" required>

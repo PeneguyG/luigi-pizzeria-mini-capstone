@@ -111,6 +111,19 @@ flowchart LR
     Proxy --> StaffAuth
     StaffAuth -->|role checks, hash password, create/update account, delete inactive account| DStaff
 
+    OwnerOrManager -->|GET /api/staff/customers?q=...| Proxy
+    Proxy --> StaffAuth
+    StaffAuth -->|manager or owner role required| CustomerDirectory
+    CustomerDirectory -->|search names and phones| DCustomers
+    CustomerDirectory -->|search emails and count orders| DOrders
+    CustomerDirectory -->|matching customer list| Proxy
+    OwnerOrManager -->|GET /api/staff/customers/{id}/orders| Proxy
+    Proxy --> StaffAuth
+    StaffAuth --> CustomerHistory
+    CustomerHistory -->|customer record| DCustomers
+    CustomerHistory -->|orders and line items| DOrders
+    CustomerHistory -->|selected customer's order history| Proxy
+
     Customer -->|GET /api/customer/orders/{id}<br/>receipt token in X-Order-Token| Proxy
     Proxy --> Read
     Read -->|hash supplied token and match order ID + stored hash| DOrders
@@ -122,7 +135,7 @@ flowchart LR
 
 | Table | Role in the data flow |
 | --- | --- |
-| `customers` | Customer name and phone. A matching phone reuses the customer row when a new order is placed. |
+| `customers` | First name, last name, compatible full name, and phone. A matching phone reuses the customer row when a new order is placed. |
 | `orders` | One order header: source/channel, pickup time, status, notes, subtotal, tax, total, and customer portal receipt/payment metadata. |
 | `order_items` | Pizza and drink lines belonging to an order, including item quantity and server-calculated unit price. |
 | `toppings` | Normalized list of topping names used to associate selected toppings with order lines. |
@@ -137,6 +150,8 @@ flowchart LR
 - Flask validates incoming data and calculates prices and tax on the server. It saves a new order, its line items, and topping selections in one MariaDB transaction; any failure rolls the transaction back.
 - For customer orders, Flask returns a random receipt token once and stores only its SHA-256 hash in `orders.tracking_token_hash`. The browser keeps the token with the receipt in local storage and presents it to the tracking endpoint. Raw card numbers and security codes are rejected; the demo flow stores only the payment method and last four digits.
 - Employee pages and `/api/employee/*` requests require an active Flask session. Staff password hashes and roles live in `staff_users`; role and CSRF checks happen in Flask. Nginx provides HTTPS and reverse proxying without a shared employee password. MariaDB is configured for local VM access, and Flask receives database credentials and the session signing key through `/etc/luigi-pizzeria/app.env`.
+- Customer checkout and employee POS collect first and last names separately. MariaDB retains those fields alongside `full_name` for existing order displays; the deploy migration splits the names on existing customer and staff records.
+- Managers and owners can use the dashboard customer directory. Flask checks their role before searching customer contact data or returning a selected customer's order history.
 - The initial owner is created once with the Flask CLI. Owners can create employees or managers; managers can create employees. Managers can delete deactivated employee accounts, and owners can delete deactivated employee or manager accounts. Owner accounts cannot be deleted in the dashboard. New accounts must change their temporary password before using the dashboard.
 
 ## Main code and schema references

@@ -105,19 +105,21 @@
     }
 
     const customerPhoneInput = document.getElementById('customer-phone');
-    const customerNameInput = document.getElementById('customer-name');
+    const customerFirstNameInput = document.getElementById('customer-first-name');
+    const customerLastNameInput = document.getElementById('customer-last-name');
     const customerPhonePattern = /^(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\)|[2-9][0-9]{2})[ .-]?[2-9][0-9]{2}[ .-]?[0-9]{4}$/;
     const orderValidationFields = [
-      customerNameInput,
+      customerFirstNameInput,
+      customerLastNameInput,
       customerPhoneInput,
       document.getElementById('order-channel'),
       document.getElementById('pickup-time')
     ];
 
-    function validateCustomerName() {
-      const name = customerNameInput.value.trim();
-      customerNameInput.setCustomValidity(name ? '' : 'Enter the customer\'s name.');
-      return customerNameInput.validity.valid;
+    function validateCustomerNames() {
+      customerFirstNameInput.setCustomValidity(customerFirstNameInput.value.trim() ? '' : 'Enter the customer\'s first name.');
+      customerLastNameInput.setCustomValidity(customerLastNameInput.value.trim() ? '' : 'Enter the customer\'s last name.');
+      return customerFirstNameInput.validity.valid && customerLastNameInput.validity.valid;
     }
 
     function validateCustomerPhone() {
@@ -610,6 +612,7 @@
       if (moveFocus !== false) tab.focus();
       if (tab.id === 'orders-tab') renderOrders();
       if (tab.id === 'history-tab') renderHistory();
+      if (tab.id === 'customers-tab') loadCustomerDirectory();
     }
 
     function applyStaffAccess() {
@@ -690,6 +693,17 @@
     const employeeAccountSubmit = document.getElementById('employee-account-submit');
     const cancelAccountEdit = document.getElementById('cancel-account-edit');
     const staffAccountsById = new Map();
+    const customerDirectoryList = document.getElementById('customer-directory-list');
+    const customerDirectoryStatus = document.getElementById('customer-directory-status');
+    const customerSearchInput = document.getElementById('customer-search');
+    const customerSearchForm = document.getElementById('customer-search-form');
+    const customerHistorySection = document.getElementById('customer-order-history');
+    const customerOrdersList = document.getElementById('customer-orders-list');
+    const customerOrdersStatus = document.getElementById('customer-orders-status');
+    const customerRecordsById = new Map();
+    let customerSearchTimer = null;
+    let customerDirectoryRequestId = 0;
+    let customerHistoryRequestId = 0;
     managerRoleOption.hidden = currentStaff.role !== 'owner';
 
     function clearAccountForm() {
@@ -704,7 +718,8 @@
 
     function beginAccountEdit(account) {
       employeeAccountIdInput.value = String(account.id);
-      document.getElementById('employee-name').value = account.fullName;
+      document.getElementById('employee-first-name').value = account.firstName || (account.fullName || '').trim().split(/\s+/)[0] || '';
+      document.getElementById('employee-last-name').value = account.lastName || (account.fullName || '').trim().split(/\s+/).slice(1).join(' ');
       document.getElementById('employee-email').value = account.email;
       employeeRoleInput.value = account.role;
       employeeTempPasswordInput.value = '';
@@ -712,7 +727,7 @@
       employeeTempPasswordField.hidden = true;
       employeeAccountSubmit.textContent = 'Save account changes';
       cancelAccountEdit.hidden = false;
-      document.getElementById('employee-name').focus();
+      document.getElementById('employee-first-name').focus();
     }
 
     function showStaffAccessMessage(text, isError) {
@@ -799,18 +814,171 @@
       }
     }
 
+    function renderCustomerDirectory(customers) {
+      customerDirectoryList.replaceChildren();
+      customerRecordsById.clear();
+      if (customers.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'list-group-item text-secondary';
+        empty.textContent = 'No customers match this search.';
+        customerDirectoryList.append(empty);
+        customerDirectoryStatus.textContent = 'No customers found.';
+        return;
+      }
+
+      customers.forEach(function (customer) {
+        customerRecordsById.set(String(customer.id), customer);
+        const item = document.createElement('li');
+        item.className = 'list-group-item';
+        const select = document.createElement('button');
+        select.type = 'button';
+        select.className = 'btn btn-link link-dark text-start text-decoration-none p-0 w-100';
+        select.dataset.customerId = String(customer.id);
+        select.setAttribute('aria-controls', 'customer-order-history');
+        select.setAttribute('aria-expanded', 'false');
+        select.setAttribute('aria-label', 'View order history for ' + customer.fullName + ', ' + customer.orderCount + ' orders');
+
+        const name = document.createElement('span');
+        name.className = 'd-block fw-semibold';
+        name.textContent = customer.fullName || [customer.firstName, customer.lastName].filter(Boolean).join(' ');
+        const details = document.createElement('span');
+        details.className = 'd-block small text-secondary';
+        const contact = [customer.phone, customer.email].filter(Boolean).join(' · ');
+        details.textContent = (contact ? contact + ' · ' : '') + customer.orderCount +
+          (customer.orderCount === 1 ? ' order' : ' orders') +
+          (customer.lastOrderAt ? ' · Last order ' + customer.lastOrderAt : '');
+        select.append(name, details);
+        item.append(select);
+        customerDirectoryList.append(item);
+      });
+      customerDirectoryStatus.textContent = customers.length + (customers.length === 1 ? ' customer found.' : ' customers found.');
+    }
+
+    async function loadCustomerDirectory() {
+      if (!['manager', 'owner'].includes(currentStaff.role)) return;
+      const requestId = ++customerDirectoryRequestId;
+      const query = customerSearchInput.value.trim();
+      const url = '/api/staff/customers' + (query ? '?q=' + encodeURIComponent(query) : '');
+      customerHistorySection.hidden = true;
+      customerOrdersList.replaceChildren();
+      customerDirectoryList.setAttribute('aria-busy', 'true');
+      customerDirectoryStatus.textContent = 'Loading customers.';
+      try {
+        const payload = await apiRequest(url);
+        if (requestId !== customerDirectoryRequestId) return;
+        renderCustomerDirectory(payload.customers || []);
+      } catch (error) {
+        if (requestId !== customerDirectoryRequestId) return;
+        customerDirectoryList.replaceChildren();
+        customerDirectoryStatus.textContent = 'Customer list could not be loaded. ' + error.message;
+        announce('Customer list could not be loaded. ' + error.message);
+      } finally {
+        if (requestId === customerDirectoryRequestId) customerDirectoryList.removeAttribute('aria-busy');
+      }
+    }
+
+    function renderCustomerOrders(orders) {
+      customerOrdersList.replaceChildren();
+      if (orders.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'text-secondary';
+        empty.textContent = 'This customer has no recorded orders.';
+        customerOrdersList.append(empty);
+        return;
+      }
+      orders.forEach(function (order) {
+        const card = document.createElement('article');
+        card.className = 'card border';
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        const heading = document.createElement('h5');
+        heading.className = 'h6';
+        heading.textContent = 'Order #' + order.id + ' · ' + order.status;
+        const meta = document.createElement('p');
+        meta.className = 'small text-secondary mb-2';
+        meta.textContent = [order.createdAt, order.channel, order.pickupTime ? 'Pickup ' + order.pickupTime : ''].filter(Boolean).join(' · ');
+        const lines = document.createElement('ul');
+        lines.className = 'small mb-2';
+        (order.items || []).forEach(function (line) {
+          const item = document.createElement('li');
+          const lineName = line.description || line.name || line.drinkName || 'Item';
+          const toppings = Array.isArray(line.toppings) && line.toppings.length
+            ? ' — ' + line.toppings.map(function (topping) {
+              return topping.name + (Number(topping.quantity) > 1 ? ' × ' + topping.quantity : '');
+            }).join(', ')
+            : '';
+          item.textContent = line.quantity + ' × ' + lineName + toppings;
+          lines.append(item);
+        });
+        const total = document.createElement('p');
+        total.className = 'fw-semibold mb-0';
+        total.textContent = 'Total: ' + formatMoney(order.totalPrice);
+        body.append(heading, meta, lines, total);
+        card.append(body);
+        customerOrdersList.append(card);
+      });
+    }
+
+    async function loadCustomerOrderHistory(customer) {
+      const requestId = ++customerHistoryRequestId;
+      customerHistorySection.hidden = false;
+      document.getElementById('selected-customer-summary').textContent = [
+        customer.fullName,
+        customer.phone,
+        customer.email
+      ].filter(Boolean).join(' · ');
+      customerOrdersStatus.textContent = 'Loading order history.';
+      customerOrdersList.setAttribute('aria-busy', 'true');
+      try {
+        const payload = await apiRequest('/api/staff/customers/' + encodeURIComponent(customer.id) + '/orders');
+        if (requestId !== customerHistoryRequestId) return;
+        renderCustomerOrders(payload.orders || []);
+        customerOrdersStatus.textContent = (payload.orders || []).length +
+          ((payload.orders || []).length === 1 ? ' order found.' : ' orders found.');
+        document.getElementById('customer-order-history-heading').focus();
+      } catch (error) {
+        if (requestId !== customerHistoryRequestId) return;
+        customerOrdersList.replaceChildren();
+        customerOrdersStatus.textContent = 'Order history could not be loaded. ' + error.message;
+        announce('Order history could not be loaded. ' + error.message);
+      } finally {
+        if (requestId === customerHistoryRequestId) customerOrdersList.removeAttribute('aria-busy');
+      }
+    }
+
+    customerSearchForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      window.clearTimeout(customerSearchTimer);
+      loadCustomerDirectory();
+    });
+    customerSearchInput.addEventListener('input', function () {
+      window.clearTimeout(customerSearchTimer);
+      customerSearchTimer = window.setTimeout(loadCustomerDirectory, 250);
+    });
+    customerDirectoryList.addEventListener('click', function (event) {
+      const button = event.target.closest('[data-customer-id]');
+      if (!button) return;
+      customerDirectoryList.querySelectorAll('[data-customer-id]').forEach(function (result) {
+        result.setAttribute('aria-expanded', String(result === button));
+      });
+      const customer = customerRecordsById.get(button.dataset.customerId);
+      if (customer) loadCustomerOrderHistory(customer);
+    });
+
     employeeAccessForm.addEventListener('submit', async function (event) {
       event.preventDefault();
       employeeAccessForm.classList.add('was-validated');
       if (!employeeAccessForm.reportValidity()) return;
 
-      const nameInput = document.getElementById('employee-name');
+      const firstNameInput = document.getElementById('employee-first-name');
+      const lastNameInput = document.getElementById('employee-last-name');
       const emailInput = document.getElementById('employee-email');
       const button = employeeAccessForm.querySelector('button[type="submit"]');
       const editId = employeeAccountIdInput.value;
       const isEditing = Boolean(editId);
       const requestBody = {
-        fullName: nameInput.value.trim(),
+        firstName: firstNameInput.value.trim(),
+        lastName: lastNameInput.value.trim(),
         email: emailInput.value.trim(),
         role: employeeRoleInput.value
       };
@@ -830,7 +998,7 @@
           : 'Account created for ' + updatedName + '. The staff member must change the temporary password at first sign-in.', false);
         announce(isEditing ? 'Staff account updated for ' + updatedName + '.' : 'Staff account created for ' + updatedName + '.');
         await loadStaffAccounts();
-        nameInput.focus();
+        firstNameInput.focus();
       } catch (error) {
         showStaffAccessMessage(error.message, true);
         announce('Staff account could not be saved. ' + error.message);
@@ -846,7 +1014,7 @@
 
     cancelAccountEdit.addEventListener('click', function () {
       clearAccountForm();
-      document.getElementById('employee-name').focus();
+      document.getElementById('employee-first-name').focus();
     });
 
     staffAccountList.addEventListener('click', async function (event) {
@@ -920,14 +1088,14 @@
     document.getElementById('pickup-time').addEventListener('input', updatePickupTimeValidity);
     document.getElementById('pickup-time').addEventListener('change', updatePickupTimeValidity);
     posForm.addEventListener('input', function (event) {
-      if (event.target === customerNameInput) validateCustomerName();
+      if (event.target === customerFirstNameInput || event.target === customerLastNameInput) validateCustomerNames();
       if (event.target === customerPhoneInput) validateCustomerPhone();
       if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
         event.target.setAttribute('aria-invalid', String(!event.target.validity.valid));
       }
     });
     posForm.addEventListener('change', function (event) {
-      if (event.target === customerNameInput) validateCustomerName();
+      if (event.target === customerFirstNameInput || event.target === customerLastNameInput) validateCustomerNames();
       if (event.target === customerPhoneInput) validateCustomerPhone();
       if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
         event.target.setAttribute('aria-invalid', String(!event.target.validity.valid));
@@ -961,7 +1129,7 @@
 
     posForm.addEventListener('submit', async function (event) {
       event.preventDefault();
-      validateCustomerName();
+      validateCustomerNames();
       validateCustomerPhone();
       updatePickupTimeValidity();
       posForm.classList.add('was-validated');
@@ -988,7 +1156,8 @@
       submitError.textContent = '';
       const data = new FormData(posForm);
       const orderInput = {
-        customerName: String(data.get('customerName')).trim(),
+        customerFirstName: String(data.get('customerFirstName')).trim(),
+        customerLastName: String(data.get('customerLastName')).trim(),
         customerPhone: String(data.get('customerPhone')).trim(),
         channel: String(data.get('channel')),
         pickupTime: String(data.get('pickupTime') || ''),
@@ -1015,7 +1184,8 @@
         posForm.classList.remove('was-validated');
         posForm.querySelectorAll('[aria-invalid]').forEach(function (control) { control.removeAttribute('aria-invalid'); });
         posForm.querySelectorAll('.is-invalid').forEach(function (control) { control.classList.remove('is-invalid'); });
-        customerNameInput.setCustomValidity('');
+        customerFirstNameInput.setCustomValidity('');
+        customerLastNameInput.setCustomValidity('');
         customerPhoneInput.setCustomValidity('');
         document.getElementById('pickup-time-error').hidden = true;
         updatePickupTimeValidity();

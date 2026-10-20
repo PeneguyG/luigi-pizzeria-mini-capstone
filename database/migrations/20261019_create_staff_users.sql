@@ -3,7 +3,9 @@ USE luigis_pizzeria;
 CREATE TABLE IF NOT EXISTS staff_users (
   staff_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   email VARCHAR(254) NOT NULL,
-  full_name VARCHAR(80) NOT NULL,
+  full_name VARCHAR(200) NOT NULL,
+  first_name VARCHAR(80) NOT NULL DEFAULT '',
+  last_name VARCHAR(80) NOT NULL DEFAULT '',
   password_hash VARCHAR(255) NOT NULL,
   staff_role ENUM('owner', 'manager', 'employee') NOT NULL DEFAULT 'employee',
   is_active TINYINT(1) NOT NULL DEFAULT 1,

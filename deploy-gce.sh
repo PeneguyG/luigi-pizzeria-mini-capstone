@@ -120,6 +120,7 @@ systemctl restart mariadb
 # Apply the current schema, then add portal fields for an older local database.
 mariadb --protocol=socket --user=root < "$APP_DIR/database/customer_portal.sql"
 mariadb --protocol=socket --user=root --database="$DB_NAME" < "$APP_DIR/database/migrations/20261019_create_staff_users.sql"
+mariadb --protocol=socket --user=root --database="$DB_NAME" < "$APP_DIR/database/migrations/20261019_split_customer_staff_names.sql"
 ensure_column() {
   local column="$1" definition="$2" exists
   exists="$(mariadb --protocol=socket --user=root --batch --skip-column-names \
