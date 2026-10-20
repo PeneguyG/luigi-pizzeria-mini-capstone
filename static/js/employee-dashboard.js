@@ -301,10 +301,21 @@
       if (window.location.protocol === 'file:') {
         throw new Error('Open this dashboard through the Flask server at http://127.0.0.1:5000/ so it can reach the order API.');
       }
-      const response = await fetch(path, Object.assign({ cache: 'no-store' }, options || {}));
+      const requestOptions = Object.assign({ cache: 'no-store', credentials: 'same-origin' }, options || {});
+      requestOptions.headers = Object.assign({ 'Accept': 'application/json' }, requestOptions.headers || {});
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(requestOptions.method || 'GET').toUpperCase())) {
+        requestOptions.headers['X-CSRF-Token'] = document.querySelector('meta[name="csrf-token"]').content;
+      }
+      const response = await fetch(path, requestOptions);
       let payload = null;
       try { payload = await response.json(); } catch (_error) { /* Non-JSON response */ }
       if (!response.ok) {
+        if (response.status === 401 && payload && payload.code === 'authentication_required') {
+          window.location.assign('/staff-signin.html?focus=signin');
+        }
+        if (response.status === 403 && payload && payload.code === 'password_change_required') {
+          window.location.assign('/staff-change-password.html?focus=password');
+        }
         throw new Error(payload && payload.error ? payload.error : 'Request failed (' + response.status + ').');
       }
       return payload;
@@ -566,22 +577,19 @@
     const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
     const rolePreview = document.getElementById('role-preview');
     const rolePreviewSection = document.getElementById('role-preview-section');
-    const roleLevels = { employee: 1, manager: 2, admin: 3 };
-    const roleNames = { employee: 'Employee', manager: 'Manager', admin: 'Admin' };
-    let staffSession = null;
-    try {
-      const savedSession = JSON.parse(sessionStorage.getItem('luigis_staff_session') || 'null');
-      if (savedSession && typeof savedSession.id === 'string' && typeof savedSession.name === 'string' && roleLevels[savedSession.role]) {
-        staffSession = savedSession;
-      }
-    } catch (_error) {
-      staffSession = null;
-    }
-    let activeRole = staffSession ? staffSession.role : rolePreview.value;
+    const currentStaff = {
+      id: Number(document.body.dataset.staffId),
+      name: document.body.dataset.staffName,
+      role: document.body.dataset.staffRole
+    };
+    const roleLevels = { employee: 1, manager: 2, owner: 3 };
+    const roleNames = { employee: 'Employee', manager: 'Manager', owner: 'Owner' };
+    let activeRole = roleLevels[currentStaff.role] ? currentStaff.role : 'employee';
 
     function roleCanSee(element) {
       const requiredRole = element.dataset.minimumRole;
-      return !requiredRole || roleLevels[activeRole] >= roleLevels[requiredRole];
+      const role = element.dataset.serverRole ? currentStaff.role : activeRole;
+      return !requiredRole || roleLevels[role] >= roleLevels[requiredRole];
     }
 
     function availableTabs() {
@@ -612,16 +620,14 @@
     function applyRole(role, announceChange) {
       activeRole = roleLevels[role] ? role : 'employee';
       rolePreview.value = activeRole;
-      rolePreview.disabled = Boolean(staffSession);
-      rolePreviewSection.hidden = Boolean(staffSession);
+      rolePreview.disabled = false;
+      rolePreviewSection.hidden = false;
 
       const sessionLabel = document.getElementById('staff-session-label');
       const signOutButton = document.getElementById('dashboard-staff-signout');
-      sessionLabel.hidden = !staffSession;
-      signOutButton.hidden = !staffSession;
-      if (staffSession) {
-        sessionLabel.textContent = 'Demo sign-in: ' + staffSession.name + ' (' + roleNames[activeRole] + ')';
-      }
+      sessionLabel.textContent = 'Signed in: ' + currentStaff.name + ' · ' + roleNames[currentStaff.role];
+      sessionLabel.hidden = false;
+      signOutButton.hidden = false;
 
       document.querySelectorAll('[data-minimum-role]').forEach(function (element) {
         if (element.getAttribute('role') === 'tabpanel') {
@@ -642,23 +648,33 @@
       activateTab(selectedTab || firstAvailableTab, false);
 
       if (announceChange) {
-        const message = activeRole === 'admin'
-          ? 'Admin role selected. All dashboard views are available in this demo.'
+        const message = activeRole === 'owner'
+          ? 'Owner layout preview selected. Account permissions still follow your signed-in role.'
           : activeRole === 'manager'
-            ? 'Manager role selected. Manager tools and order views are available.'
-            : 'Employee role selected. Point of Sales, active orders, and order history are available.';
+            ? 'Manager layout preview selected. Account permissions still follow your signed-in role.'
+            : 'Employee layout preview selected. Account permissions still follow your signed-in role.';
         announce(message);
       }
     }
 
     rolePreview.addEventListener('change', function () {
-      staffSession = null;
       applyRole(rolePreview.value, true);
     });
 
-    document.getElementById('dashboard-staff-signout').addEventListener('click', function () {
-      sessionStorage.removeItem('luigis_staff_session');
-      window.location.assign('/staff-signin.html?focus=signin');
+    document.getElementById('dashboard-staff-signout').addEventListener('click', async function (event) {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await apiRequest('/api/staff/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        window.location.assign('/staff-signin.html?focus=signin');
+      } catch (error) {
+        button.disabled = false;
+        announce('Sign out could not be completed. ' + error.message);
+      }
     });
 
     tabs.forEach(function (tab) {
@@ -687,80 +703,198 @@
 
     const employeeAccessForm = document.getElementById('employee-access-form');
     const employeePreviewList = document.getElementById('employee-preview-list');
-    const employeePreviewRecords = [];
-    employeeAccessForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      const nameInput = document.getElementById('employee-name');
-      const emailInput = document.getElementById('employee-email');
-      const roleInput = document.getElementById('employee-role');
-      const emailError = document.getElementById('employee-email-error');
-      const inputs = [nameInput, emailInput];
-      nameInput.setCustomValidity(nameInput.value.trim() ? '' : 'Enter the employee\'s name.');
-      emailInput.setCustomValidity('');
-      emailError.textContent = 'Enter a valid email address.';
-      employeeAccessForm.classList.add('was-validated');
-      inputs.forEach(function (input) {
-        input.setAttribute('aria-invalid', String(!input.validity.valid));
-      });
+    const staffAccessMessage = document.getElementById('staff-access-message');
+    const employeeRoleInput = document.getElementById('employee-role');
+    const managerRoleOption = document.getElementById('manager-role-option');
+    const employeeAccountIdInput = document.getElementById('employee-account-id');
+    const employeeTempPasswordInput = document.getElementById('employee-temp-password');
+    const employeeTempPasswordField = document.getElementById('employee-temp-password-field');
+    const employeeAccountSubmit = document.getElementById('employee-account-submit');
+    const cancelAccountEdit = document.getElementById('cancel-account-edit');
+    const staffAccountsById = new Map();
+    managerRoleOption.hidden = currentStaff.role !== 'owner';
 
-      const invalidInput = inputs.find(function (input) { return !input.validity.valid; });
-      if (invalidInput) {
-        invalidInput.focus();
-        announce('Please enter a valid employee name and email address.');
-        return;
-      }
-
-      const email = emailInput.value.trim().toLowerCase();
-      if (employeePreviewRecords.some(function (record) { return record.email === email; })) {
-        emailInput.setCustomValidity('This employee preview already uses that email address.');
-        emailError.textContent = 'This email address is already in the employee preview.';
-        emailInput.setAttribute('aria-invalid', 'true');
-        emailInput.focus();
-        announce('That email address is already in the employee preview.');
-        return;
-      }
-      emailInput.setCustomValidity('');
-      emailInput.removeAttribute('aria-invalid');
-
-      const record = {
-        name: nameInput.value.trim(),
-        email: email,
-        role: roleInput.value
-      };
-      employeePreviewRecords.push(record);
-      document.getElementById('employee-preview-empty')?.remove();
-
-      const listItem = document.createElement('li');
-      listItem.className = 'list-group-item d-flex flex-column flex-sm-row justify-content-between gap-1';
-      const employeeName = document.createElement('span');
-      employeeName.className = 'fw-semibold';
-      employeeName.textContent = record.name;
-      const employeeDetails = document.createElement('span');
-      employeeDetails.className = 'text-secondary';
-      employeeDetails.textContent = record.email + ' · ' + record.role;
-      listItem.append(employeeName, employeeDetails);
-      employeePreviewList.append(listItem);
-
+    function clearAccountForm() {
       employeeAccessForm.reset();
       employeeAccessForm.classList.remove('was-validated');
-      inputs.forEach(function (input) { input.removeAttribute('aria-invalid'); });
-      announce(record.name + ' added to the browser-only employee preview as ' + record.role + '.');
-      nameInput.focus();
+      employeeAccountIdInput.value = '';
+      employeeTempPasswordField.hidden = false;
+      employeeTempPasswordInput.required = true;
+      employeeAccountSubmit.textContent = 'Create staff account';
+      cancelAccountEdit.hidden = true;
+    }
+
+    function beginAccountEdit(account) {
+      employeeAccountIdInput.value = String(account.id);
+      document.getElementById('employee-name').value = account.fullName;
+      document.getElementById('employee-email').value = account.email;
+      employeeRoleInput.value = account.role;
+      employeeTempPasswordInput.value = '';
+      employeeTempPasswordInput.required = false;
+      employeeTempPasswordField.hidden = true;
+      employeeAccountSubmit.textContent = 'Save account changes';
+      cancelAccountEdit.hidden = false;
+      document.getElementById('employee-name').focus();
+    }
+
+    function showStaffAccessMessage(text, isError) {
+      staffAccessMessage.textContent = text;
+      staffAccessMessage.className = 'alert mb-3 ' + (isError ? 'alert-danger' : 'alert-success');
+      staffAccessMessage.setAttribute('role', isError ? 'alert' : 'status');
+      staffAccessMessage.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+      staffAccessMessage.hidden = false;
+    }
+
+    function renderStaffAccounts(accounts) {
+      employeePreviewList.replaceChildren();
+      staffAccountsById.clear();
+      if (accounts.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'list-group-item text-secondary';
+        empty.textContent = 'No staff accounts are available to manage.';
+        employeePreviewList.append(empty);
+        return;
+      }
+
+      accounts.forEach(function (account) {
+        staffAccountsById.set(String(account.id), account);
+        const item = document.createElement('li');
+        item.className = 'list-group-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2';
+
+        const details = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'fw-semibold';
+        name.textContent = account.fullName;
+        const meta = document.createElement('div');
+        meta.className = 'small text-secondary';
+        meta.textContent = account.email + ' · ' + roleNames[account.role] + ' · ' + (account.isActive ? 'Active' : 'Inactive') +
+          (account.mustChangePassword ? ' · Must change temporary password' : '');
+        details.append(name, meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'd-flex flex-wrap gap-2';
+        const edit = document.createElement('button');
+        edit.className = 'btn btn-sm btn-outline-secondary';
+        edit.type = 'button';
+        edit.dataset.staffEditId = String(account.id);
+        edit.setAttribute('aria-controls', 'employee-access-form');
+        edit.setAttribute('aria-label', 'Edit ' + account.fullName + ' (' + account.email + ')');
+        edit.textContent = 'Edit';
+        edit.disabled = account.id === currentStaff.id || account.role === 'owner';
+
+        const action = document.createElement('button');
+        action.className = account.isActive ? 'btn btn-sm btn-outline-danger' : 'btn btn-sm btn-outline-success';
+        action.type = 'button';
+        action.dataset.staffAccountId = String(account.id);
+        action.dataset.nextActive = String(!account.isActive);
+        action.setAttribute('aria-controls', 'employee-preview-list');
+        action.setAttribute('aria-label', (account.isActive ? 'Deactivate ' : 'Reactivate ') + account.fullName + ' (' + account.email + ')');
+        action.textContent = account.isActive ? 'Deactivate' : 'Reactivate';
+        action.disabled = account.id === currentStaff.id || account.role === 'owner';
+        actions.append(edit, action);
+        item.append(details, actions);
+        employeePreviewList.append(item);
+      });
+    }
+
+    async function loadStaffAccounts() {
+      if (!['manager', 'owner'].includes(currentStaff.role)) return;
+      employeePreviewList.setAttribute('aria-busy', 'true');
+      try {
+        const payload = await apiRequest('/api/staff/accounts');
+        renderStaffAccounts(payload.accounts || []);
+      } catch (error) {
+        showStaffAccessMessage(error.message, true);
+        announce('Staff accounts could not be loaded. ' + error.message);
+      } finally {
+        employeePreviewList.removeAttribute('aria-busy');
+      }
+    }
+
+    employeeAccessForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      employeeAccessForm.classList.add('was-validated');
+      if (!employeeAccessForm.reportValidity()) return;
+
+      const nameInput = document.getElementById('employee-name');
+      const emailInput = document.getElementById('employee-email');
+      const button = employeeAccessForm.querySelector('button[type="submit"]');
+      const editId = employeeAccountIdInput.value;
+      const isEditing = Boolean(editId);
+      const requestBody = {
+        fullName: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        role: employeeRoleInput.value
+      };
+      if (!isEditing) requestBody.temporaryPassword = employeeTempPasswordInput.value;
+      button.disabled = true;
+      employeeAccessForm.setAttribute('aria-busy', 'true');
+      try {
+        const payload = await apiRequest(isEditing ? '/api/staff/accounts/' + encodeURIComponent(editId) : '/api/staff/accounts', {
+          method: isEditing ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        clearAccountForm();
+        const updatedName = payload.account.fullName;
+        showStaffAccessMessage(isEditing
+          ? 'Account details updated for ' + updatedName + '.'
+          : 'Account created for ' + updatedName + '. The staff member must change the temporary password at first sign-in.', false);
+        announce(isEditing ? 'Staff account updated for ' + updatedName + '.' : 'Staff account created for ' + updatedName + '.');
+        await loadStaffAccounts();
+        nameInput.focus();
+      } catch (error) {
+        showStaffAccessMessage(error.message, true);
+        announce('Staff account could not be saved. ' + error.message);
+        if (error.message.toLowerCase().includes('email')) {
+          emailInput.setAttribute('aria-invalid', 'true');
+          emailInput.focus();
+        }
+      } finally {
+        button.disabled = false;
+        employeeAccessForm.removeAttribute('aria-busy');
+      }
     });
 
-    [document.getElementById('employee-name'), document.getElementById('employee-email')].forEach(function (input) {
-      input.addEventListener('input', function () {
-        if (this.id === 'employee-name') {
-          this.setCustomValidity(this.value.trim() ? '' : 'Enter the employee\'s name.');
-        } else {
-          this.setCustomValidity('');
-          document.getElementById('employee-email-error').textContent = 'Enter a valid email address.';
-        }
-        if (employeeAccessForm.classList.contains('was-validated')) {
-          this.setAttribute('aria-invalid', String(!this.validity.valid));
-        }
-      });
+    cancelAccountEdit.addEventListener('click', function () {
+      clearAccountForm();
+      document.getElementById('employee-name').focus();
     });
+
+    employeePreviewList.addEventListener('click', async function (event) {
+      const editButton = event.target.closest('[data-staff-edit-id]');
+      if (editButton) {
+        const account = staffAccountsById.get(editButton.dataset.staffEditId);
+        if (account) beginAccountEdit(account);
+        return;
+      }
+      const button = event.target.closest('[data-staff-account-id]');
+      if (!button) return;
+      const staffId = button.dataset.staffAccountId;
+      const nextActive = button.dataset.nextActive === 'true';
+      button.disabled = true;
+      try {
+        await apiRequest('/api/staff/accounts/' + encodeURIComponent(staffId), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: nextActive })
+        });
+        showStaffAccessMessage('Staff account ' + (nextActive ? 'reactivated' : 'deactivated') + '.', false);
+        await loadStaffAccounts();
+        const updatedButton = employeePreviewList.querySelector('[data-staff-account-id="' + CSS.escape(staffId) + '"]');
+        if (updatedButton) updatedButton.focus();
+      } catch (error) {
+        button.disabled = false;
+        showStaffAccessMessage(error.message, true);
+        announce('Staff account could not be updated. ' + error.message);
+      }
+    });
+
+    employeeAccessForm.querySelectorAll('input').forEach(function (input) {
+      input.addEventListener('input', function () { this.removeAttribute('aria-invalid'); });
+    });
+
+    loadStaffAccounts();
 
     document.getElementById('pizza-size').addEventListener('change', updatePizzaPreview);
     document.getElementById('pizza-quantity').addEventListener('input', function () {

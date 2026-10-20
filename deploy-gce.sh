@@ -63,11 +63,6 @@ need_secret DUCKDNS_TOKEN "DuckDNS token" 16
 need_input LETSENCRYPT_EMAIL "Email for Let's Encrypt certificate notices"
 [[ "$LETSENCRYPT_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || die "Enter a valid email address."
 
-STAFF_USER="${STAFF_USER:-luigi-staff}"
-[[ "$STAFF_USER" =~ ^[A-Za-z0-9._-]+$ ]] || die "STAFF_USER may contain letters, numbers, dot, underscore, and hyphen."
-need_secret STAFF_PASSWORD "Nginx staff password (minimum 14 characters)" 14
-[[ ${#STAFF_PASSWORD} -le 72 ]] || die "STAFF_PASSWORD must be at most 72 characters for bcrypt authentication."
-
 [[ "$APP_REPO_URL" == https://* || "$APP_REPO_URL" == git@* ]] || die "APP_REPO_URL must be an HTTPS or SSH Git URL."
 [[ "$APP_REPO_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || die "APP_REPO_BRANCH contains unsupported characters."
 [[ "$DB_USER" =~ ^[A-Za-z0-9_]+$ ]] || die "DB_USER may contain letters, numbers, and underscore."
@@ -76,7 +71,7 @@ say "Installing Nginx, MariaDB, Python, Gunicorn, and certificate tools."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-  apache2-utils ca-certificates certbot curl git mariadb-client mariadb-server \
+  ca-certificates certbot curl git mariadb-client mariadb-server \
   python3-certbot-nginx \
   nginx openssl python3 python3-pip python3-venv tzdata
 
@@ -124,6 +119,7 @@ systemctl restart mariadb
 
 # Apply the current schema, then add portal fields for an older local database.
 mariadb --protocol=socket --user=root < "$APP_DIR/database/customer_portal.sql"
+mariadb --protocol=socket --user=root --database="$DB_NAME" < "$APP_DIR/database/migrations/20261019_create_staff_users.sql"
 ensure_column() {
   local column="$1" definition="$2" exists
   exists="$(mariadb --protocol=socket --user=root --batch --skip-column-names \
@@ -166,6 +162,15 @@ if [[ -z "${DB_PASSWORD:-}" ]]; then
 fi
 [[ "$DB_PASSWORD" =~ ^[A-Za-z0-9._~-]+$ ]] || die "DB_PASSWORD may use letters, numbers, dot, underscore, tilde, and hyphen only."
 [[ ${#DB_PASSWORD} -ge 24 ]] || die "DB_PASSWORD must be at least 24 characters."
+
+if [[ -z "${FLASK_SECRET_KEY:-}" && -r /etc/luigi-pizzeria/app.env ]]; then
+  FLASK_SECRET_KEY="$(sed -n 's/^FLASK_SECRET_KEY=//p' /etc/luigi-pizzeria/app.env | head -n 1)"
+fi
+if [[ -z "${FLASK_SECRET_KEY:-}" ]]; then
+  FLASK_SECRET_KEY="$(openssl rand -hex 32)"
+fi
+[[ "$FLASK_SECRET_KEY" =~ ^[A-Fa-f0-9]{64,}$ ]] || die "FLASK_SECRET_KEY must be a hex string of at least 64 characters."
+
 mariadb --protocol=socket --user=root <<SQL
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
@@ -188,6 +193,9 @@ DB_PORT=3306
 DB_NAME=${DB_NAME}
 DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
+FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+FLASK_ENV=production
+SESSION_COOKIE_SECURE=true
 BUSINESS_TIMEZONE=America/Chicago
 LOG_LEVEL=INFO
 EOF
@@ -221,9 +229,10 @@ systemctl daemon-reload
 systemctl enable --now "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 
-# Keep employee pages and APIs private behind Nginx Basic Auth.
-install -o root -g www-data -m 0640 /dev/null /etc/nginx/.htpasswd-luigi-pizzeria
-printf '%s\n' "$STAFF_PASSWORD" | htpasswd -iB -c /etc/nginx/.htpasswd-luigi-pizzeria "$STAFF_USER"
+# Employee pages and APIs enforce per-account Flask sessions.
+cat >/etc/nginx/conf.d/luigi-staff-login-limit.conf <<'EOF'
+limit_req_zone $binary_remote_addr zone=luigi_staff_login:10m rate=5r/m;
+EOF
 cat >/etc/nginx/sites-available/luigi-pizzeria <<EOF
 server {
     listen 80;
@@ -232,17 +241,21 @@ server {
     server_tokens off;
     client_max_body_size 1m;
 
+    location = /api/staff/login {
+        limit_req zone=luigi_staff_login burst=5 nodelay;
+        limit_req_status 429;
+        include proxy_params;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://127.0.0.1:8000;
+    }
+
     location ^~ /employee {
-        auth_basic "Luigi's staff";
-        auth_basic_user_file /etc/nginx/.htpasswd-luigi-pizzeria;
         include proxy_params;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_pass http://127.0.0.1:8000;
     }
 
     location ^~ /api/employee {
-        auth_basic "Luigi's staff";
-        auth_basic_user_file /etc/nginx/.htpasswd-luigi-pizzeria;
         include proxy_params;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_pass http://127.0.0.1:8000;
@@ -324,5 +337,5 @@ systemctl enable --now certbot.timer >/dev/null 2>&1 || true
 say "Deployment complete."
 say "Landing page: https://${FQDN}/"
 say "Customer ordering and order tracking: https://${FQDN}/customer"
-say "Employee dashboard (Basic Auth): https://${FQDN}/employee"
+say "Employee dashboard (staff sign-in): https://${FQDN}/employee"
 say "Check services with: systemctl status ${SERVICE_NAME} nginx mariadb"

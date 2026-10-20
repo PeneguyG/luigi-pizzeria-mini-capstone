@@ -62,8 +62,11 @@ $env:DB_PORT = "3306"
 $env:DB_NAME = "luigis_pizzeria"
 $env:DB_USER = "luigis_app"
 $env:DB_PASSWORD = "your-local-database-password"
+# Optional for local HTTP development; production deployment sets secure cookies over HTTPS.
+$env:SESSION_COOKIE_SECURE = "false"
 # Optional: set BUSINESS_TIMEZONE to the restaurant's IANA timezone if it differs from the server timezone.
 # Example: $env:BUSINESS_TIMEZONE = "America/Chicago"
+python -m flask --app backend.customer_portal_app create-owner
 python -m backend.customer_portal_app
 ```
 
@@ -86,9 +89,15 @@ cd luigi-pizzeria-mini-capstone
 sudo bash ./deploy-gce.sh
 ```
 
-The script defaults to `luigispizzeriapickup.duckdns.org`; override `DUCKDNS_DOMAIN` if needed. It prompts for the DuckDNS token, a Let's Encrypt contact email, and a staff password. It generates and stores a database password locally in `/etc/luigi-pizzeria/app.env`. To select another repository or branch, pass `APP_REPO_URL` or `APP_REPO_BRANCH` as environment assignments to `sudo`, for example: `sudo APP_REPO_BRANCH=main bash ./deploy-gce.sh`.
+The script defaults to `luigispizzeriapickup.duckdns.org`; override `DUCKDNS_DOMAIN` if needed. It prompts for the DuckDNS token and a Let's Encrypt contact email. It generates and stores the database password and Flask session signing key in `/etc/luigi-pizzeria/app.env`. To select another repository or branch, pass `APP_REPO_URL` or `APP_REPO_BRANCH` as environment assignments to `sudo`, for example: `sudo APP_REPO_BRANCH=main bash ./deploy-gce.sh`.
 
-The landing page is served at `/`, customer ordering and receipt-based tracking at `/customer`, and employee order management at `/employee`. `/signup.html` and `/staff-signin.html` are browser-only sign-in prototypes: customer demo accounts are stored in local browser storage, and staff demo credentials and role checks are in JavaScript. They are not production authentication and do not enforce database or API permissions. The employee dashboard and `/api/employee/*` remain protected by Nginx Basic Auth; the username defaults to `luigi-staff`, and the shared password is chosen during setup. The app and database are on the same VM, and the database listens only on localhost.
+After the first deployment, create the initial owner once from the VM:
+
+```bash
+sudo bash -c 'set -a; . /etc/luigi-pizzeria/app.env; set +a; cd /opt/luigi-pizzeria; .venv/bin/flask --app backend.customer_portal_app create-owner'
+```
+
+The command prompts for the owner's name, work email, and password. The owner can then open **Staff accounts** in the employee dashboard to create, edit, or deactivate employee and manager accounts. Managers can manage employee accounts; only the owner can create or promote managers. New accounts use a temporary password and must change it at first sign-in. Staff can change their password from the dashboard. Password hashes are stored in MariaDB. Flask enforces roles for the employee pages and APIs, and Nginx no longer asks every staff member for one shared Basic Auth password. The landing page is served at `/`, customer ordering and receipt-based tracking at `/customer`, and employee order management at `/employee` or `/employee-dashboard.html`. The app and database are on the same VM, and the database listens only on localhost.
 
 Useful service commands:
 

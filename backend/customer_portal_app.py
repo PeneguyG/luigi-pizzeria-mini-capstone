@@ -1,6 +1,6 @@
 """Flask API and same-origin host for Luigi's employee order dashboard."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -14,9 +14,17 @@ import re
 
 import os
 
+from functools import wraps
+
+from urllib.parse import urlsplit
+
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import Flask, jsonify, render_template, request
+import click
+
+from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import pymysql
 
@@ -30,6 +38,22 @@ app = Flask(
 )
 
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
+
+app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+    "SESSION_COOKIE_SECURE", "true" if os.environ.get("FLASK_ENV") == "production" else "false"
+).lower() in {"1", "true", "yes", "on"}
+
+PASSWORD_MIN_LENGTH = 12
+
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(24))
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 
@@ -118,6 +142,118 @@ def database_connection():
         write_timeout=15,
 
     )
+
+def ensure_csrf_token():
+    token = session.get("csrf_token")
+    if not isinstance(token, str) or len(token) < 32:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+def valid_csrf_request():
+    expected = session.get("csrf_token")
+    supplied = request.headers.get("X-CSRF-Token", "")
+    return isinstance(expected, str) and bool(supplied) and secrets.compare_digest(expected, supplied)
+
+def current_staff_user():
+    if getattr(g, "staff_user_loaded", False):
+        return g.staff_user
+    g.staff_user_loaded = True
+    g.staff_user = None
+    staff_id = session.get("staff_id")
+    auth_version = session.get("staff_auth_version")
+    if not isinstance(staff_id, int) or not isinstance(auth_version, int):
+        return None
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT staff_id, email, full_name, staff_role, is_active,
+                   must_change_password, auth_version
+              FROM staff_users
+             WHERE staff_id = %s
+            """,
+            (staff_id,),
+        )
+        staff = cursor.fetchone()
+        if (
+            staff is None
+            or not bool(staff["is_active"])
+            or int(staff["auth_version"]) != auth_version
+        ):
+            session.clear()
+            return None
+        g.staff_user = staff
+        return staff
+    finally:
+        connection.close()
+
+def api_authentication_required():
+    return jsonify({"error": "Sign in is required.", "code": "authentication_required"}), 401
+
+def staff_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        try:
+            staff = current_staff_user()
+        except Exception:
+            app.logger.exception("Could not load the staff session")
+            return jsonify({"error": "Staff authentication is temporarily unavailable."}), 503
+        if staff is None:
+            return api_authentication_required()
+        if staff["must_change_password"] and request.endpoint not in {
+            "staff_session",
+            "staff_logout",
+            "staff_change_password",
+        }:
+            return jsonify({"error": "Change your temporary password before continuing.", "code": "password_change_required"}), 403
+        g.staff_user = staff
+        return view(*args, **kwargs)
+    return wrapped
+
+def roles_required(*allowed_roles):
+    def decorate(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            staff = getattr(g, "staff_user", None)
+            if staff is None:
+                return api_authentication_required()
+            if staff["staff_role"] not in allowed_roles:
+                return jsonify({"error": "Your staff role does not allow this action.", "code": "forbidden"}), 403
+            return view(*args, **kwargs)
+        return wrapped
+    return decorate
+
+def csrf_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not valid_csrf_request():
+            return jsonify({"error": "The request security token is missing or expired.", "code": "csrf_failed"}), 400
+        return view(*args, **kwargs)
+    return wrapped
+
+def safe_dashboard_path(candidate):
+    if candidate in {"/employee", "/employee-dashboard.html"}:
+        return candidate + "?focus=dashboard"
+    parsed = urlsplit(candidate or "")
+    if parsed.scheme or parsed.netloc or parsed.path not in {"/employee", "/employee-dashboard.html"}:
+        return "/employee-dashboard.html?focus=dashboard"
+    return parsed.path + "?focus=dashboard"
+
+def valid_staff_email(value):
+    return isinstance(value, str) and len(value) <= 254 and bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value))
+
+def public_staff_account(row):
+    return {
+        "id": int(row["staff_id"]),
+        "email": row["email"],
+        "fullName": row["full_name"],
+        "role": row["staff_role"],
+        "isActive": bool(row["is_active"]),
+        "mustChangePassword": bool(row["must_change_password"]),
+        "createdAt": iso_timestamp(row["created_at"]) if row.get("created_at") else None,
+    }
 
 def required_text(value, label, max_length):
 
@@ -581,6 +717,369 @@ def load_orders(completed, order_id=None, tracking_hash=None):
 
         connection.close()
 
+@app.cli.command("create-owner")
+def create_owner_command():
+    """Create the initial owner account once, using an interactive prompt."""
+    email = click.prompt("Owner email").strip().lower()
+    full_name = click.prompt("Owner full name").strip()
+    password = click.prompt("Owner password", hide_input=True, confirmation_prompt=True)
+    if not valid_staff_email(email):
+        raise click.ClickException("Enter a valid email address.")
+    if not full_name or len(full_name) > 80:
+        raise click.ClickException("Owner name must be between 1 and 80 characters.")
+    if len(password) < PASSWORD_MIN_LENGTH or len(password) > 128:
+        raise click.ClickException("Password must be between 12 and 128 characters.")
+    if not password.strip():
+        raise click.ClickException("Password cannot contain only spaces.")
+
+    connection = database_connection()
+    try:
+        connection.begin()
+        cursor = connection.cursor()
+        cursor.execute("SELECT staff_id FROM staff_users WHERE staff_role = 'owner' LIMIT 1 FOR UPDATE")
+        if cursor.fetchone():
+            connection.rollback()
+            raise click.ClickException("An owner account already exists. Use the application to manage staff accounts.")
+        cursor.execute(
+            """
+            INSERT INTO staff_users
+                (email, full_name, password_hash, staff_role, is_active, must_change_password)
+            VALUES (%s, %s, %s, 'owner', 1, 0)
+            """,
+            (email, full_name, generate_password_hash(password)),
+        )
+        connection.commit()
+        click.echo("Initial owner account created.")
+    except click.ClickException:
+        raise
+    except pymysql.err.IntegrityError:
+        connection.rollback()
+        raise click.ClickException("That email address is already in use.")
+    finally:
+        connection.close()
+
+@app.post("/api/staff/login")
+def staff_login():
+    if not valid_csrf_request():
+        return jsonify({"error": "Refresh the sign-in page and try again.", "code": "csrf_failed"}), 400
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "Send sign-in details as JSON."}), 400
+    email = body.get("email")
+    password = body.get("password")
+    email = email.strip().lower() if isinstance(email, str) else ""
+    password = password if isinstance(password, str) else ""
+    connection = None
+    try:
+        connection = database_connection()
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT staff_id, email, full_name, password_hash, staff_role,
+                   is_active, must_change_password, auth_version
+              FROM staff_users
+             WHERE email = %s
+             LIMIT 1
+            """,
+            (email,),
+        )
+        staff = cursor.fetchone()
+        password_hash = staff["password_hash"] if staff else DUMMY_PASSWORD_HASH
+        password_matches = check_password_hash(password_hash, password)
+        if staff is None or not staff["is_active"] or not password_matches:
+            return jsonify({"error": "Email or password is incorrect."}), 401
+
+        session.clear()
+        session.permanent = True
+        session["staff_id"] = int(staff["staff_id"])
+        session["staff_auth_version"] = int(staff["auth_version"])
+        session["csrf_token"] = secrets.token_urlsafe(32)
+        destination = (
+            "/staff-change-password.html?focus=password"
+            if staff["must_change_password"]
+            else safe_dashboard_path(request.args.get("next"))
+        )
+        return jsonify({"redirect": destination})
+    except Exception:
+        app.logger.exception("Staff sign-in failed because the database was unavailable")
+        return jsonify({"error": "Staff sign-in is temporarily unavailable. Please try again."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.get("/api/staff/session")
+@staff_required
+def staff_session():
+    return jsonify({
+        "staff": public_staff_account(g.staff_user),
+        "csrfToken": ensure_csrf_token(),
+    })
+
+@app.post("/api/staff/logout")
+@staff_required
+@csrf_required
+def staff_logout():
+    session.clear()
+    return jsonify({"redirect": "/staff-signin.html?focus=signin"})
+
+@app.post("/api/staff/change-password")
+@staff_required
+@csrf_required
+def staff_change_password():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "Send password details as JSON."}), 400
+    current_password = body.get("currentPassword")
+    new_password = body.get("newPassword")
+    confirm_password = body.get("confirmPassword")
+    if not all(isinstance(value, str) for value in (current_password, new_password, confirm_password)):
+        return jsonify({"error": "Complete all password fields."}), 400
+    if len(new_password) < PASSWORD_MIN_LENGTH or len(new_password) > 128:
+        return jsonify({"error": "New password must be between 12 and 128 characters."}), 400
+    if new_password != confirm_password:
+        return jsonify({"error": "The new password entries do not match."}), 400
+
+    connection = None
+    try:
+        connection = database_connection()
+        connection.begin()
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT password_hash FROM staff_users WHERE staff_id = %s AND is_active = 1 FOR UPDATE",
+            (g.staff_user["staff_id"],),
+        )
+        row = cursor.fetchone()
+        if row is None or not check_password_hash(row["password_hash"], current_password):
+            connection.rollback()
+            return jsonify({"error": "Current password is incorrect."}), 400
+        if check_password_hash(row["password_hash"], new_password):
+            connection.rollback()
+            return jsonify({"error": "Choose a new password different from the temporary password."}), 400
+        cursor.execute(
+            """
+            UPDATE staff_users
+               SET password_hash = %s,
+                   must_change_password = 0,
+                   auth_version = auth_version + 1
+             WHERE staff_id = %s
+            """,
+            (generate_password_hash(new_password), g.staff_user["staff_id"]),
+        )
+        cursor.execute("SELECT auth_version FROM staff_users WHERE staff_id = %s", (g.staff_user["staff_id"],))
+        auth_version = int(cursor.fetchone()["auth_version"])
+        connection.commit()
+        session["staff_auth_version"] = auth_version
+        session["csrf_token"] = secrets.token_urlsafe(32)
+        return jsonify({"redirect": "/employee-dashboard.html?focus=dashboard"})
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        app.logger.exception("Could not change staff password")
+        return jsonify({"error": "Password could not be changed. Please try again."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.get("/api/staff/accounts")
+@staff_required
+@roles_required("manager", "owner")
+def list_staff_accounts():
+    connection = None
+    try:
+        connection = database_connection()
+        cursor = connection.cursor()
+        if g.staff_user["staff_role"] == "manager":
+            cursor.execute(
+                """
+                SELECT staff_id, email, full_name, staff_role, is_active,
+                       must_change_password, created_at
+                  FROM staff_users
+                 WHERE staff_role = 'employee'
+                 ORDER BY full_name, email
+                """
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT staff_id, email, full_name, staff_role, is_active,
+                       must_change_password, created_at
+                  FROM staff_users
+                 ORDER BY FIELD(staff_role, 'owner', 'manager', 'employee'), full_name, email
+                """
+            )
+        return jsonify({"accounts": [public_staff_account(row) for row in cursor.fetchall()]})
+    except Exception:
+        app.logger.exception("Could not list staff accounts")
+        return jsonify({"error": "Staff accounts could not be loaded."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.post("/api/staff/accounts")
+@staff_required
+@roles_required("manager", "owner")
+@csrf_required
+def create_staff_account():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "Send employee details as JSON."}), 400
+    try:
+        full_name = required_text(body.get("fullName"), "Employee name", 80)
+    except ApiError as exc:
+        return jsonify({"error": str(exc)}), exc.status_code
+    email = body.get("email")
+    email = email.strip().lower() if isinstance(email, str) else ""
+    if not valid_staff_email(email):
+        return jsonify({"error": "Enter a valid work email address."}), 400
+    role = body.get("role", "employee")
+    if not isinstance(role, str) or role not in {"employee", "manager"}:
+        return jsonify({"error": "Choose an employee or manager role."}), 400
+    if role == "manager" and g.staff_user["staff_role"] != "owner":
+        return jsonify({"error": "Only the owner can create manager accounts."}), 403
+    temporary_password = body.get("temporaryPassword")
+    if not isinstance(temporary_password, str) or len(temporary_password) < PASSWORD_MIN_LENGTH or len(temporary_password) > 128:
+        return jsonify({"error": "Temporary password must be between 12 and 128 characters."}), 400
+    if not temporary_password.strip():
+        return jsonify({"error": "Temporary password cannot contain only spaces."}), 400
+
+    connection = None
+    try:
+        connection = database_connection()
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO staff_users
+                (email, full_name, password_hash, staff_role, is_active,
+                 must_change_password, created_by)
+            VALUES (%s, %s, %s, %s, 1, 1, %s)
+            """,
+            (
+                email,
+                full_name,
+                generate_password_hash(temporary_password),
+                role,
+                g.staff_user["staff_id"],
+            ),
+        )
+        new_staff_id = cursor.lastrowid
+        cursor.execute(
+            """
+            SELECT staff_id, email, full_name, staff_role, is_active,
+                   must_change_password, created_at
+              FROM staff_users WHERE staff_id = %s
+            """,
+            (new_staff_id,),
+        )
+        created_account = cursor.fetchone()
+        connection.commit()
+        return jsonify({"account": public_staff_account(created_account)}), 201
+    except pymysql.err.IntegrityError:
+        if connection is not None:
+            connection.rollback()
+        return jsonify({"error": "An account already uses that email address."}), 409
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        app.logger.exception("Could not create staff account")
+        return jsonify({"error": "Staff account could not be created."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.patch("/api/staff/accounts/<int:staff_id>")
+@staff_required
+@roles_required("manager", "owner")
+@csrf_required
+def update_staff_account(staff_id):
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "Send staff account updates as JSON."}), 400
+    if staff_id == int(g.staff_user["staff_id"]):
+        return jsonify({"error": "You cannot change your own account from this screen."}), 400
+    connection = None
+    try:
+        connection = database_connection()
+        connection.begin()
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT staff_id, staff_role, is_active FROM staff_users WHERE staff_id = %s FOR UPDATE",
+            (staff_id,),
+        )
+        target = cursor.fetchone()
+        if target is None:
+            connection.rollback()
+            return jsonify({"error": "Staff account not found."}), 404
+        if target["staff_role"] == "owner":
+            connection.rollback()
+            return jsonify({"error": "Owner accounts cannot be changed from this screen."}), 403
+        if g.staff_user["staff_role"] == "manager" and target["staff_role"] != "employee":
+            connection.rollback()
+            return jsonify({"error": "Managers can only manage employee accounts."}), 403
+        if "isActive" in body:
+            if not isinstance(body["isActive"], bool):
+                connection.rollback()
+                return jsonify({"error": "Choose whether this account should be active."}), 400
+            if bool(target["is_active"]) != body["isActive"]:
+                cursor.execute(
+                    "UPDATE staff_users SET is_active = %s, auth_version = auth_version + 1 WHERE staff_id = %s",
+                    (int(body["isActive"]), staff_id),
+                )
+            connection.commit()
+            return jsonify({"success": True, "isActive": body["isActive"]})
+
+        try:
+            full_name = required_text(body.get("fullName"), "Staff name", 80)
+        except ApiError as exc:
+            connection.rollback()
+            return jsonify({"error": str(exc)}), exc.status_code
+        email = body.get("email")
+        email = email.strip().lower() if isinstance(email, str) else ""
+        if not valid_staff_email(email):
+            connection.rollback()
+            return jsonify({"error": "Enter a valid work email address."}), 400
+        role = body.get("role", target["staff_role"])
+        if not isinstance(role, str) or role not in {"employee", "manager"}:
+            connection.rollback()
+            return jsonify({"error": "Choose an employee or manager role."}), 400
+        if role == "manager" and g.staff_user["staff_role"] != "owner":
+            connection.rollback()
+            return jsonify({"error": "Only the owner can assign manager roles."}), 403
+        auth_version_increment = int(target["staff_role"] != role)
+        cursor.execute(
+            """
+            UPDATE staff_users
+               SET email = %s,
+                   full_name = %s,
+                   staff_role = %s,
+                   auth_version = auth_version + %s
+             WHERE staff_id = %s
+            """,
+            (email, full_name, role, auth_version_increment, staff_id),
+        )
+        cursor.execute(
+            """
+            SELECT staff_id, email, full_name, staff_role, is_active,
+                   must_change_password, created_at
+              FROM staff_users WHERE staff_id = %s
+            """,
+            (staff_id,),
+        )
+        updated_account = cursor.fetchone()
+        connection.commit()
+        return jsonify({"success": True, "account": public_staff_account(updated_account)})
+    except pymysql.err.IntegrityError:
+        if connection is not None:
+            connection.rollback()
+        return jsonify({"error": "An account already uses that email address."}), 409
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        app.logger.exception("Could not update staff account")
+        return jsonify({"error": "Staff account could not be updated."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
 @app.get("/")
 
 def landing_page():
@@ -594,13 +1093,51 @@ def signup_page():
 @app.get("/staff-signin")
 @app.get("/staff-signin.html")
 def staff_signin_page():
-    return render_template("staff-signin.html")
+    try:
+        staff = current_staff_user()
+    except Exception:
+        app.logger.exception("Could not check the staff session")
+        return "Staff sign-in is temporarily unavailable.", 503
+    if staff is not None:
+        if staff["must_change_password"]:
+            return redirect("/staff-change-password.html?focus=password")
+        return redirect("/employee-dashboard.html?focus=dashboard")
+    return render_template("staff-signin.html", csrf_token=ensure_csrf_token())
 
 @app.get("/employee-dashboard.html")
 @app.get("/employee")
 
 def dashboard():
-    return render_template("employee-dashboard.html")
+    try:
+        staff = current_staff_user()
+    except Exception:
+        app.logger.exception("Could not check the staff session")
+        return "Staff dashboard is temporarily unavailable.", 503
+    if staff is None:
+        return redirect(url_for("staff_signin_page", next=request.path))
+    if staff["must_change_password"]:
+        return redirect("/staff-change-password.html?focus=password")
+    return render_template(
+        "employee-dashboard.html",
+        staff=staff,
+        csrf_token=ensure_csrf_token(),
+    )
+
+@app.get("/staff-change-password")
+@app.get("/staff-change-password.html")
+def staff_change_password_page():
+    try:
+        staff = current_staff_user()
+    except Exception:
+        app.logger.exception("Could not check the staff session")
+        return "Staff password update is temporarily unavailable.", 503
+    if staff is None:
+        return redirect(url_for("staff_signin_page", next="/employee-dashboard.html"))
+    return render_template(
+        "staff-change-password.html",
+        staff=staff,
+        csrf_token=ensure_csrf_token(),
+    )
 
 @app.get("/customer")
 
@@ -611,7 +1148,7 @@ def customer_dashboard():
 
 def private_api_response(response):
 
-    if request.path.startswith("/api/"):
+    if request.path.startswith(("/api/", "/employee", "/staff-signin", "/staff-change-password")):
 
         response.headers["Cache-Control"] = "no-store"
 
@@ -660,6 +1197,7 @@ def track_customer_order(order_id):
         return jsonify({"error": "We could not check your order. Your last confirmed status is still shown. Please try again."}), 503
 
 @app.get("/api/employee/orders")
+@staff_required
 
 def get_active_orders():
 
@@ -680,6 +1218,7 @@ def get_active_orders():
         return jsonify({"error": "MariaDB is unavailable or the schema is missing. Check the server log and database settings."}), 503
 
 @app.get("/api/employee/order-history")
+@staff_required
 
 def get_order_history():
 
@@ -714,6 +1253,29 @@ def create_order():
     try:
 
         is_customer = request.path == "/api/customer/orders"
+
+        if not is_customer:
+            try:
+
+                staff = current_staff_user()
+
+            except Exception:
+
+                app.logger.exception("Could not verify the employee session for order creation")
+
+                return jsonify({"error": "Staff authentication is temporarily unavailable."}), 503
+
+            if staff is None:
+
+                return api_authentication_required()
+
+            if staff["must_change_password"]:
+
+                return jsonify({"error": "Change your temporary password before continuing.", "code": "password_change_required"}), 403
+
+            if not valid_csrf_request():
+
+                return jsonify({"error": "The request security token is missing or expired.", "code": "csrf_failed"}), 400
 
         source = "Customer portal" if is_customer else "Employee POS"
 
@@ -984,6 +1546,8 @@ def create_order():
         return jsonify({"error": "Order could not be saved. Check that MariaDB is running, the connection settings are correct, and database/customer_portal.sql has been applied."}), 503
 
 @app.patch("/api/employee/orders/<int:order_id>")
+@staff_required
+@csrf_required
 
 def update_order_status(order_id):
 

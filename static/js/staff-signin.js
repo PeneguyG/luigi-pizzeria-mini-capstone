@@ -1,18 +1,11 @@
 'use strict';
 
-// Temporary browser-only demo credentials. Authentication and authorization
-// must move to the server before this is used with real employee accounts.
-const EMPLOYEES = Object.freeze([
-  { id: '1001', password: 'pizza1001' },
-  { id: '1002', password: 'pizza1002' },
-  { id: '1003', password: 'pizza1003' },
-  { id: '1004', password: 'pizza1004' }
-]);
-
 const form = document.getElementById('staffForm');
 const message = document.getElementById('staffMessage');
-const idInput = document.getElementById('employeeId');
+const emailInput = document.getElementById('employeeId');
 const passwordInput = document.getElementById('staffPassword');
+const submitButton = form.querySelector('button[type="submit"]');
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
 function showMessage(text) {
   message.textContent = text;
@@ -22,36 +15,50 @@ function showMessage(text) {
 function clearMessage() {
   message.textContent = '';
   message.className = 'message';
-  idInput.removeAttribute('aria-invalid');
+  emailInput.removeAttribute('aria-invalid');
   passwordInput.removeAttribute('aria-invalid');
 }
 
-form.addEventListener('submit', function (event) {
+form.addEventListener('submit', async function (event) {
   event.preventDefault();
   clearMessage();
+  submitButton.disabled = true;
+  form.setAttribute('aria-busy', 'true');
 
-  const employee = EMPLOYEES.find(function (entry) {
-    return entry.id === idInput.value.trim() && entry.password === passwordInput.value;
-  });
-
-  if (!employee) {
-    showMessage('Employee ID or password is incorrect. Check both fields and try again.');
-    idInput.setAttribute('aria-invalid', 'true');
-    passwordInput.setAttribute('aria-invalid', 'true');
-    passwordInput.focus();
-    return;
-  }
-
-  // Do not persist a mock role session: the dashboard role dropdown remains
-  // available for testing until backend authentication and RBAC are added.
   try {
-    sessionStorage.removeItem('luigis_staff_session');
+    const response = await fetch('/api/staff/login' + window.location.search, {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
+      body: JSON.stringify({
+        email: emailInput.value.trim(),
+        password: passwordInput.value
+      })
+    });
+    const payload = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      const errorText = response.status === 429
+        ? 'Too many sign-in attempts. Wait a minute, then try again.'
+        : (payload.error || 'Sign-in failed. Please try again.');
+      showMessage(errorText);
+      emailInput.setAttribute('aria-invalid', 'true');
+      passwordInput.setAttribute('aria-invalid', 'true');
+      passwordInput.focus();
+      return;
+    }
+    window.location.assign(payload.redirect);
   } catch (_error) {
-    // Storage is optional for this temporary, role-free redirect.
+    showMessage('The sign-in service could not be reached. Please try again.');
+    passwordInput.focus();
+  } finally {
+    submitButton.disabled = false;
+    form.removeAttribute('aria-busy');
   }
-
-  // The dashboard reads this query parameter and moves focus to its heading.
-  window.location.assign('/employee-dashboard.html?focus=dashboard');
 });
 
 form.querySelectorAll('input').forEach(function (input) {
@@ -59,5 +66,5 @@ form.querySelectorAll('input').forEach(function (input) {
 });
 
 if (new URLSearchParams(window.location.search).get('focus') === 'signin') {
-  window.requestAnimationFrame(function () { idInput.focus(); });
+  window.requestAnimationFrame(function () { emailInput.focus(); });
 }
