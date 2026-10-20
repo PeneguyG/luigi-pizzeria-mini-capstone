@@ -30,11 +30,40 @@ CREATE TABLE IF NOT EXISTS customers (
 
 ) ENGINE=InnoDB;
 
+-- Email is the unique account ID; phone numbers may be shared by households.
+CREATE TABLE IF NOT EXISTS customer_accounts (
+  email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL PRIMARY KEY,
+  full_name VARCHAR(200) NOT NULL,
+  first_name VARCHAR(80) NOT NULL,
+  last_name VARCHAR(80) NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS customer_sessions (
+  token_hash CHAR(64) NOT NULL PRIMARY KEY,
+  account_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  expires_at DATETIME NOT NULL,
+  KEY idx_session_expiry (expires_at),
+  FOREIGN KEY (account_email) REFERENCES customer_accounts(email) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS customer_login_limits (
+  email_hash CHAR(64) NOT NULL PRIMARY KEY,
+  attempts INT UNSIGNED NOT NULL,
+  window_start DATETIME NOT NULL
+) ENGINE=InnoDB;
+
+
 CREATE TABLE IF NOT EXISTS orders (
 
   order_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 
   customer_id BIGINT UNSIGNED NOT NULL,
+  account_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL,
+  KEY idx_orders_account (account_email, created_at),
+  CONSTRAINT fk_orders_account FOREIGN KEY (account_email) REFERENCES customer_accounts(email),
 
   source ENUM('Employee POS', 'Customer portal') NOT NULL DEFAULT 'Employee POS',
 
