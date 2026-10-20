@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS orders (
   completed_at DATETIME(3) NULL,
   PRIMARY KEY (order_id),
   KEY idx_orders_status_created (status, created_at),
+  KEY idx_orders_created_at (created_at),
   KEY idx_orders_customer_created (customer_id, created_at),
   CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id)
     REFERENCES customers (customer_id),

@@ -141,6 +141,8 @@ def database_connection():
 
         read_timeout=15,
 
+        init_command="SET time_zone = '+00:00'",
+
         write_timeout=15,
 
     )
@@ -942,6 +944,77 @@ def list_staff_accounts():
     except Exception:
         app.logger.exception("Could not list staff accounts")
         return jsonify({"error": "Staff accounts could not be loaded."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
+@app.get("/api/staff/sales-summary")
+@staff_required
+@roles_required("manager", "owner")
+def get_sales_summary():
+    connection = None
+    try:
+        timezone_name = os.environ.get("BUSINESS_TIMEZONE", "UTC")
+        try:
+            business_timezone = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError as exc:
+            raise RuntimeError("BUSINESS_TIMEZONE must be a valid IANA timezone name.") from exc
+
+        now_local = datetime.now(business_timezone)
+        today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start_local = today_start_local - timedelta(days=today_start_local.weekday())
+        utc_timezone = ZoneInfo("UTC")
+        now_utc = now_local.astimezone(utc_timezone).replace(tzinfo=None)
+        today_start_utc = today_start_local.astimezone(utc_timezone).replace(tzinfo=None)
+        week_start_utc = week_start_local.astimezone(utc_timezone).replace(tzinfo=None)
+
+        connection = database_connection()
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                COUNT(CASE WHEN created_at >= %s AND created_at < %s THEN 1 END) AS today_orders,
+                COALESCE(SUM(CASE WHEN created_at >= %s AND created_at < %s THEN total ELSE 0 END), 0) AS today_sales,
+                COUNT(CASE WHEN created_at >= %s AND created_at < %s THEN 1 END) AS week_orders,
+                COALESCE(SUM(CASE WHEN created_at >= %s AND created_at < %s THEN total ELSE 0 END), 0) AS week_sales
+              FROM orders
+             WHERE created_at >= %s AND created_at < %s
+            """,
+            (
+                today_start_utc, now_utc,
+                today_start_utc, now_utc,
+                week_start_utc, now_utc,
+                week_start_utc, now_utc,
+                week_start_utc, now_utc,
+            ),
+        )
+        row = cursor.fetchone()
+
+        def period_summary(order_count, sales_total):
+            order_count = int(order_count or 0)
+            sales_total = Decimal(sales_total or 0).quantize(CENT)
+            average_order = (
+                (sales_total / order_count).quantize(CENT, rounding=ROUND_HALF_UP)
+                if order_count else Decimal("0.00")
+            )
+            return {
+                "orders": order_count,
+                "sales": float(sales_total),
+                "averageOrder": float(average_order),
+            }
+
+        return jsonify({
+            "timezone": timezone_name,
+            "generatedAt": now_local.isoformat(timespec="seconds"),
+            "today": period_summary(row["today_orders"], row["today_sales"]),
+            "week": period_summary(row["week_orders"], row["week_sales"]),
+        })
+    except RuntimeError as exc:
+        app.logger.error("Sales summary configuration error: %s", exc)
+        return jsonify({"error": str(exc)}), 503
+    except Exception:
+        app.logger.exception("Could not load manager sales summary")
+        return jsonify({"error": "Sales totals could not be loaded. Check MariaDB and the application logs."}), 503
     finally:
         if connection is not None:
             connection.close()

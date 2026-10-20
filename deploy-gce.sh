@@ -153,6 +153,11 @@ tracking_index="$(mariadb --protocol=socket --user=root --batch --skip-column-na
 if [[ "$tracking_index" == 0 ]]; then
   mariadb --protocol=socket --user=root --database="$DB_NAME" -e 'ALTER TABLE orders ADD UNIQUE KEY uq_orders_tracking_token (tracking_token_hash)'
 fi
+sales_created_at_index="$(mariadb --protocol=socket --user=root --batch --skip-column-names \
+  -e "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='orders' AND INDEX_NAME='idx_orders_created_at'")"
+if [[ "$sales_created_at_index" == 0 ]]; then
+  mariadb --protocol=socket --user=root --database="$DB_NAME" -e 'ALTER TABLE orders ADD KEY idx_orders_created_at (created_at)'
+fi
 
 # Reuse the generated DB password across reruns, or generate a new strong one.
 if [[ -z "${DB_PASSWORD:-}" && -r /etc/luigi-pizzeria/app.env ]]; then

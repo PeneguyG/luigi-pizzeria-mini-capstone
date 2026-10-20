@@ -107,7 +107,7 @@
     const customerPhoneInput = document.getElementById('customer-phone');
     const customerFirstNameInput = document.getElementById('customer-first-name');
     const customerLastNameInput = document.getElementById('customer-last-name');
-    const customerPhonePattern = /^(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\)|[2-9][0-9]{2})[ .-]?[2-9][0-9]{2}[ .-]?[0-9]{4}$/;
+    const customerPhoneAllowedCharacters = /^[+0-9().\s-]+$/;
     const orderValidationFields = [
       customerFirstNameInput,
       customerLastNameInput,
@@ -125,12 +125,19 @@
     function validateCustomerPhone() {
       const phone = customerPhoneInput.value.trim();
       const phoneError = document.getElementById('customer-phone-error');
-      const malformed = phone.length > 0 && !customerPhonePattern.test(phone);
+      const digits = phone.replace(/\D/g, '');
+      const validDigitCount = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+      const plusPositionIsValid = !phone.includes('+') || (
+        phone.startsWith('+') && phone.indexOf('+') === phone.lastIndexOf('+') && digits.length === 11 && digits.startsWith('1')
+      );
+      const malformed = phone.length > 0 && (
+        !customerPhoneAllowedCharacters.test(phone) || !validDigitCount || !plusPositionIsValid
+      );
       customerPhoneInput.setCustomValidity(malformed
-        ? 'Enter a valid 10-digit US phone number. Letters are not allowed.'
+        ? 'Enter a 10-digit US phone number, optionally with a leading 1. Use digits and common separators only.'
         : '');
       phoneError.textContent = phone
-        ? 'Enter a valid 10-digit US phone number. Use digits with optional spaces, parentheses, periods, or hyphens; letters are not allowed.'
+        ? 'Enter 10 digits, or 11 digits starting with 1. Spaces, parentheses, periods, hyphens, and a leading + are allowed.'
         : 'Enter the customer\'s phone number.';
       return customerPhoneInput.validity.valid;
     }
@@ -584,6 +591,73 @@
     };
     const roleLevels = { employee: 1, manager: 2, owner: 3 };
     const roleNames = { employee: 'Employee', manager: 'Manager', owner: 'Owner' };
+    const salesSummaryStatus = document.getElementById('sales-summary-status');
+    const salesSummaryError = document.getElementById('sales-summary-error');
+    const salesSummaryContent = document.getElementById('sales-summary-content');
+    const salesSummaryTableBody = document.getElementById('sales-summary-table-body');
+    const salesSummaryUpdated = document.getElementById('sales-summary-updated');
+    const refreshSalesSummaryButton = document.getElementById('refresh-sales-summary');
+    let salesSummaryRequestActive = false;
+    let lastSalesSummaryFingerprint = null;
+
+    function createSalesSummaryRow(period, summary) {
+      const row = document.createElement('tr');
+      const heading = document.createElement('th');
+      heading.scope = 'row';
+      heading.textContent = period;
+      row.append(heading);
+      [String(summary.orders), formatMoney(summary.averageOrder), formatMoney(summary.sales)].forEach(function (value) {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.append(cell);
+      });
+      return row;
+    }
+
+    async function loadManagerSalesSummary(options) {
+      const shouldAnnounce = !options || options.announce !== false;
+      if (salesSummaryRequestActive || !['manager', 'owner'].includes(currentStaff.role)) return;
+      salesSummaryRequestActive = true;
+      salesSummaryContent.setAttribute('aria-busy', 'true');
+      if (shouldAnnounce) refreshSalesSummaryButton.disabled = true;
+      try {
+        const summary = await apiRequest('/api/staff/sales-summary');
+        const today = summary.today || { orders: 0, averageOrder: 0, sales: 0 };
+        const week = summary.week || { orders: 0, averageOrder: 0, sales: 0 };
+        const fingerprint = [today.orders, today.averageOrder, today.sales, week.orders, week.averageOrder, week.sales].join('|');
+        const changed = lastSalesSummaryFingerprint !== null && lastSalesSummaryFingerprint !== fingerprint;
+
+        document.getElementById('today-sales-total').textContent = formatMoney(today.sales);
+        document.getElementById('today-sales-orders').textContent = today.orders + (today.orders === 1 ? ' order today' : ' orders today');
+        document.getElementById('week-sales-total').textContent = formatMoney(week.sales);
+        document.getElementById('week-sales-orders').textContent = week.orders + (week.orders === 1 ? ' order this week' : ' orders this week');
+        salesSummaryTableBody.replaceChildren(
+          createSalesSummaryRow('Today', today),
+          createSalesSummaryRow('This week', week)
+        );
+        const generatedAt = new Date(summary.generatedAt);
+        salesSummaryUpdated.textContent = Number.isNaN(generatedAt.getTime())
+          ? ''
+          : 'Last updated ' + new Intl.DateTimeFormat('en-US', {
+            dateStyle: 'medium', timeStyle: 'short', timeZone: summary.timezone
+          }).format(generatedAt) + ' (' + summary.timezone + ').';
+        salesSummaryError.hidden = true;
+        salesSummaryError.textContent = '';
+        if (changed) salesSummaryStatus.textContent = 'New sales activity is reflected in the summary.';
+        else if (shouldAnnounce) salesSummaryStatus.textContent = 'Sales summary refreshed.';
+        else if (lastSalesSummaryFingerprint === null) salesSummaryStatus.textContent = 'Live sales tracking is connected.';
+        lastSalesSummaryFingerprint = fingerprint;
+      } catch (error) {
+        salesSummaryError.textContent = 'Could not load sales totals. ' + error.message;
+        salesSummaryError.hidden = false;
+        if (shouldAnnounce) salesSummaryStatus.textContent = 'Sales summary could not be refreshed.';
+      } finally {
+        salesSummaryContent.setAttribute('aria-busy', 'false');
+        salesSummaryRequestActive = false;
+        if (shouldAnnounce) refreshSalesSummaryButton.disabled = false;
+      }
+    }
+
     function roleCanSee(element) {
       const requiredRole = element.dataset.minimumRole;
       return !requiredRole || (roleLevels[currentStaff.role] || 0) >= roleLevels[requiredRole];
@@ -612,6 +686,7 @@
       if (moveFocus !== false) tab.focus();
       if (tab.id === 'orders-tab') renderOrders();
       if (tab.id === 'history-tab') renderHistory();
+      if (tab.id === 'manager-tab') loadManagerSalesSummary();
       if (tab.id === 'customers-tab') loadCustomerDirectory();
     }
 
@@ -1244,6 +1319,9 @@
       await renderHistory();
       announce('Order history refreshed.');
     });
+    refreshSalesSummaryButton.addEventListener('click', function () {
+      loadManagerSalesSummary();
+    });
 
     renderCart();
     updatePizzaPreview();
@@ -1252,6 +1330,18 @@
     renderOrders();
     renderHistory();
     window.setInterval(function () { checkForOverdueOrders(true); }, 30000);
+    window.setInterval(function () {
+      const managerTab = document.getElementById('manager-tab');
+      if (!document.hidden && !managerTab.hidden && managerTab.getAttribute('aria-selected') === 'true') {
+        loadManagerSalesSummary({ announce: false });
+      }
+    }, 15000);
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) checkForOverdueOrders(true);
+      if (!document.hidden) {
+        checkForOverdueOrders(true);
+        const managerTab = document.getElementById('manager-tab');
+        if (!managerTab.hidden && managerTab.getAttribute('aria-selected') === 'true') {
+          loadManagerSalesSummary({ announce: false });
+        }
+      }
     });

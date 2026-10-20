@@ -73,9 +73,9 @@
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="customer-phone">Phone number <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" pattern="(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\)|[2-9][0-9]{2})[ .-]?[2-9][0-9]{2}[ .-]?[0-9]{4}" aria-label="Customer phone number, required. Enter a 10-digit US number." aria-describedby="customer-phone-help customer-phone-error">
+                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" pattern="[0-9+(). -]{10,20}" aria-label="Customer phone number, required. Enter a 10-digit US number, optionally with country code 1." aria-describedby="customer-phone-help customer-phone-error">
                     <div id="customer-phone-help" class="form-text">Used to contact the customer about this order.</div>
-                    <div id="customer-phone-error" class="invalid-feedback">Enter a valid 10-digit US phone number. Letters are not allowed.</div>
+                    <div id="customer-phone-error" class="invalid-feedback">Enter 10 digits, or 11 digits starting with 1. Spaces, parentheses, periods, hyphens, and a leading + are allowed.</div>
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="order-channel">Order channel <span aria-hidden="true" class="text-danger">*</span></label>
@@ -218,49 +218,50 @@
 
       <section id="manager-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="manager-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager" style="background-color:#fffefa;">
         <div class="card-body p-3 p-md-4 p-xl-5">
-          <div class="mb-4">
-            <p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Manager tools</p>
-            <h3 class="h5 mb-1">Store dashboard</h3>
-            <p class="text-secondary mb-0">Sales summary for this day and week.</p>
+          <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
+            <div>
+              <p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Manager tools</p>
+              <h3 class="h5 mb-1">Store dashboard</h3>
+              <p class="text-secondary mb-0">Live sales summary for today and this week.</p>
+            </div>
+            <button id="refresh-sales-summary" class="btn btn-outline-danger flex-shrink-0" type="button" aria-controls="sales-summary-content">Refresh sales</button>
           </div>
-          <p class="alert alert-warning" role="note">Sample statistics only. Connect these cards to a protected reporting API before using them for business decisions.</p>
-          <div class="row g-3">
-            <div class="col-12 col-lg-6">
-              <article class="card h-100" style="border-color:#ded5d2;background-color:#fffefa;">
-                <div class="card-body">
-                  <h4 class="h6">Daily sales</h4>
-                  <p class="display-6 mb-1">$842.50</p>
-                  <p class="small text-secondary">Sample total from 32 orders</p>
-                  <div class="progress" role="progressbar" aria-label="Daily sales compared with a sample one thousand dollar goal" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="842.5" aria-valuetext="$842.50 of $1,000 sample goal">
-                    <div class="progress-bar" style="width:84.25%;background-color:#55724f;"></div>
+          <p class="alert alert-info" role="note">Orders count as sales when they are placed. Totals include tax and refresh every 15 seconds while the Manager dashboard is selected.</p>
+          <p id="sales-summary-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true">Sales summary is loading.</p>
+          <p id="sales-summary-error" class="alert alert-danger" role="alert" hidden></p>
+          <div id="sales-summary-content" aria-busy="true">
+            <div class="row g-3 mb-4">
+              <div class="col-12 col-lg-6">
+                <article class="card h-100" style="border-color:#ded5d2;background-color:#fffefa;">
+                  <div class="card-body">
+                    <h4 class="h6">Daily sales</h4>
+                    <p id="today-sales-total" class="display-6 mb-1">$0.00</p>
+                    <p id="today-sales-orders" class="small text-secondary mb-0">0 orders today</p>
                   </div>
-                  <p class="small mt-2 mb-0">$842.50 of a $1,000 sample goal</p>
-                </div>
-              </article>
-            </div>
-            <div class="col-12 col-lg-6">
-              <article class="card h-100" style="border-color:#ded5d2;background-color:#fffefa;">
-                <div class="card-body">
-                  <h4 class="h6">Weekly sales</h4>
-                  <p class="display-6 mb-1">$5,260.00</p>
-                  <p class="small text-secondary">Sample total from 194 orders</p>
-                  <div class="progress" role="progressbar" aria-label="Weekly sales compared with a sample six thousand dollar goal" aria-valuemin="0" aria-valuemax="6000" aria-valuenow="5260" aria-valuetext="$5,260 of $6,000 sample goal">
-                    <div class="progress-bar" style="width:87.67%;background-color:#a84d50;"></div>
+                </article>
+              </div>
+              <div class="col-12 col-lg-6">
+                <article class="card h-100" style="border-color:#ded5d2;background-color:#fffefa;">
+                  <div class="card-body">
+                    <h4 class="h6">Weekly sales</h4>
+                    <p id="week-sales-total" class="display-6 mb-1">$0.00</p>
+                    <p id="week-sales-orders" class="small text-secondary mb-0">0 orders this week</p>
                   </div>
-                  <p class="small mt-2 mb-0">$5,260 of a $6,000 sample goal</p>
-                </div>
-              </article>
+                </article>
+              </div>
             </div>
-            <div class="col-12">
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <caption class="caption-top">Sample store summary</caption>
-                  <thead><tr><th scope="col">Period</th><th scope="col">Orders</th><th scope="col">Average order</th><th scope="col">Sales</th></tr></thead>
-                  <tbody>
-                    <tr><th scope="row">Today</th><td>32</td><td>$26.33</td><td>$842.50</td></tr>
-                    <tr><th scope="row">This week</th><td>194</td><td>$27.11</td><td>$5,260.00</td></tr>
-                  </tbody>
-                </table>
+            <div class="row">
+              <div class="col-12">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <caption class="caption-top">Live store sales summary. Sales include tax.</caption>
+                    <thead><tr><th scope="col">Period</th><th scope="col">Orders</th><th scope="col">Average order</th><th scope="col">Sales</th></tr></thead>
+                    <tbody id="sales-summary-table-body">
+                      <tr><td colspan="4" class="text-secondary">Loading sales totals…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p id="sales-summary-updated" class="small text-secondary mt-2 mb-0" aria-live="off"></p>
               </div>
             </div>
           </div>
