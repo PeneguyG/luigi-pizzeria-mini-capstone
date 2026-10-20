@@ -63,7 +63,9 @@ TAX_RATE = Decimal(TAX_RATE_BPS) / Decimal(10000)
 
 CENT = Decimal("0.01")
 
-MAX_ORDER_ITEMS = 20
+MAX_CUSTOMER_ORDER_ITEMS = 20
+
+MAX_EMPLOYEE_ORDER_ITEMS = 50
 
 ALLOWED_STATUSES = {"Confirmed", "In-Progress", "Ready", "Overdue", "Completed"}
 
@@ -273,7 +275,7 @@ def required_text(value, label, max_length):
 
     return value
 
-def parse_quantity(value):
+def parse_quantity(value, maximum):
 
     if isinstance(value, bool):
 
@@ -290,8 +292,6 @@ def parse_quantity(value):
     except (TypeError, ValueError):
 
         raise ApiError("Item quantity must be a whole number.")
-
-    maximum = MAX_ORDER_ITEMS
 
     if quantity < 1 or quantity > maximum:
 
@@ -323,7 +323,7 @@ def parse_topping_quantity(value):
 
     return quantity
 
-def prepare_items(raw_items):
+def prepare_items(raw_items, maximum):
 
     if not isinstance(raw_items, list) or not raw_items:
 
@@ -347,7 +347,7 @@ def prepare_items(raw_items):
 
             raise ApiError("Unsupported cart item type.")
 
-        quantity = parse_quantity(raw.get("quantity"))
+        quantity = parse_quantity(raw.get("quantity"), maximum)
 
         if item_type == "Pizza":
 
@@ -471,9 +471,9 @@ def prepare_items(raw_items):
 
             })
 
-    if sum(item["quantity"] for item in items) > MAX_ORDER_ITEMS:
+    if sum(item["quantity"] for item in items) > maximum:
 
-        raise ApiError("An order can contain no more than {} total items.".format(MAX_ORDER_ITEMS))
+        raise ApiError("An order can contain no more than {} total items.".format(maximum))
 
     subtotal = sum((item["unitPrice"] * item["quantity"] for item in items), Decimal("0.00"))
 
@@ -1294,6 +1294,7 @@ def create_order():
     try:
 
         is_customer = request.path == "/api/customer/orders"
+        maximum_order_items = MAX_CUSTOMER_ORDER_ITEMS if is_customer else MAX_EMPLOYEE_ORDER_ITEMS
 
         if not is_customer:
             try:
@@ -1376,7 +1377,7 @@ def create_order():
 
             raise ApiError("Order notes must be text no longer than 4000 characters.")
 
-        items, subtotal, tax_amount, total = prepare_items(body.get("items"))
+        items, subtotal, tax_amount, total = prepare_items(body.get("items"), maximum_order_items)
 
         connection = database_connection()
 

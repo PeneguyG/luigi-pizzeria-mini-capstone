@@ -179,12 +179,6 @@
       color: var(--muted) !important;
     }
 
-    .auth-note {
-      border-left: .25rem solid var(--green);
-      background: var(--green-pale);
-      color: var(--green-dark);
-    }
-
     .employee-area {
       border-top: 1px solid #cbd3c9;
       background: #f2e3e0;

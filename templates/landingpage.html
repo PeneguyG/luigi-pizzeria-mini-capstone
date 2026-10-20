@@ -49,14 +49,17 @@
           <p class="eyebrow mb-2">A neighborhood favorite</p>
           <h1 id="welcome-heading" class="hero-title mb-3">Good pizza. Easy pickup.</h1>
           <p class="hero-copy mb-4">
-            Welcome to Luigi's Pizzeria. Choose your favorite toppings and place an
-            order for carryout pickup, made fresh by our kitchen.
+            Choose your favorite toppings and place an order for carryout, made fresh by our kitchen.
           </p>
-          <div class="d-flex flex-column flex-sm-row gap-3">
-            <a class="btn btn-pizzeria btn-lg px-4" href="#customer-access">Order for pickup</a>
-            <a class="btn btn-outline-pizzeria btn-lg px-4" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Log in or sign up</a>
-          </div>
-          <p class="small mt-3 mb-0">Carryout and pickup orders only.</p>
+          <section id="customer-access" aria-labelledby="customer-heading">
+            <h2 id="customer-heading" class="h5 mb-2">How would you like to order?</h2>
+            <p class="text-secondary mb-3">Sign in or create an account, order as a guest, or track a previous order with its receipt.</p>
+            <div class="d-flex flex-column flex-sm-row flex-wrap gap-3" role="group" aria-label="Customer ordering options">
+              <a class="btn btn-pizzeria btn-lg" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Create an account or sign in</a>
+              <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=order">Order as a Guest</a>
+              <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=tracker">Track an order</a>
+            </div>
+          </section>
         </div>
 
         <div class="col-lg-5">
@@ -91,40 +94,17 @@
       </div>
     </section>
 
-    <section id="customer-access" class="row justify-content-center mb-5" aria-labelledby="customer-heading">
-      <div class="col-12 col-lg-8 col-xl-7">
-        <div class="section-card p-4 p-md-5">
-          <p class="eyebrow mb-2">Online ordering</p>
-          <h2 id="customer-heading" class="h3 mb-2">How would you like to order?</h2>
-          <p class="text-secondary mb-4">Sign in or create an account before ordering, or continue as a guest. Every order can be tracked from its receipt.</p>
-          <div class="d-flex flex-column flex-sm-row flex-wrap gap-3" role="group" aria-label="Customer ordering options">
-            <a class="btn btn-pizzeria btn-lg" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Create an account or sign in</a>
-            <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=order">Order as a Guest</a>
-            <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=tracker">Track an order</a>
-          </div>
-          <div class="auth-note rounded p-3 mt-4">
-            <p class="small mb-0"><strong>Pickup orders:</strong> no account is required when you choose guest checkout. Keep the receipt in this browser to check kitchen updates.</p>
-          </div>
-        </div>
-      </div>
-    </section>
     <section class="row g-3 mb-5" aria-label="Pizzeria details">
-      <div class="col-md-4">
+      <div class="col-md-6">
         <article class="section-card h-100 p-4">
           <h2 class="h5">Made fresh</h2>
           <p class="text-secondary mb-0">We prepare each pizza when you order.</p>
         </article>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
         <article class="section-card h-100 p-4">
           <h2 class="h5">Your way</h2>
           <p class="text-secondary mb-0">Choose a size, toppings, and drinks.</p>
-        </article>
-      </div>
-      <div class="col-md-4">
-        <article class="section-card h-100 p-4">
-          <h2 class="h5">Simple pickup</h2>
-          <p class="text-secondary mb-0">Order for carryout and pick up at the pizzeria.</p>
         </article>
       </div>
     </section>

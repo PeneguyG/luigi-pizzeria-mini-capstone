@@ -22,7 +22,7 @@
     const activeOrdersList = document.getElementById('active-orders-list');
     const historyList = document.getElementById('history-list');
     const cartItems = [];
-    const MAX_ORDER_ITEMS = 20;
+    const MAX_ORDER_ITEMS = 50;
     const posForm = document.getElementById('pos-form');
     let activeOrders = [];
     let overdueCheckRunning = false;
@@ -52,7 +52,7 @@
     function getPizzaConfiguration() {
       const size = document.getElementById('pizza-size').value;
       const pricing = pizzaPricing[size];
-      const quantity = Math.max(1, Math.min(20, Number(document.getElementById('pizza-quantity').value) || 1));
+      const quantity = Math.max(1, Math.min(MAX_ORDER_ITEMS, Number(document.getElementById('pizza-quantity').value) || 1));
       const toppings = getSelectedToppings();
       const toppingServings = toppings.reduce(function (sum, topping) { return sum + topping.quantity; }, 0);
       const unitPrice = pricing.base + toppingServings * pricing.topping;

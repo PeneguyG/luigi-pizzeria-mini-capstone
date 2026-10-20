@@ -102,8 +102,9 @@
                   </div>
                   <div class="col-6 col-sm-3 col-lg-2">
                     <label class="form-label" for="pizza-quantity">Quantity</label>
-                    <input class="form-control" id="pizza-quantity" name="pizzaQuantity" type="number" min="1" max="20" value="1" aria-label="Pizza quantity, from 1 to 20" aria-describedby="pizza-quantity-help pizza-quantity-error">
-                    <div id="pizza-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 20.</div>
+                    <input class="form-control" id="pizza-quantity" name="pizzaQuantity" type="number" min="1" max="50" value="1" aria-label="Pizza quantity, from 1 to 50" aria-describedby="pizza-quantity-help pizza-quantity-error">
+                    <div id="pizza-quantity-help" class="form-text">Order limit: 50 total items.</div>
+                    <div id="pizza-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 50.</div>
                   </div>
                   <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-end gap-2">
                     <button class="btn btn-danger w-100 w-sm-auto" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add pizza to order</button>
@@ -146,8 +147,9 @@
                   </div>
                   <div class="col-6 col-sm-3 col-lg-2">
                     <label class="form-label" for="drink-quantity">Quantity</label>
-                    <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="20" value="1" aria-label="Drink quantity, from 1 to 20" aria-describedby="drink-quantity-help drink-quantity-error">
-                    <div id="drink-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 20.</div>
+                    <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="50" value="1" aria-label="Drink quantity, from 1 to 50" aria-describedby="drink-quantity-help drink-quantity-error">
+                    <div id="drink-quantity-help" class="form-text">Order limit: 50 total items.</div>
+                    <div id="drink-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 50.</div>
                   </div>
                   <div class="col-12 col-lg-5">
                     <button class="btn btn-danger w-100" id="add-drink" type="button" aria-label="Add 1 medium iced tea to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add drink to order</button>
@@ -157,7 +159,7 @@
 
               <section class="col-12 border-top pt-4" aria-labelledby="cart-heading">
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
-                  <div><h4 id="cart-heading" class="h6 mb-1">Order cart</h4><p class="small text-secondary mb-0">Add up to 20 pizzas and drinks combined.</p></div>
+                  <div><h4 id="cart-heading" class="h6 mb-1">Order cart</h4><p class="small text-secondary mb-0">Add up to 50 pizzas and drinks combined.</p></div>
                   <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-danger align-self-start align-self-sm-auto" id="clear-cart" type="button" aria-label="Remove all items from the order cart" aria-controls="cart-items">Clear cart</button></div>
                 </div>
                 <ul id="cart-items" class="list-group mb-3" aria-label="Items currently in order cart" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></ul>
