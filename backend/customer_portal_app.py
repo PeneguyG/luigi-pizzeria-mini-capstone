@@ -1080,6 +1080,47 @@ def update_staff_account(staff_id):
         if connection is not None:
             connection.close()
 
+@app.delete("/api/staff/accounts/<int:staff_id>")
+@staff_required
+@roles_required("manager", "owner")
+@csrf_required
+def delete_staff_account(staff_id):
+    if staff_id == int(g.staff_user["staff_id"]):
+        return jsonify({"error": "You cannot delete your own account."}), 400
+    connection = None
+    try:
+        connection = database_connection()
+        connection.begin()
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT staff_id, staff_role, is_active FROM staff_users WHERE staff_id = %s FOR UPDATE",
+            (staff_id,),
+        )
+        target = cursor.fetchone()
+        if target is None:
+            connection.rollback()
+            return jsonify({"error": "Staff account not found."}), 404
+        if target["staff_role"] == "owner":
+            connection.rollback()
+            return jsonify({"error": "Owner accounts cannot be deleted from this screen."}), 403
+        if g.staff_user["staff_role"] == "manager" and target["staff_role"] != "employee":
+            connection.rollback()
+            return jsonify({"error": "Managers can only manage employee accounts."}), 403
+        if bool(target["is_active"]):
+            connection.rollback()
+            return jsonify({"error": "Deactivate this account before deleting it."}), 409
+        cursor.execute("DELETE FROM staff_users WHERE staff_id = %s", (staff_id,))
+        connection.commit()
+        return jsonify({"success": True, "deletedStaffId": staff_id})
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        app.logger.exception("Could not delete staff account")
+        return jsonify({"error": "Staff account could not be deleted."}), 503
+    finally:
+        if connection is not None:
+            connection.close()
+
 @app.get("/")
 
 def landing_page():

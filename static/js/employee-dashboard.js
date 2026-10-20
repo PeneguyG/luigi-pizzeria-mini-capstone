@@ -575,8 +575,6 @@
     }
 
     const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-    const rolePreview = document.getElementById('role-preview');
-    const rolePreviewSection = document.getElementById('role-preview-section');
     const currentStaff = {
       id: Number(document.body.dataset.staffId),
       name: document.body.dataset.staffName,
@@ -584,12 +582,9 @@
     };
     const roleLevels = { employee: 1, manager: 2, owner: 3 };
     const roleNames = { employee: 'Employee', manager: 'Manager', owner: 'Owner' };
-    let activeRole = roleLevels[currentStaff.role] ? currentStaff.role : 'employee';
-
     function roleCanSee(element) {
       const requiredRole = element.dataset.minimumRole;
-      const role = element.dataset.serverRole ? currentStaff.role : activeRole;
-      return !requiredRole || roleLevels[role] >= roleLevels[requiredRole];
+      return !requiredRole || (roleLevels[currentStaff.role] || 0) >= roleLevels[requiredRole];
     }
 
     function availableTabs() {
@@ -617,12 +612,7 @@
       if (tab.id === 'history-tab') renderHistory();
     }
 
-    function applyRole(role, announceChange) {
-      activeRole = roleLevels[role] ? role : 'employee';
-      rolePreview.value = activeRole;
-      rolePreview.disabled = false;
-      rolePreviewSection.hidden = false;
-
+    function applyStaffAccess() {
       const sessionLabel = document.getElementById('staff-session-label');
       const signOutButton = document.getElementById('dashboard-staff-signout');
       sessionLabel.textContent = 'Signed in: ' + currentStaff.name + ' · ' + roleNames[currentStaff.role];
@@ -647,19 +637,7 @@
       const firstAvailableTab = tabs.find(roleCanSee);
       activateTab(selectedTab || firstAvailableTab, false);
 
-      if (announceChange) {
-        const message = activeRole === 'owner'
-          ? 'Owner layout preview selected. Account permissions still follow your signed-in role.'
-          : activeRole === 'manager'
-            ? 'Manager layout preview selected. Account permissions still follow your signed-in role.'
-            : 'Employee layout preview selected. Account permissions still follow your signed-in role.';
-        announce(message);
-      }
     }
-
-    rolePreview.addEventListener('change', function () {
-      applyRole(rolePreview.value, true);
-    });
 
     document.getElementById('dashboard-staff-signout').addEventListener('click', async function (event) {
       const button = event.currentTarget;
@@ -694,7 +672,7 @@
         }
       });
     });
-    applyRole(activeRole, false);
+    applyStaffAccess();
     if (new URLSearchParams(window.location.search).get('focus') === 'dashboard') {
       window.requestAnimationFrame(function () {
         document.getElementById('dashboard-heading').focus();
@@ -702,7 +680,7 @@
     }
 
     const employeeAccessForm = document.getElementById('employee-access-form');
-    const employeePreviewList = document.getElementById('employee-preview-list');
+    const staffAccountList = document.getElementById('staff-account-list');
     const staffAccessMessage = document.getElementById('staff-access-message');
     const employeeRoleInput = document.getElementById('employee-role');
     const managerRoleOption = document.getElementById('manager-role-option');
@@ -746,13 +724,13 @@
     }
 
     function renderStaffAccounts(accounts) {
-      employeePreviewList.replaceChildren();
+      staffAccountList.replaceChildren();
       staffAccountsById.clear();
       if (accounts.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'list-group-item text-secondary';
         empty.textContent = 'No staff accounts are available to manage.';
-        employeePreviewList.append(empty);
+        staffAccountList.append(empty);
         return;
       }
 
@@ -787,19 +765,29 @@
         action.type = 'button';
         action.dataset.staffAccountId = String(account.id);
         action.dataset.nextActive = String(!account.isActive);
-        action.setAttribute('aria-controls', 'employee-preview-list');
+        action.setAttribute('aria-controls', 'staff-account-list');
         action.setAttribute('aria-label', (account.isActive ? 'Deactivate ' : 'Reactivate ') + account.fullName + ' (' + account.email + ')');
         action.textContent = account.isActive ? 'Deactivate' : 'Reactivate';
         action.disabled = account.id === currentStaff.id || account.role === 'owner';
         actions.append(edit, action);
+        if (!account.isActive && account.role !== 'owner') {
+          const deleteButton = document.createElement('button');
+          deleteButton.className = 'btn btn-sm btn-outline-danger';
+          deleteButton.type = 'button';
+          deleteButton.dataset.staffDeleteId = String(account.id);
+          deleteButton.setAttribute('aria-controls', 'staff-account-list');
+          deleteButton.setAttribute('aria-label', 'Delete deactivated account for ' + account.fullName + ' (' + account.email + ')');
+          deleteButton.textContent = 'Delete';
+          actions.append(deleteButton);
+        }
         item.append(details, actions);
-        employeePreviewList.append(item);
+        staffAccountList.append(item);
       });
     }
 
     async function loadStaffAccounts() {
       if (!['manager', 'owner'].includes(currentStaff.role)) return;
-      employeePreviewList.setAttribute('aria-busy', 'true');
+      staffAccountList.setAttribute('aria-busy', 'true');
       try {
         const payload = await apiRequest('/api/staff/accounts');
         renderStaffAccounts(payload.accounts || []);
@@ -807,7 +795,7 @@
         showStaffAccessMessage(error.message, true);
         announce('Staff accounts could not be loaded. ' + error.message);
       } finally {
-        employeePreviewList.removeAttribute('aria-busy');
+        staffAccountList.removeAttribute('aria-busy');
       }
     }
 
@@ -861,7 +849,31 @@
       document.getElementById('employee-name').focus();
     });
 
-    employeePreviewList.addEventListener('click', async function (event) {
+    staffAccountList.addEventListener('click', async function (event) {
+      const deleteButton = event.target.closest('[data-staff-delete-id]');
+      if (deleteButton) {
+        const staffId = deleteButton.dataset.staffDeleteId;
+        const account = staffAccountsById.get(staffId);
+        if (!account || account.isActive) return;
+        const confirmed = window.confirm('Permanently delete the deactivated staff account for ' + account.fullName + ' (' + account.email + ')? This cannot be undone.');
+        if (!confirmed) return;
+        deleteButton.disabled = true;
+        try {
+          await apiRequest('/api/staff/accounts/' + encodeURIComponent(staffId), {
+            method: 'DELETE'
+          });
+          showStaffAccessMessage('Deactivated account for ' + account.fullName + ' was permanently deleted.', false);
+          announce('Deactivated staff account for ' + account.fullName + ' was permanently deleted.');
+          await loadStaffAccounts();
+          document.getElementById('employee-list-heading').focus();
+        } catch (error) {
+          deleteButton.disabled = false;
+          showStaffAccessMessage(error.message, true);
+          announce('Staff account could not be deleted. ' + error.message);
+        }
+        return;
+      }
+
       const editButton = event.target.closest('[data-staff-edit-id]');
       if (editButton) {
         const account = staffAccountsById.get(editButton.dataset.staffEditId);
@@ -881,7 +893,7 @@
         });
         showStaffAccessMessage('Staff account ' + (nextActive ? 'reactivated' : 'deactivated') + '.', false);
         await loadStaffAccounts();
-        const updatedButton = employeePreviewList.querySelector('[data-staff-account-id="' + CSS.escape(staffId) + '"]');
+        const updatedButton = staffAccountList.querySelector('[data-staff-account-id="' + CSS.escape(staffId) + '"]');
         if (updatedButton) updatedButton.focus();
       } catch (error) {
         button.disabled = false;

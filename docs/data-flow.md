@@ -107,9 +107,9 @@ flowchart LR
     Status -->|success or error JSON| Proxy
     Proxy --> Employee
 
-    OwnerOrManager[Owner or manager browser] -->|POST /api/staff/accounts<br/>staff details and temporary password| Proxy
+    OwnerOrManager[Owner or manager browser] -->|POST/PATCH/DELETE /api/staff/accounts<br/>account changes; DELETE requires inactive account| Proxy
     Proxy --> StaffAuth
-    StaffAuth -->|role check, hash password, create or update account| DStaff
+    StaffAuth -->|role checks, hash password, create/update account, delete inactive account| DStaff
 
     Customer -->|GET /api/customer/orders/{id}<br/>receipt token in X-Order-Token| Proxy
     Proxy --> Read
@@ -137,7 +137,7 @@ flowchart LR
 - Flask validates incoming data and calculates prices and tax on the server. It saves a new order, its line items, and topping selections in one MariaDB transaction; any failure rolls the transaction back.
 - For customer orders, Flask returns a random receipt token once and stores only its SHA-256 hash in `orders.tracking_token_hash`. The browser keeps the token with the receipt in local storage and presents it to the tracking endpoint. Raw card numbers and security codes are rejected; the demo flow stores only the payment method and last four digits.
 - Employee pages and `/api/employee/*` requests require an active Flask session. Staff password hashes and roles live in `staff_users`; role and CSRF checks happen in Flask. Nginx provides HTTPS and reverse proxying without a shared employee password. MariaDB is configured for local VM access, and Flask receives database credentials and the session signing key through `/etc/luigi-pizzeria/app.env`.
-- The initial owner is created once with the Flask CLI. Owners can create employees or managers; managers can create employees. New accounts must change their temporary password before using the dashboard.
+- The initial owner is created once with the Flask CLI. Owners can create employees or managers; managers can create employees. Managers can delete deactivated employee accounts, and owners can delete deactivated employee or manager accounts. Owner accounts cannot be deleted in the dashboard. New accounts must change their temporary password before using the dashboard.
 
 ## Main code and schema references
 
