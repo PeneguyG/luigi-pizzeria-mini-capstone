@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Welcome to Luigi's Pizzeria. Build a pizza and order it for carryout pickup.">
-  <meta name="theme-color" content="#f4f5ef">
+  <meta name="theme-color" content="#f8d7da">
   <title>Luigi's Pizzeria | Carryout Pizza</title>
 
   <link
@@ -13,57 +13,52 @@
     integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
     crossorigin="anonymous"
   >
-
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/landingpage.css') }}">
 </head>
 
-<body>
-  <a class="skip-link btn btn-light border" href="#main-content">Skip to main content</a>
+<body class="bg-light">
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 rounded bg-white p-2" href="#main-content">Skip to main content</a>
 
-  <header class="site-header">
+  <header id="home" class="border-bottom bg-white">
     <div class="container py-3">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <a class="d-inline-flex align-items-center gap-3 text-decoration-none" href="#home" aria-label="Luigi's Pizzeria home">
-          <img class="brand-mark" src="{{ url_for('static', filename='images/luigis-vintage-pizza-badge.png') }}" alt="">
+          <img class="rounded-circle" width="48" height="48" src="{{ url_for('static', filename='images/luigis-vintage-pizza-badge.png') }}" alt="">
           <span>
-            <span class="d-block fw-bold fs-5" style="color: var(--green-dark);">Luigi's Pizzeria</span>
+            <span class="d-block fw-bold fs-5 text-success-emphasis">Luigi's Pizzeria</span>
             <span class="d-block small text-secondary">Fresh from our kitchen</span>
           </span>
         </a>
 
         <nav aria-label="Main navigation">
           <ul class="nav gap-2">
-            <li class="nav-item"><a class="nav-link" href="#welcome">Welcome</a></li>
-            <li class="nav-item"><a class="nav-link" href="#customer-access">Customer ordering</a></li>
+            <li class="nav-item"><a class="nav-link text-success-emphasis" href="#welcome">Welcome</a></li>
+            <li class="nav-item"><a class="nav-link text-success-emphasis" href="#customer-access">Customer ordering</a></li>
           </ul>
         </nav>
       </div>
-      <div class="flag-rule mt-3" aria-hidden="true"></div>
     </div>
   </header>
 
   <main id="main-content" class="container py-4 py-lg-5">
-    <section id="welcome" class="hero p-4 p-md-5 mb-5" aria-labelledby="welcome-heading">
+    <section id="welcome" class="overflow-hidden rounded-4 border border-danger-subtle p-4 p-md-5" style="background: linear-gradient(135deg, #e6efe4 0%, #fffefa 60%, #f4e2df 100%);" aria-labelledby="welcome-heading">
       <div class="row align-items-center g-4">
         <div class="col-lg-7">
-          <p class="eyebrow mb-2">A neighborhood favorite</p>
-          <h1 id="welcome-heading" class="hero-title mb-3">Good pizza. Easy pickup.</h1>
-          <p class="hero-copy mb-4">
-            Choose your favorite toppings and place an order for carryout, made fresh by our kitchen.
-          </p>
+          <p class="mb-2 fw-bold small text-success-emphasis text-uppercase">A neighborhood favorite</p>
+          <h1 id="welcome-heading" class="mb-3 display-3 fw-bold text-success-emphasis">Good pizza. Easy pickup.</h1>
+          <p class="mb-4 fs-5 text-body">Choose your favorite toppings and place an order for carryout, made fresh by our kitchen.</p>
           <section id="customer-access" aria-labelledby="customer-heading">
             <h2 id="customer-heading" class="h5 mb-2">How would you like to order?</h2>
             <p class="text-secondary mb-3">Sign in or create an account, order as a guest, or track a previous order with its receipt.</p>
-            <div class="d-flex flex-column flex-sm-row flex-wrap gap-3" role="group" aria-label="Customer ordering options">
-              <a class="btn btn-pizzeria btn-lg" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Create an account or sign in</a>
-              <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=order">Order as a Guest</a>
-              <a class="btn btn-outline-pizzeria btn-lg" href="/customer?focus=tracker">Track an order</a>
+            <div class="row row-cols-1 row-cols-sm-3 g-3" role="group" aria-label="Customer ordering options">
+              <div class="col d-flex"><a class="btn btn-success btn-lg d-flex h-100 w-100 align-items-center justify-content-center text-center" href="/signup.html?mode=signup&amp;next=%2Fcustomer%3Ffocus%3Dorder">Create an account or sign in</a></div>
+              <div class="col d-flex"><a class="btn btn-outline-danger btn-lg d-flex h-100 w-100 align-items-center justify-content-center text-center" href="/customer?focus=order">Order as a Guest</a></div>
+              <div class="col d-flex"><a class="btn btn-outline-danger btn-lg d-flex h-100 w-100 align-items-center justify-content-center text-center" href="/customer?focus=tracker">Track an order</a></div>
             </div>
           </section>
         </div>
 
         <div class="col-lg-5">
-          <svg class="pizza-art" viewBox="0 0 320 300" role="img" aria-labelledby="pizza-title pizza-description">
+          <svg class="d-block mx-auto w-100" viewBox="0 0 320 300" role="img" aria-labelledby="pizza-title pizza-description">
             <title id="pizza-title">Illustration of a freshly baked pizza</title>
             <desc id="pizza-description">A round pizza with tomato, basil, and cheese toppings.</desc>
             <ellipse cx="160" cy="265" rx="112" ry="14" fill="#203d2b" opacity=".12"/>
@@ -71,12 +66,8 @@
             <circle cx="160" cy="150" r="96" fill="#a94d43"/>
             <circle cx="160" cy="150" r="84" fill="#f2d991"/>
             <g fill="#b94d43">
-              <circle cx="125" cy="112" r="13"/>
-              <circle cx="189" cy="104" r="12"/>
-              <circle cx="211" cy="159" r="14"/>
-              <circle cx="151" cy="184" r="13"/>
-              <circle cx="105" cy="165" r="11"/>
-              <circle cx="180" cy="213" r="10"/>
+              <circle cx="125" cy="112" r="13"/><circle cx="189" cy="104" r="12"/><circle cx="211" cy="159" r="14"/>
+              <circle cx="151" cy="184" r="13"/><circle cx="105" cy="165" r="11"/><circle cx="180" cy="213" r="10"/>
             </g>
             <g fill="#47734d">
               <path d="M153 92c-16-19-3-31 9-17 8 9 4 18-9 17Zm4 3c14-19 30-10 18 4-8 8-17 7-18-4Z"/>
@@ -84,50 +75,18 @@
               <path d="M104 204c-14-17-2-28 9-15 7 8 4 16-9 15Zm4 4c12-17 27-9 16 4-7 8-15 6-16-4Z"/>
             </g>
             <g fill="#fff4d2">
-              <circle cx="137" cy="145" r="5"/>
-              <circle cx="186" cy="140" r="5"/>
-              <circle cx="173" cy="179" r="5"/>
-              <circle cx="128" cy="192" r="4"/>
+              <circle cx="137" cy="145" r="5"/><circle cx="186" cy="140" r="5"/><circle cx="173" cy="179" r="5"/><circle cx="128" cy="192" r="4"/>
             </g>
           </svg>
         </div>
       </div>
     </section>
-
-    <section class="row g-3 mb-5" aria-label="Pizzeria details">
-      <div class="col-md-6">
-        <article class="section-card h-100 p-4">
-          <h2 class="h5">Made fresh</h2>
-          <p class="text-secondary mb-0">We prepare each pizza when you order.</p>
-        </article>
-      </div>
-      <div class="col-md-6">
-        <article class="section-card h-100 p-4">
-          <h2 class="h5">Your way</h2>
-          <p class="text-secondary mb-0">Choose a size, toppings, and drinks.</p>
-        </article>
-      </div>
-    </section>
   </main>
 
-  <footer id="employee-sign-in" class="employee-area py-5" aria-labelledby="employee-heading">
-    <div class="container">
-      <div class="row justify-content-center">
-        <div class="col-12 col-lg-7 col-xl-6">
-          <div class="employee-card p-4 p-md-5">
-            <p class="eyebrow mb-2">Employee access</p>
-            <h2 id="employee-heading" class="h3 mb-2">Staff sign in</h2>
-            <p class="text-secondary mb-4">For Luigi's team members managing pickup orders.</p>
-
-            <p class="text-secondary mb-4">Sign in with your staff demo account to open the role-specific order workspace.</p>
-            <a class="btn btn-pizzeria-red btn-lg w-100" href="/staff-signin.html?focus=signin">Staff sign in</a>
-          </div>
-        </div>
-      </div>
-
-      <p class="small text-center text-secondary mt-4 mb-0">
-        © <span id="current-year"></span> Luigi's Pizzeria
-      </p>
+  <footer class="border-top border-danger-subtle bg-danger-subtle py-3">
+    <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
+      <p class="small text-body-secondary mb-0">© <span id="current-year"></span> Luigi's Pizzeria</p>
+      <a class="small text-body-secondary text-decoration-none" href="/staff-signin.html?focus=signin" aria-label="Employee portal sign in">Employee sign in</a>
     </div>
   </footer>
 
