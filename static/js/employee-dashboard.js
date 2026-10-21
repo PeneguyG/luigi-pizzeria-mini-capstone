@@ -9,10 +9,10 @@
     const drinkPricing = { Small: 1, Medium: 2, Large: 3 };
     const TAX_RATE = 0.0975;
     const statusStyles = {
-      Confirmed: { background: '#f1e6d3', color: '#514126' },
-      'In-Progress': { background: '#dce9f2', color: '#24445a' },
-      Ready: { background: '#dcebdd', color: '#24462a' },
-      Overdue: { background: '#f1dada', color: '#652c2c' }
+      Confirmed: 'bg-warning-subtle text-warning-emphasis',
+      'In-Progress': 'bg-info-subtle text-info-emphasis',
+      Ready: 'bg-success-subtle text-success-emphasis',
+      Overdue: 'bg-danger-subtle text-danger-emphasis'
     };
     const allowedStatuses = ['Confirmed', 'In-Progress', 'Ready', 'Overdue', 'Completed'];
 
@@ -20,11 +20,15 @@
 
     const dashboardStatus = document.getElementById('dashboard-status');
     const activeOrdersList = document.getElementById('active-orders-list');
-    const historyList = document.getElementById('history-list');
     const cartItems = [];
     const MAX_ORDER_ITEMS = 50;
+    const MAX_TOPPING_SERVINGS = 3;
     const posForm = document.getElementById('pos-form');
     let activeOrders = [];
+    let historyPage = 0;
+    let historyHasMore = false;
+    let historyRequestId = 0;
+    let historySearchTimer = 0;
     let overdueCheckRunning = false;
     const overdueUpdatesInProgress = new Set();
 
@@ -44,9 +48,24 @@
     }
 
     function getSelectedToppings() {
-      return Array.from(document.querySelectorAll('.pizza-topping')).map(function (input) {
-        return { name: input.dataset.topping, quantity: Number(input.value) || 0 };
+      return Array.from(document.querySelectorAll('.topping-increment')).map(function (button) {
+        return { name: button.dataset.topping, quantity: Number(button.dataset.count) || 0 };
       }).filter(function (topping) { return topping.quantity > 0; });
+    }
+
+    function updateToppingButtons(control, count) {
+      const increment = control.querySelector('.topping-increment');
+      const decrement = control.querySelector('.topping-decrement');
+      const liveCount = control.querySelector('.topping-count');
+      const topping = increment.dataset.topping;
+      increment.dataset.count = String(count);
+      decrement.dataset.count = String(count);
+      increment.setAttribute('aria-disabled', String(count >= MAX_TOPPING_SERVINGS));
+      decrement.setAttribute('aria-disabled', String(count <= 0));
+      increment.setAttribute('aria-label', 'Add one serving of ' + topping + '. ' + count + ' of ' + MAX_TOPPING_SERVINGS + ' servings selected.');
+      decrement.setAttribute('aria-label', 'Remove one serving of ' + topping + '. ' + count + ' of ' + MAX_TOPPING_SERVINGS + ' servings selected.');
+      liveCount.querySelector('[aria-hidden="true"]').textContent = count + 'x';
+      liveCount.querySelector('.visually-hidden').textContent = count + (count === 1 ? ' serving of ' : ' servings of ') + topping;
     }
 
     function getPizzaConfiguration() {
@@ -73,8 +92,14 @@
 
     function clearPizzaSelection() {
       document.getElementById('pizza-size').value = 'Medium';
-      document.getElementById('pizza-quantity').value = '1';
-      document.querySelectorAll('.pizza-topping').forEach(function (input) { input.value = '0'; });
+      const quantityInput = document.getElementById('pizza-quantity');
+      quantityInput.value = '1';
+      quantityInput.setCustomValidity('');
+      quantityInput.classList.remove('is-invalid');
+      quantityInput.removeAttribute('aria-invalid');
+      document.querySelectorAll('.topping-increment').forEach(function (button) {
+        updateToppingButtons(button.parentElement, 0);
+      });
       updatePizzaPreview();
     }
 
@@ -107,7 +132,6 @@
     const customerPhoneInput = document.getElementById('customer-phone');
     const customerFirstNameInput = document.getElementById('customer-first-name');
     const customerLastNameInput = document.getElementById('customer-last-name');
-    const customerPhoneAllowedCharacters = /^[+0-9().\s-]+$/;
     const orderValidationFields = [
       customerFirstNameInput,
       customerLastNameInput,
@@ -125,25 +149,31 @@
     function validateCustomerPhone() {
       const phone = customerPhoneInput.value.trim();
       const phoneError = document.getElementById('customer-phone-error');
-      const digits = phone.replace(/\D/g, '');
-      const validDigitCount = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
-      const plusPositionIsValid = !phone.includes('+') || (
-        phone.startsWith('+') && phone.indexOf('+') === phone.lastIndexOf('+') && digits.length === 11 && digits.startsWith('1')
-      );
-      const malformed = phone.length > 0 && (
-        !customerPhoneAllowedCharacters.test(phone) || !validDigitCount || !plusPositionIsValid
-      );
-      customerPhoneInput.setCustomValidity(malformed
-        ? 'Enter a 10-digit US phone number, optionally with a leading 1. Use digits and common separators only.'
-        : '');
-      phoneError.textContent = phone
-        ? 'Enter 10 digits, or 11 digits starting with 1. Spaces, parentheses, periods, hyphens, and a leading + are allowed.'
-        : 'Enter the customer\'s phone number.';
+      const validDigitCount = /^\d{10}$/.test(phone) || /^1\d{10}$/.test(phone);
+      customerPhoneInput.setCustomValidity(phone && !validDigitCount
+        ? 'Enter 10 digits, or 11 digits starting with 1.' : '');
+      phoneError.textContent = phone ? 'Enter 10 digits, or 11 digits starting with 1.' : 'Enter the customer\'s phone number.';
       return customerPhoneInput.validity.valid;
     }
 
+    function formatPhoneNumber(value) {
+      const digits = String(value || '').replace(/\D/g, '');
+      const localDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+      if (localDigits.length !== 10) return value || 'Not provided';
+      return '(' + localDigits.slice(0, 3) + ') ' + localDigits.slice(3, 6) + '-' + localDigits.slice(6);
+    }
+
+    function getSelectedDrink() {
+      const selected = document.querySelector('.drink-type-button[aria-pressed="true"]');
+      return selected ? selected.dataset.drink : 'Iced tea';
+    }
+
     function clearDrinkSelection() {
-      document.getElementById('drink-option').value = 'Iced tea';
+      document.querySelectorAll('.drink-type-button').forEach(function (button) {
+        const selected = button.dataset.drink === 'Iced tea';
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
       document.getElementById('drink-size').value = 'Medium';
       document.getElementById('drink-quantity').value = '1';
       updateDrinkButtonLabel();
@@ -151,7 +181,7 @@
 
     function updateDrinkButtonLabel() {
       const size = document.getElementById('drink-size').value;
-      const drink = document.getElementById('drink-option').value;
+      const drink = getSelectedDrink();
       const quantity = Math.max(1, Math.min(MAX_ORDER_ITEMS, Number(document.getElementById('drink-quantity').value) || 1));
       document.getElementById('add-drink').setAttribute('aria-label',
         'Add ' + quantity + ' ' + size.toLowerCase() + ' ' + drink +
@@ -255,13 +285,6 @@
         quantityInput.focus();
         return;
       }
-      const invalidInput = Array.from(document.querySelectorAll('.pizza-topping'))
-        .find(function (input) { return !input.checkValidity(); });
-      if (invalidInput) {
-        invalidInput.reportValidity();
-        invalidInput.focus();
-        return;
-      }
       const config = getPizzaConfiguration();
       if (!canAddToCart(config.quantity, quantityInput)) return;
       const toppingText = config.toppings.map(function (topping) {
@@ -290,7 +313,7 @@
         return;
       }
       const size = document.getElementById('drink-size').value;
-      const drink = document.getElementById('drink-option').value;
+      const drink = getSelectedDrink();
       const quantity = Number(quantityInput.value);
       if (!canAddToCart(quantity, quantityInput)) return;
       const item = {
@@ -334,8 +357,9 @@
       return apiRequest('/api/employee/orders');
     }
 
-    async function listOrderHistory() {
-      return apiRequest('/api/employee/order-history');
+    async function listOrderHistory(page, query) {
+      const params = new URLSearchParams({ page: String(page), q: query || '' });
+      return apiRequest('/api/employee/order-history?' + params.toString());
     }
 
     async function createOrder(orderInput) {
@@ -383,9 +407,9 @@
     }
 
     function statusBadge(status, orderId) {
-      if (status === 'Completed') return '<span class="badge rounded-pill text-dark" style="background-color:#e4efe3;">Completed</span>';
+      if (status === 'Completed') return '<span class="badge rounded-pill bg-success-subtle text-success-emphasis">Completed</span>';
       const style = statusStyles[status] || statusStyles.Confirmed;
-      return '<span data-order-status-badge="' + escapeHTML(orderId) + '" class="badge rounded-pill" style="background-color:' + style.background + ';color:' + style.color + ';">' + escapeHTML(status) + '</span>';
+      return '<span data-order-status-badge="' + escapeHTML(orderId) + '" class="badge rounded-pill ' + style + '">' + escapeHTML(status) + '</span>';
     }
 
     function orderCard(order) {
@@ -397,17 +421,17 @@
         return '<option value="' + escapeHTML(status) + '"' + (order.status === status ? ' selected' : '') + '>' + escapeHTML(label) + '</option>';
       }).join('');
       const details = [
-        '<div class="col-12 col-md-6"><span class="fw-semibold">Phone:</span> ' + escapeHTML(order.customerPhone || 'Not provided') + '</div>',
+        '<div class="col-12 col-md-6"><span class="fw-semibold">Phone:</span> ' + escapeHTML(formatPhoneNumber(order.customerPhone)) + '</div>',
         '<div class="col-12 col-md-6"><span class="fw-semibold">Channel:</span> ' + escapeHTML(order.channel || 'Not specified') + '</div>',
         '<div class="col-12 col-md-6"><span class="fw-semibold">Source:</span> ' + escapeHTML(order.source || 'Order system') + '</div>',
         '<div class="col-12"><span class="fw-semibold">Notes:</span> ' + escapeHTML(order.notes || 'None') + '</div>'
       ].join('');
       const taxDetails = Number.isFinite(Number(order.taxPrice))
         ? ' <span class="small text-secondary">(includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
-      return '<article class="card" data-order-card="' + id + '" style="border-color:#ded5d2;"><div class="card-body p-3 p-md-4">' +
+      return '<article class="card" data-order-card="' + id + '"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div class="flex-grow-1">' +
         '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
-        statusBadge(order.status, order.id) + '<span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">' + escapeHTML(order.source || 'Order system') + '</span></div>' +
+        statusBadge(order.status, order.id) + '<span class="badge rounded-pill bg-body-secondary text-body-secondary">' + escapeHTML(order.source || 'Order system') + '</span></div>' +
         '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p><p class="small mb-2"><span class="fw-semibold">Items:</span></p>' +
         '<ul class="small mb-2">' + formatOrderItems(order.items) + '</ul>' +
         '<p class="small mb-2"><span class="fw-semibold">Order total:</span> ' + formatMoney(getOrderTotal(order)) + taxDetails +
@@ -415,7 +439,7 @@
         '<button class="btn btn-sm btn-link link-danger px-0 py-1" type="button" data-details-button="' + id +
         '" aria-label="Show details for order ' + id + '" aria-expanded="false" aria-controls="' + detailsId + '">Show order details</button>' +
         '<div id="' + detailsId + '" class="row g-2 small mt-1" hidden>' + details + '</div></div>' +
-        '<div class="d-flex flex-column flex-sm-row flex-lg-column align-items-stretch gap-2" style="min-width:14rem;">' +
+        '<div class="d-flex flex-column flex-sm-row flex-lg-column align-items-stretch gap-2">' +
         '<label class="visually-hidden" for="status-' + safeId + '">Status for order ' + id + '</label>' +
         '<select class="form-select form-select-sm" id="status-' + safeId + '" data-status-select="' + id + '" aria-label="Choose new status for order ' + id + '">' + statusOptions + '</select>' +
         '<button class="btn btn-sm btn-outline-danger" type="button" data-status-button="' + id + '" aria-label="Save status for order ' + id +
@@ -458,11 +482,12 @@
       const timeTag = timestamp.iso ? '<time datetime="' + escapeHTML(timestamp.iso) + '">' + escapeHTML(timestamp.label) + '</time>' : escapeHTML(timestamp.label);
       const taxDetails = Number.isFinite(Number(order.taxPrice))
         ? '<span class="small text-secondary"> (includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
-      return '<article class="card" style="border-color:#ded5d2;"><div class="card-body p-3 p-md-4">' +
+      return '<article class="card"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-md-row justify-content-between gap-3"><div class="flex-grow-1">' +
         '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
-        '<span class="badge rounded-pill text-dark" style="background-color:#e4efe3;">Completed</span></div>' +
-        '<p class="mb-2"><strong>' + escapeHTML(order.customerName) + '</strong></p>' +
+        '<span class="badge rounded-pill bg-success-subtle text-success-emphasis">Completed</span></div>' +
+        '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p>' +
+        '<p class="small text-secondary mb-2"><span class="fw-semibold">Phone:</span> ' + escapeHTML(formatPhoneNumber(order.customerPhone)) + '</p>' +
         '<p class="small fw-semibold mb-1">Items ordered</p><ul class="small mb-0">' + formatOrderItems(order.items) + '</ul></div>' +
         '<div class="text-md-end"><p class="h6 mb-2">Total: ' + formatMoney(getOrderTotal(order)) + taxDetails + '</p>' +
         '<p class="small mb-0"><span class="fw-semibold">Completed:</span> ' + timeTag + '</p></div></div></div></article>';
@@ -500,11 +525,10 @@
       const card = activeOrdersList.querySelector('[data-order-card="' + CSS.escape(String(order.id)) + '"]');
       if (!card) return;
       const badge = card.querySelector('[data-order-status-badge]');
-      const style = statusStyles[order.status] || statusStyles.Confirmed;
       if (badge) {
         badge.textContent = order.status;
-        badge.style.backgroundColor = style.background;
-        badge.style.color = style.color;
+        badge.classList.remove('bg-warning-subtle', 'text-warning-emphasis', 'bg-info-subtle', 'text-info-emphasis', 'bg-success-subtle', 'text-success-emphasis', 'bg-danger-subtle', 'text-danger-emphasis');
+        badge.classList.add.apply(badge.classList, (statusStyles[order.status] || statusStyles.Confirmed).split(' '));
       }
       const statusSelect = card.querySelector('[data-status-select]');
       if (statusSelect && !(preserveFocusedSelection && statusSelect === document.activeElement)) {
@@ -565,21 +589,54 @@
       }
     }
 
-    async function renderHistory() {
+    async function renderHistory(options) {
+      const append = Boolean(options && options.append);
+      const requestedPage = append ? historyPage + 1 : 0;
+      const requestId = ++historyRequestId;
+      const query = document.getElementById('history-search').value.trim();
+      const list = document.getElementById('history-list');
+      const status = document.getElementById('history-status');
+      const nextPageButton = document.getElementById('history-next-page');
+      if (!append) {
+        historyPage = 0;
+        historyHasMore = false;
+        list.replaceChildren();
+      }
+      list.setAttribute('aria-busy', 'true');
+      status.textContent = append ? 'Loading more completed orders.' : 'Loading completed orders.';
+      nextPageButton.disabled = true;
       try {
-        const orders = await listOrderHistory();
-        document.getElementById('history-list').innerHTML = orders.map(historyCard).join('');
+        const payload = await listOrderHistory(requestedPage, query);
+        if (requestId !== historyRequestId) return;
+        const orders = payload.orders || [];
+        const cards = orders.map(historyCard).join('');
+        if (append) list.insertAdjacentHTML('beforeend', cards);
+        else list.innerHTML = cards;
+        historyPage = requestedPage;
+        historyHasMore = Boolean(payload.hasMore);
         const loadError = document.getElementById('history-load-error');
         loadError.hidden = true;
         loadError.textContent = '';
-        document.getElementById('empty-history').hidden = orders.length !== 0;
-        document.getElementById('history-count').textContent = String(orders.length);
+        document.getElementById('empty-history').hidden = list.children.length !== 0;
+        document.getElementById('history-count').textContent = String(list.children.length);
+        const total = Number(payload.total) || 0;
+        status.textContent = total
+          ? 'Showing ' + list.children.length + ' of ' + total + ' completed orders.'
+          : (query ? 'No completed orders match your search.' : 'No completed orders are in history.');
+        nextPageButton.hidden = !historyHasMore;
       } catch (error) {
+        if (requestId !== historyRequestId) return;
         const loadError = document.getElementById('history-load-error');
         loadError.textContent = 'Could not load order history. ' + error.message;
         loadError.hidden = false;
-        document.getElementById('empty-history').hidden = true;
+        if (!append) document.getElementById('empty-history').hidden = true;
+        nextPageButton.hidden = !historyHasMore;
         announce('Could not load order history. ' + error.message);
+      } finally {
+        if (requestId === historyRequestId) {
+          list.removeAttribute('aria-busy');
+          nextPageButton.disabled = false;
+        }
       }
     }
 
@@ -676,8 +733,8 @@
         item.tabIndex = selected ? 0 : -1;
         item.classList.toggle('active', selected);
         item.classList.toggle('text-dark', !selected);
-        item.style.backgroundColor = selected ? '#f1dada' : 'transparent';
-        item.style.color = selected ? '#592f2f' : '#302c2b';
+        item.classList.toggle('bg-danger-subtle', selected);
+        item.classList.toggle('text-danger-emphasis', selected);
         const allowed = roleCanSee(item);
         item.hidden = !allowed;
         panel.hidden = !selected || !allowed;
@@ -1156,33 +1213,69 @@
       if (this.classList.contains('is-invalid')) validateItemQuantity(this, 'pizza', MAX_ORDER_ITEMS);
       updatePizzaPreview();
     });
-    document.querySelectorAll('.pizza-topping').forEach(function (input) {
-      input.addEventListener('input', updatePizzaPreview);
-      input.addEventListener('change', updatePizzaPreview);
+    document.querySelectorAll('.topping-increment').forEach(function (button) {
+      const control = button.parentElement;
+      updateToppingButtons(control, 0);
+      button.addEventListener('click', function () {
+        const current = Number(button.dataset.count) || 0;
+        if (current >= MAX_TOPPING_SERVINGS) {
+          announce('Maximum of ' + MAX_TOPPING_SERVINGS + ' servings of ' + button.dataset.topping + ' selected.');
+          return;
+        }
+        updateToppingButtons(control, current + 1);
+        updatePizzaPreview();
+      });
+      control.querySelector('.topping-decrement').addEventListener('click', function () {
+        const current = Number(button.dataset.count) || 0;
+        if (current <= 0) return;
+        updateToppingButtons(control, current - 1);
+        updatePizzaPreview();
+      });
     });
     document.getElementById('pickup-time').addEventListener('input', updatePickupTimeValidity);
     document.getElementById('pickup-time').addEventListener('change', updatePickupTimeValidity);
     posForm.addEventListener('input', function (event) {
       if (event.target === customerFirstNameInput || event.target === customerLastNameInput) validateCustomerNames();
-      if (event.target === customerPhoneInput) validateCustomerPhone();
+      if (event.target === customerPhoneInput) {
+        const digitsOnly = customerPhoneInput.value.replace(/\D/g, '').slice(0, 11);
+        if (customerPhoneInput.value !== digitsOnly) customerPhoneInput.value = digitsOnly;
+        validateCustomerPhone();
+      }
       if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
         event.target.setAttribute('aria-invalid', String(!event.target.validity.valid));
       }
     });
     posForm.addEventListener('change', function (event) {
       if (event.target === customerFirstNameInput || event.target === customerLastNameInput) validateCustomerNames();
-      if (event.target === customerPhoneInput) validateCustomerPhone();
+      if (event.target === customerPhoneInput) {
+        const digitsOnly = customerPhoneInput.value.replace(/\D/g, '').slice(0, 11);
+        if (customerPhoneInput.value !== digitsOnly) customerPhoneInput.value = digitsOnly;
+        validateCustomerPhone();
+      }
       if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
         event.target.setAttribute('aria-invalid', String(!event.target.validity.valid));
       }
     });
     document.getElementById('drink-size').addEventListener('change', updateDrinkButtonLabel);
-    document.getElementById('drink-option').addEventListener('change', updateDrinkButtonLabel);
+    document.querySelectorAll('.drink-type-button').forEach(function (button) {
+      button.addEventListener('click', function () {
+        document.querySelectorAll('.drink-type-button').forEach(function (option) {
+          const selected = option === button;
+          option.classList.toggle('active', selected);
+          option.setAttribute('aria-pressed', String(selected));
+        });
+        updateDrinkButtonLabel();
+      });
+    });
     document.getElementById('drink-quantity').addEventListener('input', function () {
       if (this.classList.contains('is-invalid')) validateItemQuantity(this, 'drinks', MAX_ORDER_ITEMS);
       updateDrinkButtonLabel();
     });
     document.getElementById('add-pizza').addEventListener('click', addPizzaToCart);
+    document.getElementById('clear-pizza-selection').addEventListener('click', function () {
+      clearPizzaSelection();
+      announce('Pizza selection cleared. Size is medium, quantity is one, and no toppings are selected.');
+    });
     document.getElementById('add-drink').addEventListener('click', addDrinkToCart);
 
     document.getElementById('cart-items').addEventListener('click', function (event) {
@@ -1256,6 +1349,8 @@
         const saved = await createOrder(orderInput);
         cartItems.length = 0;
         posForm.reset();
+        clearPizzaSelection();
+        clearDrinkSelection();
         posForm.classList.remove('was-validated');
         posForm.querySelectorAll('[aria-invalid]').forEach(function (control) { control.removeAttribute('aria-invalid'); });
         posForm.querySelectorAll('.is-invalid').forEach(function (control) { control.classList.remove('is-invalid'); });
@@ -1318,6 +1413,13 @@
     document.getElementById('refresh-history').addEventListener('click', async function () {
       await renderHistory();
       announce('Order history refreshed.');
+    });
+    document.getElementById('history-next-page').addEventListener('click', function () {
+      if (historyHasMore) renderHistory({ append: true });
+    });
+    document.getElementById('history-search').addEventListener('input', function () {
+      window.clearTimeout(historySearchTimer);
+      historySearchTimer = window.setTimeout(function () { renderHistory(); }, 250);
     });
     refreshSalesSummaryButton.addEventListener('click', function () {
       loadManagerSalesSummary();

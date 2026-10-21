@@ -593,7 +593,7 @@ def serialize_order_row(row):
 
     }
 
-def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None):
+def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, limit=None, offset=0, search=None):
 
     connection = database_connection()
 
@@ -617,42 +617,46 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None):
 
             parameters.append(customer_id)
 
-        cursor.execute(
+        if search:
+            pattern = "%" + search + "%"
+            digits = re.sub(r"\D", "", search)
+            where_clause += " AND (c.full_name LIKE %s OR CAST(o.order_id AS CHAR) LIKE %s OR c.phone LIKE %s"
+            parameters.extend((pattern, pattern, pattern))
+            if digits:
+                where_clause += " OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', '') LIKE %s"
+                parameters.append("%" + digits + "%")
+            where_clause += ")"
 
-            """
+        total = None
+        if limit is not None:
+            cursor.execute(
+                "SELECT COUNT(*) AS total FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id WHERE " + where_clause,
+                tuple(parameters),
+            )
+            total = int(cursor.fetchone()["total"])
 
-            SELECT o.order_id AS id, o.source, o.channel, o.status, o.notes,
-
-                   o.subtotal, o.tax_rate_bps AS taxRateBasisPoints,
-
-                   o.tax_amount AS taxAmount, o.total,
-
-                   o.pickup_time AS pickupTime, o.created_at AS createdAt,
-
-                   o.completed_at AS completedAt, o.customer_email AS customerEmail,
-
-                   o.payment_method AS paymentMethod, o.payment_last_four AS paymentLastFour,
-
-                   c.full_name AS customerName, c.first_name AS customerFirstName,
-                   c.last_name AS customerLastName, c.phone AS customerPhone
-
-              FROM orders AS o
-
-              JOIN customers AS c ON c.customer_id = o.customer_id
-
-             WHERE """ + where_clause + " ORDER BY " + ("o.completed_at" if completed else "o.created_at") + " DESC, o.order_id DESC",
-
-            tuple(parameters),
-
+        order_query = (
+            "SELECT o.order_id AS id, o.source, o.channel, o.status, o.notes, "
+            "o.subtotal, o.tax_rate_bps AS taxRateBasisPoints, o.tax_amount AS taxAmount, o.total, "
+            "o.pickup_time AS pickupTime, o.created_at AS createdAt, o.completed_at AS completedAt, "
+            "o.customer_email AS customerEmail, o.payment_method AS paymentMethod, o.payment_last_four AS paymentLastFour, "
+            "c.full_name AS customerName, c.first_name AS customerFirstName, c.last_name AS customerLastName, c.phone AS customerPhone "
+            "FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id WHERE " + where_clause +
+            " ORDER BY " + ("o.completed_at" if completed else "o.created_at") + " DESC, o.order_id DESC"
         )
+        order_parameters = list(parameters)
+        if limit is not None:
+            order_query += " LIMIT %s OFFSET %s"
+            order_parameters.extend((limit, offset))
+
+        cursor.execute(order_query, tuple(order_parameters))
 
         order_rows = cursor.fetchall()
 
         orders = {int(row["id"]): serialize_order_row(row) for row in order_rows}
 
         if not orders:
-
-            return []
+            return ([], total) if limit is not None else []
 
         order_ids = list(orders.keys())
 
@@ -742,7 +746,8 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None):
 
                 })
 
-        return list(orders.values())
+        result = list(orders.values())
+        return (result, total) if limit is not None else result
 
     finally:
 
@@ -1486,8 +1491,28 @@ def get_active_orders():
 def get_order_history():
 
     try:
-
-        return jsonify(load_orders(completed=True))
+        try:
+            page = max(0, int(request.args.get("page", "0")))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Page must be a non-negative integer."}), 400
+        if page > 100000:
+            return jsonify({"error": "Requested history page is too large."}), 400
+        search = request.args.get("q", "").strip()[:100]
+        page_size = 20
+        orders, total = load_orders(
+            completed=True,
+            limit=page_size + 1,
+            offset=page * page_size,
+            search=search or None,
+        )
+        has_more = len(orders) > page_size
+        return jsonify({
+            "orders": orders[:page_size],
+            "total": total,
+            "page": page,
+            "pageSize": page_size,
+            "hasMore": has_more,
+        })
 
     except RuntimeError as exc:
 

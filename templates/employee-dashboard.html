@@ -8,52 +8,55 @@
   <title>Employee Dashboard | Pizzeria</title>
   <!-- Bootstrap 5 provides the layout, spacing, typography, and component styles. -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/employee-dashboard.css') }}">
 </head>
-<body class="min-vh-100" data-staff-id="{{ staff.staff_id }}" data-staff-name="{{ staff.full_name }}" data-staff-role="{{ staff.staff_role }}" style="background-color:#f7f5ed;color:#302c2b;">
+<body class="min-vh-100 bg-body-tertiary text-body" data-staff-id="{{ staff.staff_id }}" data-staff-name="{{ staff.full_name }}" data-staff-role="{{ staff.staff_role }}">
   <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 p-2 bg-white text-dark rounded" href="#main-content">Skip to main content</a>
 
-  <header class="border-bottom" style="background-color:#f1dada;border-color:#d9bcbc !important;">
+  <header class="border-bottom border-danger-subtle bg-danger-subtle">
     <div class="container py-3">
       <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
-          <img class="rounded-3 flex-shrink-0" src="{{ url_for('static', filename='images/luigis-vintage-pizza-badge.png') }}" width="80" height="80" alt="Luigi's Pizzeria vintage badge logo" style="object-fit:contain;background-color:#fbfaf5;">
-          <div><p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Employee portal</p><h1 class="h3 mb-0">Pizzeria Operations</h1></div>
+          <img class="rounded-3 flex-shrink-0" src="{{ url_for('static', filename='images/luigis-vintage-pizza-badge.png') }}" width="80" height="80" alt="Luigi's Pizzeria vintage badge logo">
+          <div><p class="small text-uppercase fw-semibold mb-1">Employee portal</p><h1 class="h3 mb-0">Pizzeria Operations</h1></div>
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="staff-session-label" class="small fw-semibold" aria-live="polite">{{ staff.full_name }} · {{ staff.staff_role|title }}</span>
           <a class="btn btn-outline-dark btn-sm" href="/staff-change-password.html?focus=password">Change password</a>
           <button id="dashboard-staff-signout" class="btn btn-outline-dark btn-sm" type="button">Sign out</button>
-          <span class="badge rounded-pill text-dark border" style="background-color:#fbfaf5;border-color:#d9bcbc !important;">Staff workspace</span>
+          <span class="badge rounded-pill text-dark border">Staff workspace</span>
         </div>
       </div>
     </div>
   </header>
 
-  <main id="main-content" class="container py-4 py-lg-5">
+  <main id="main-content" class="container-fluid py-4 py-lg-5">
+    <div class="row g-0">
+      <aside class="col-12 col-md-3 col-lg-2 min-vh-100 border-end px-3 pb-4" aria-label="Employee dashboard sidebar">
+        <nav aria-label="Dashboard views">
+          <div class="nav flex-column gap-2" role="tablist" aria-label="Employee dashboard sections" aria-orientation="vertical">
+            <button class="nav-link active text-start rounded bg-danger-subtle text-danger-emphasis" id="pos-tab" type="button" role="tab" aria-label="Point of Sales tab" aria-selected="true" aria-controls="pos-panel" tabindex="0" data-panel="pos-panel">Point of Sales</button>
+            <button class="nav-link text-dark text-start" id="orders-tab" type="button" role="tab" aria-label="Active orders tab" aria-selected="false" aria-controls="orders-panel" tabindex="-1" data-panel="orders-panel">Active orders <span id="order-count" class="badge rounded-pill ms-1 bg-danger-subtle text-danger-emphasis">0</span></button>
+            <button class="nav-link text-dark text-start" id="history-tab" type="button" role="tab" aria-label="Order history tab" aria-selected="false" aria-controls="history-panel" tabindex="-1" data-panel="history-panel">Order history <span id="history-count" class="badge rounded-pill ms-1 bg-success-subtle text-success-emphasis">0</span></button>
+            <button class="nav-link text-dark text-start" id="manager-tab" type="button" role="tab" aria-selected="false" aria-controls="manager-panel" tabindex="-1" data-panel="manager-panel" data-minimum-role="manager" hidden>Manager dashboard</button>
+            <button class="nav-link text-dark text-start" id="access-tab" type="button" role="tab" aria-selected="false" aria-controls="access-panel" tabindex="-1" data-panel="access-panel" data-minimum-role="manager" hidden>Staff accounts</button>
+            <button class="nav-link text-dark text-start" id="customers-tab" type="button" role="tab" aria-selected="false" aria-controls="customers-panel" tabindex="-1" data-panel="customers-panel" data-minimum-role="manager" hidden>Customers</button>
+          </div>
+        </nav>
+      </aside>
+      <div class="col-12 col-md-9 col-lg-10 px-3 px-lg-4">
     <section aria-labelledby="dashboard-heading">
       <div class="mb-4">
         <h2 id="dashboard-heading" class="h4 mb-1" tabindex="-1">Order management</h2>
         <p class="text-secondary mb-0">Enter counter and phone orders, manage the kitchen queue, and review completed orders.</p>
       </div>
 
-      <nav aria-label="Dashboard views" class="mb-4">
-        <div class="nav nav-pills gap-2" role="tablist" aria-label="Employee dashboard sections" aria-orientation="horizontal">
-          <button class="nav-link active" id="pos-tab" type="button" role="tab" aria-label="Point of Sales tab" aria-selected="true" aria-controls="pos-panel" tabindex="0" data-panel="pos-panel" style="background-color:#f1dada;color:#592f2f;">Point of Sales</button>
-          <button class="nav-link text-dark" id="orders-tab" type="button" role="tab" aria-label="Active orders tab" aria-selected="false" aria-controls="orders-panel" tabindex="-1" data-panel="orders-panel">Active orders <span id="order-count" class="badge rounded-pill ms-1 text-dark" style="background-color:#f1dada;">0</span></button>
-          <button class="nav-link text-dark" id="history-tab" type="button" role="tab" aria-label="Order history tab" aria-selected="false" aria-controls="history-panel" tabindex="-1" data-panel="history-panel">Order history <span id="history-count" class="badge rounded-pill ms-1 text-dark" style="background-color:#e4efe3;">0</span></button>
-          <button class="nav-link text-dark" id="manager-tab" type="button" role="tab" aria-selected="false" aria-controls="manager-panel" tabindex="-1" data-panel="manager-panel" data-minimum-role="manager" hidden>Manager dashboard</button>
-          <button class="nav-link text-dark" id="access-tab" type="button" role="tab" aria-selected="false" aria-controls="access-panel" tabindex="-1" data-panel="access-panel" data-minimum-role="manager" hidden>Staff accounts</button>
-          <button class="nav-link text-dark" id="customers-tab" type="button" role="tab" aria-selected="false" aria-controls="customers-panel" tabindex="-1" data-panel="customers-panel" data-minimum-role="manager" hidden>Customers</button>
-        </div>
-      </nav>
       <div id="dashboard-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 
-      <section id="pos-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="pos-tab" tabindex="0" style="background-color:#fffefa;">
+      <section id="pos-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="pos-tab" tabindex="0">
         <div class="card-body p-3 p-md-4 p-xl-5">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-4">
             <div><h3 id="pos-heading" class="h5 mb-1">Create an order</h3><p id="pos-description" class="text-secondary mb-0">Build a cart with any number of pizzas and drinks, then send it to the active queue.</p></div>
-            <span class="badge align-self-start rounded-pill text-dark" style="background-color:#e4efe3;">Employee order entry</span>
+            <span class="badge align-self-start rounded-pill text-dark">Employee order entry</span>
           </div>
 
           <form id="pos-form" novalidate aria-label="Point of Sales order form">
@@ -73,9 +76,9 @@
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="customer-phone">Phone number <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" pattern="[0-9+(). -]{10,20}" aria-label="Customer phone number, required. Enter a 10-digit US number, optionally with country code 1." aria-describedby="customer-phone-help customer-phone-error">
-                    <div id="customer-phone-help" class="form-text">Used to contact the customer about this order.</div>
-                    <div id="customer-phone-error" class="invalid-feedback">Enter 10 digits, or 11 digits starting with 1. Spaces, parentheses, periods, hyphens, and a leading + are allowed.</div>
+                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="numeric" autocomplete="tel" required maxlength="11" pattern="[0-9]{10,11}" aria-label="Customer phone number, required. Enter 10 digits or 11 digits starting with 1." aria-describedby="customer-phone-help customer-phone-error">
+                    <div id="customer-phone-help" class="form-text">Enter digits only. A US number may include 10 digits or 11 digits starting with 1.</div>
+                    <div id="customer-phone-error" class="invalid-feedback">Enter 10 digits, or 11 digits starting with 1.</div>
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="order-channel">Order channel <span aria-hidden="true" class="text-danger">*</span></label>
@@ -112,28 +115,44 @@
                     <div id="pizza-quantity-help" class="form-text">Order limit: 50 total items.</div>
                     <div id="pizza-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 50.</div>
                   </div>
-                  <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-end gap-2">
-                    <button class="btn btn-danger w-100 w-sm-auto" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add pizza to order</button>
+                  <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch gap-2">
+                    <button class="btn btn-danger flex-fill" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items">Add pizza to order</button>
+                    <button class="btn btn-outline-secondary flex-fill" id="clear-pizza-selection" type="button" aria-controls="pizza-size pizza-quantity pizza-toppings">Clear pizza selection</button>
                   </div>
                   <div class="col-12">
                     <fieldset id="pizza-toppings">
-                      <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(Toppings, # of servings from 0 - 3)</span></legend>
-                      <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
-                        <div class="col"><label class="form-label small mb-1" for="topping-pepperoni">Pepperoni</label><input class="form-control form-control-sm pizza-topping" id="topping-pepperoni" type="number" min="0" max="3" step="1" value="0" data-topping="Pepperoni" aria-label="Pepperoni servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-sausage">Italian sausage</label><input class="form-control form-control-sm pizza-topping" id="topping-sausage" type="number" min="0" max="3" step="1" value="0" data-topping="Italian sausage" aria-label="Italian sausage servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-beef">Beef</label><input class="form-control form-control-sm pizza-topping" id="topping-beef" type="number" min="0" max="3" step="1" value="0" data-topping="Beef" aria-label="Beef servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-green-peppers">Green peppers</label><input class="form-control form-control-sm pizza-topping" id="topping-green-peppers" type="number" min="0" max="3" step="1" value="0" data-topping="Green peppers" aria-label="Green peppers servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-jalapenos">Jalapenos</label><input class="form-control form-control-sm pizza-topping" id="topping-jalapenos" type="number" min="0" max="3" step="1" value="0" data-topping="Jalapenos" aria-label="Jalapenos servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-pineapple">Pineapple</label><input class="form-control form-control-sm pizza-topping" id="topping-pineapple" type="number" min="0" max="3" step="1" value="0" data-topping="Pineapple" aria-label="Pineapple servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-onion">Onion</label><input class="form-control form-control-sm pizza-topping" id="topping-onion" type="number" min="0" max="3" step="1" value="0" data-topping="Onion" aria-label="Onion servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-black-olives">Black olives</label><input class="form-control form-control-sm pizza-topping" id="topping-black-olives" type="number" min="0" max="3" step="1" value="0" data-topping="Black olives" aria-label="Black olives servings per pizza, 0 to 3"></div>
-                        <div class="col"><label class="form-label small mb-1" for="topping-tomatoes">Diced tomatoes</label><input class="form-control form-control-sm pizza-topping" id="topping-tomatoes" type="number" min="0" max="3" step="1" value="0" data-topping="Diced tomatoes" aria-label="Diced tomatoes servings per pizza, 0 to 3"></div>
+                      <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(Choose up to 3 servings of each topping. Use the minus button to remove a serving.)</span></legend>
+                      <div class="row g-3">
+                        <div class="col-12">
+                          <h4 class="h6 text-danger-emphasis">Meat</h4>
+                          <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-pepperoni" type="button" data-topping="Pepperoni" aria-label="Add one serving of Pepperoni" aria-controls="topping-pepperoni-count">Pepperoni</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Pepperoni" aria-label="Remove one serving of Pepperoni" aria-disabled="true">−</button><span id="topping-pepperoni-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-sausage" type="button" data-topping="Italian sausage" aria-label="Add one serving of Italian sausage" aria-controls="topping-sausage-count">Italian sausage</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Italian sausage" aria-label="Remove one serving of Italian sausage" aria-disabled="true">−</button><span id="topping-sausage-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-beef" type="button" data-topping="Beef" aria-label="Add one serving of Beef" aria-controls="topping-beef-count">Beef</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Beef" aria-label="Remove one serving of Beef" aria-disabled="true">−</button><span id="topping-beef-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                          </div>
+                        </div>
+                        <div class="col-12">
+                          <h4 class="h6 text-success-emphasis">Vegetables</h4>
+                          <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-green-peppers" type="button" data-topping="Green peppers" aria-label="Add one serving of Green peppers" aria-controls="topping-green-peppers-count">Green peppers</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Green peppers" aria-label="Remove one serving of Green peppers" aria-disabled="true">−</button><span id="topping-green-peppers-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-jalapenos" type="button" data-topping="Jalapenos" aria-label="Add one serving of Jalapenos" aria-controls="topping-jalapenos-count">Jalapenos</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Jalapenos" aria-label="Remove one serving of Jalapenos" aria-disabled="true">−</button><span id="topping-jalapenos-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-onion" type="button" data-topping="Onion" aria-label="Add one serving of Onion" aria-controls="topping-onion-count">Onion</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Onion" aria-label="Remove one serving of Onion" aria-disabled="true">−</button><span id="topping-onion-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-black-olives" type="button" data-topping="Black olives" aria-label="Add one serving of Black olives" aria-controls="topping-black-olives-count">Black olives</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Black olives" aria-label="Remove one serving of Black olives" aria-disabled="true">−</button><span id="topping-black-olives-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-tomatoes" type="button" data-topping="Diced tomatoes" aria-label="Add one serving of Diced tomatoes" aria-controls="topping-tomatoes-count">Diced tomatoes</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Diced tomatoes" aria-label="Remove one serving of Diced tomatoes" aria-disabled="true">−</button><span id="topping-tomatoes-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                          </div>
+                        </div>
+                        <div class="col-12">
+                          <h4 class="h6 text-warning-emphasis">Fruit</h4>
+                          <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-pineapple" type="button" data-topping="Pineapple" aria-label="Add one serving of Pineapple" aria-controls="topping-pineapple-count">Pineapple</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Pineapple" aria-label="Remove one serving of Pineapple" aria-disabled="true">−</button><span id="topping-pineapple-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                          </div>
+                        </div>
                       </div>
                     </fieldset>
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Small: $1 per serving (¼ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Medium: $2 per serving (½ cup)</span>
-                      <span class="badge rounded-pill text-dark" style="background-color:#f4f1e7;">Large: $3 per serving (1 cup)</span>
+                      <span class="badge rounded-pill text-dark">Small: $1 per serving (¼ cup)</span>
+                      <span class="badge rounded-pill text-dark">Medium: $2 per serving (½ cup)</span>
+                      <span class="badge rounded-pill text-dark">Large: $3 per serving (1 cup)</span>
                     </div>
                   </div>
                   <div class="col-12"><p class="small mb-0"><span class="fw-semibold">Current pizza estimate:</span> <span id="pizza-estimate">$7.00</span> <span class="text-secondary">per pizza</span></p></div>
@@ -142,23 +161,29 @@
 
               <fieldset class="col-12 border-top pt-4">
                 <legend class="h6 mb-3">Drinks</legend>
-                <div class="row g-3 align-items-end">
+                <div class="row g-3 align-items-start">
+                  <fieldset class="col-12 col-lg-4">
+                    <legend class="form-label">Drink type</legend>
+                    <div class="row row-cols-2 g-2" role="group" aria-label="Drink types">
+                      <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button active" type="button" data-drink="Iced tea" aria-pressed="true">Iced tea</button></div>
+                      <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button" type="button" data-drink="Dr. Pepper" aria-pressed="false">Dr. Pepper</button></div>
+                      <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button" type="button" data-drink="Cola" aria-pressed="false">Cola</button></div>
+                      <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button" type="button" data-drink="Un-cola" aria-pressed="false">Un-cola</button></div>
+                    </div>
+                  </fieldset>
                   <div class="col-12 col-sm-6 col-lg-3">
-                    <label class="form-label" for="drink-option">Drink</label>
-                    <select class="form-select" id="drink-option" name="drinkOption" aria-label="Drink selection"><option>Iced tea</option><option>Dr. Pepper</option><option>Cola</option><option>Un-cola</option></select>
-                  </div>
-                  <div class="col-6 col-sm-3 col-lg-2">
                     <label class="form-label" for="drink-size">Size and price</label>
                     <select class="form-select" id="drink-size" name="drinkSize" aria-label="Drink size and price"><option value="Small">Small — $1</option><option value="Medium" selected>Medium — $2</option><option value="Large">Large — $3</option></select>
                   </div>
-                  <div class="col-6 col-sm-3 col-lg-2">
+                  <div class="col-12 col-sm-6 col-lg-3">
                     <label class="form-label" for="drink-quantity">Quantity</label>
                     <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="50" value="1" aria-label="Drink quantity, from 1 to 50" aria-describedby="drink-quantity-help drink-quantity-error">
                     <div id="drink-quantity-help" class="form-text">Order limit: 50 total items.</div>
                     <div id="drink-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 50.</div>
                   </div>
-                  <div class="col-12 col-lg-5">
-                    <button class="btn btn-danger w-100" id="add-drink" type="button" aria-label="Add 1 medium iced tea to order" aria-controls="cart-items" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Add drink to order</button>
+                  <div class="col-12 col-lg-2">
+                    <label class="form-label d-block" for="add-drink">Add drink</label>
+                    <button class="btn btn-danger w-100" id="add-drink" type="button" aria-label="Add 1 medium iced tea to order" aria-controls="cart-items">Add drink to order</button>
                   </div>
                 </div>
               </fieldset>
@@ -170,7 +195,7 @@
                 </div>
                 <ul id="cart-items" class="list-group mb-3" aria-label="Items currently in order cart" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></ul>
                 <p id="cart-empty" class="small text-secondary border rounded p-3 mb-3">The cart is empty.</p>
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 border rounded p-3" style="background-color:#f8f5eb;">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 border rounded p-3">
                   <div>
                     <p class="small mb-1">Subtotal: <span id="cart-subtotal">$0.00</span></p>
                     <p class="small mb-1">Tax (9.75%): <span id="cart-tax">$0.00</span></p>
@@ -183,7 +208,7 @@
               </section>
 
               <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center gap-3 border-top pt-4">
-                <button id="submit-order-button" class="btn btn-danger px-4" type="submit" aria-label="Place order and add it to active orders" aria-controls="active-orders-list" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336;">Place order</button>
+                <button id="submit-order-button" class="btn btn-danger px-4" type="submit" aria-label="Place order and add it to active orders" aria-controls="active-orders-list">Place order</button>
                 <p class="small text-secondary mb-0">Required fields are marked with an asterisk.</p>
               </div>
             </div>
@@ -191,7 +216,7 @@
         </div>
       </section>
 
-      <section id="orders-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="orders-tab" tabindex="0" hidden style="background-color:#fffefa;">
+      <section id="orders-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="orders-tab" tabindex="0" hidden>
         <div class="card-body p-3 p-md-4 p-xl-5">
           <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
             <div><h3 class="h5 mb-1">Active orders</h3><p class="text-secondary mb-0">Customer portal and employee POS orders share this kitchen queue.</p></div>
@@ -204,23 +229,30 @@
         </div>
       </section>
 
-      <section id="history-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="history-tab" tabindex="0" hidden style="background-color:#fffefa;">
-        <div class="card-body p-3 p-md-4 p-xl-5">
+      <section id="history-panel" class="card border-0 shadow-sm vh-100" role="tabpanel" aria-labelledby="history-tab" tabindex="0" hidden>
+        <div class="card-body d-flex flex-column p-3 p-md-4 p-xl-5">
           <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
             <div><h3 class="h5 mb-1">Order history</h3><p class="text-secondary mb-0">Completed orders with customer, items, total, and completion time.</p></div>
             <button id="refresh-history" class="btn btn-outline-danger" type="button" aria-label="Refresh completed order history" aria-controls="history-list">Refresh history</button>
           </div>
-          <div id="history-list" class="d-grid gap-3" aria-label="Completed and archived orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
+          <div class="mb-3">
+            <label class="form-label" for="history-search">Search order history</label>
+            <input class="form-control" id="history-search" type="search" maxlength="100" autocomplete="off" placeholder="Customer, order number, or phone" aria-describedby="history-search-help">
+            <div id="history-search-help" class="form-text">Search by customer name, order number, or phone number.</div>
+          </div>
+          <p id="history-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="overflow-y-auto d-grid flex-grow-1 gap-3" id="history-list" aria-label="Completed and archived orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
           <p id="history-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-history" class="border rounded p-4 text-center text-secondary" hidden>No completed orders are in history yet.</div>
+          <div class="d-flex justify-content-center mt-3"><button id="history-next-page" class="btn btn-outline-danger" type="button" aria-controls="history-list" hidden>Next page</button></div>
         </div>
       </section>
 
-      <section id="manager-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="manager-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager" style="background-color:#fffefa;">
+      <section id="manager-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="manager-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager">
         <div class="card-body p-3 p-md-4 p-xl-5">
           <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
             <div>
-              <p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Manager tools</p>
+              <p class="small text-uppercase fw-semibold mb-1">Manager tools</p>
               <h3 class="h5 mb-1">Store dashboard</h3>
               <p class="text-secondary mb-0">Live sales summary for today and this week.</p>
             </div>
@@ -232,7 +264,7 @@
           <div id="sales-summary-content" aria-busy="true">
             <div class="row g-3 mb-4">
               <div class="col-12 col-lg-6">
-                <article class="card h-100" style="border-color:#ded5d2;background-color:#fffefa;">
+                <article class="card h-100">
                   <div class="card-body">
                     <h4 class="h6">Daily sales</h4>
                     <p id="today-sales-total" class="display-6 mb-1">$0.00</p>
@@ -241,7 +273,7 @@
                 </article>
               </div>
               <div class="col-12 col-lg-6">
-                <article class="card h-100" style="border-color:#ded5d2;background-color:#fffefa;">
+                <article class="card h-100">
                   <div class="card-body">
                     <h4 class="h6">Weekly sales</h4>
                     <p id="week-sales-total" class="display-6 mb-1">$0.00</p>
@@ -268,10 +300,10 @@
         </div>
       </section>
 
-      <section id="access-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="access-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager" style="background-color:#fffefa;">
+      <section id="access-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="access-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager">
         <div class="card-body p-3 p-md-4 p-xl-5">
           <div class="mb-4">
-            <p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Manager tools</p>
+            <p class="small text-uppercase fw-semibold mb-1">Manager tools</p>
             <h3 class="h5 mb-1">Staff account management</h3>
             <p class="text-secondary mb-0">Create, edit, deactivate, reactivate, and delete staff accounts. Managers can manage employees; owners can also manage managers. Only deactivated accounts can be deleted.</p>
           </div>
@@ -304,7 +336,7 @@
               <div id="employee-temp-password-help" class="form-text">At least 12 characters.</div>
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">
-              <button id="employee-account-submit" class="btn btn-danger" type="submit" style="--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;">Create staff account</button>
+              <button id="employee-account-submit" class="btn btn-danger" type="submit">Create staff account</button>
               <button id="cancel-account-edit" class="btn btn-outline-secondary" type="button" hidden>Cancel edit</button>
             </div>
           </form>
@@ -317,10 +349,10 @@
         </div>
       </section>
 
-      <section id="customers-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="customers-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager" style="background-color:#fffefa;">
+      <section id="customers-panel" class="card border-0 shadow-sm" role="tabpanel" aria-labelledby="customers-tab" tabindex="0" aria-hidden="true" hidden data-minimum-role="manager">
         <div class="card-body p-3 p-md-4 p-xl-5">
           <div class="mb-4">
-            <p class="small text-uppercase fw-semibold mb-1" style="letter-spacing:.08em;color:#674747;">Manager tools</p>
+            <p class="small text-uppercase fw-semibold mb-1">Manager tools</p>
             <h3 id="customers-heading" class="h5 mb-1" tabindex="-1">Customer directory</h3>
             <p class="text-secondary mb-0">Search customer contact details and open a customer to review all of their orders.</p>
           </div>
@@ -347,10 +379,12 @@
         </div>
       </section>
     </section>
+      </div>
+    </div>
   </main>
 
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261021-2" defer></script>
 </body>
 </html>
