@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_id BIGINT UNSIGNED NOT NULL,
   source ENUM('Employee POS', 'Customer portal') NOT NULL DEFAULT 'Employee POS',
   channel VARCHAR(40) NOT NULL,
+  pickup_date DATE NULL,
   pickup_time TIME NULL,
   status ENUM('Confirmed', 'In-Progress', 'Ready', 'Overdue', 'Completed')
     NOT NULL DEFAULT 'Confirmed',

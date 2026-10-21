@@ -280,6 +280,40 @@ def required_text(value, label, max_length):
 
     return value
 
+def normalize_phone_number(value):
+    digits = re.sub(r"\D", "", value)
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]
+    if not re.fullmatch(r"\d{10}", digits):
+        raise ApiError("Customer phone must be a valid 10-digit US number.")
+    return digits
+
+def get_or_create_customer(cursor, full_name, first_name, last_name, phone):
+    # Match legacy rows that may have been saved with punctuation in the phone field.
+    cursor.execute("SELECT customer_id, phone FROM customers")
+    for customer in cursor.fetchall():
+        existing_phone = re.sub(r"\D", "", customer["phone"])
+        if len(existing_phone) == 11 and existing_phone.startswith("1"):
+            existing_phone = existing_phone[1:]
+        if existing_phone == phone:
+            cursor.execute(
+                "UPDATE customers SET full_name = %s, first_name = %s, last_name = %s WHERE customer_id = %s",
+                (full_name, first_name, last_name, customer["customer_id"]),
+            )
+            return customer["customer_id"]
+
+    cursor.execute(
+        """INSERT INTO customers (full_name, first_name, last_name, phone)
+           VALUES (%s, %s, %s, %s)
+           ON DUPLICATE KEY UPDATE
+             full_name = VALUES(full_name),
+             first_name = VALUES(first_name),
+             last_name = VALUES(last_name),
+             customer_id = LAST_INSERT_ID(customer_id)""",
+        (full_name, first_name, last_name, phone),
+    )
+    return cursor.lastrowid
+
 def person_name_parts(body, first_key, last_key, legacy_key, label):
     """Return validated first name, last name, and a compatible display name."""
     if first_key in body or last_key in body:
@@ -503,24 +537,7 @@ def prepare_items(raw_items, maximum):
 
     return items, subtotal, tax_amount, subtotal + tax_amount
 
-def pickup_time_value(value):
-
-    if value in (None, ""):
-
-        return None
-
-    if not isinstance(value, str):
-
-        raise ApiError("Pickup time must use HH:MM format.")
-
-    try:
-
-        pickup_time = datetime.strptime(value, "%H:%M").time()
-
-    except ValueError:
-
-        raise ApiError("Pickup time must use HH:MM format.")
-
+def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=0):
     timezone_name = os.environ.get("BUSINESS_TIMEZONE")
 
     try:
@@ -531,13 +548,39 @@ def pickup_time_value(value):
 
         raise ApiError("BUSINESS_TIMEZONE must be a valid IANA timezone name.", 503) from exc
 
-    current_minute = now.time().replace(tzinfo=None, second=0, microsecond=0)
+    if date_value in (None, ""):
+        pickup_date = now.date()
+    elif not isinstance(date_value, str):
+        raise ApiError("Pickup date must use YYYY-MM-DD format.")
+    else:
+        try:
+            pickup_date = datetime.strptime(date_value, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ApiError("Pickup date must use YYYY-MM-DD format.") from exc
 
-    if pickup_time <= current_minute:
+    if pickup_date < now.date():
+        raise ApiError("Pickup date cannot be in the past.")
 
-        raise ApiError("Pickup time must be later than the current time today.")
+    if time_value in (None, ""):
+        return pickup_date, None
+    if not isinstance(time_value, str):
+        raise ApiError("Pickup time must use HH:MM format.")
+    try:
+        try:
+            pickup_time = datetime.strptime(time_value, "%H:%M:%S").time()
+        except ValueError:
+            pickup_time = datetime.strptime(time_value, "%H:%M").time()
+    except ValueError as exc:
+        raise ApiError("Pickup time must use HH:MM or HH:MM:SS format.") from exc
 
-    return pickup_time
+    scheduled = datetime.combine(pickup_date, pickup_time, tzinfo=now.tzinfo)
+    minimum = now + timedelta(minutes=minimum_buffer_minutes)
+    if scheduled < minimum:
+        if minimum_buffer_minutes:
+            raise ApiError("For pickup today, choose a time at least 20 minutes from now.")
+        raise ApiError("Pickup time must be later than the current time.")
+
+    return pickup_date, pickup_time
 
 def iso_timestamp(value):
 
@@ -578,6 +621,8 @@ def serialize_order_row(row):
         "notes": row["notes"],
 
         "pickupTime": str(pickup_time)[:5] if pickup_time else "",
+
+        "pickupDate": row.get("pickupDate").isoformat() if row.get("pickupDate") else "",
 
         "status": row["status"],
 
@@ -638,7 +683,7 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
         order_query = (
             "SELECT o.order_id AS id, o.source, o.channel, o.status, o.notes, "
             "o.subtotal, o.tax_rate_bps AS taxRateBasisPoints, o.tax_amount AS taxAmount, o.total, "
-            "o.pickup_time AS pickupTime, o.created_at AS createdAt, o.completed_at AS completedAt, "
+            "o.pickup_date AS pickupDate, o.pickup_time AS pickupTime, o.created_at AS createdAt, o.completed_at AS completedAt, "
             "o.customer_email AS customerEmail, o.payment_method AS paymentMethod, o.payment_last_four AS paymentLastFour, "
             "c.full_name AS customerName, c.first_name AS customerFirstName, c.last_name AS customerLastName, c.phone AS customerPhone "
             "FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id WHERE " + where_clause +
@@ -1610,7 +1655,7 @@ def create_order():
             body, "customerFirstName", "customerLastName", "customerName", "Customer"
         )
 
-        customer_phone = required_text(body.get("customerPhone"), "Customer phone", 30)
+        customer_phone = normalize_phone_number(required_text(body.get("customerPhone"), "Customer phone", 30))
 
         channel = "Online pickup" if is_customer else body.get("channel")
 
@@ -1618,7 +1663,10 @@ def create_order():
 
             raise ApiError("Choose a valid order channel.")
 
-        pickup_time = pickup_time_value(body.get("pickupTime"))
+        pickup_date, pickup_time = pickup_schedule_values(
+            body.get("pickupDate"), body.get("pickupTime"),
+            minimum_buffer_minutes=20 if not is_customer else 0,
+        )
 
         notes = body.get("notes", "")
 
@@ -1636,29 +1684,9 @@ def create_order():
 
             cursor = connection.cursor()
 
-            cursor.execute(
-
-                """
-
-                INSERT INTO customers (full_name, first_name, last_name, phone)
-
-                VALUES (%s, %s, %s, %s)
-
-                ON DUPLICATE KEY UPDATE
-
-                    full_name = VALUES(full_name),
-                    first_name = VALUES(first_name),
-                    last_name = VALUES(last_name),
-
-                    customer_id = LAST_INSERT_ID(customer_id)
-
-                """,
-
-                (customer_name, customer_first_name, customer_last_name, customer_phone),
-
+            customer_id = get_or_create_customer(
+                cursor, customer_name, customer_first_name, customer_last_name, customer_phone
             )
-
-            customer_id = cursor.lastrowid
 
             cursor.execute(
 
@@ -1666,17 +1694,17 @@ def create_order():
 
                 INSERT INTO orders
 
-                    (customer_id, source, channel, pickup_time, status, notes,
+                    (customer_id, source, channel, pickup_date, pickup_time, status, notes,
 
                      subtotal, tax_rate_bps, tax_amount, total,
 
                      tracking_token_hash, customer_email, payment_method, payment_last_four)
 
-                VALUES (%s, %s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, %s, %s, %s, %s)
 
                 """,
 
-                (customer_id, source, channel, pickup_time, notes, subtotal, TAX_RATE_BPS, tax_amount, total, tracking_hash, customer_email, payment_method, payment_last_four),
+                (customer_id, source, channel, pickup_date, pickup_time, notes, subtotal, TAX_RATE_BPS, tax_amount, total, tracking_hash, customer_email, payment_method, payment_last_four),
 
             )
 

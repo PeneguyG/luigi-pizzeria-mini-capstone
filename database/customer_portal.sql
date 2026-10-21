@@ -69,6 +69,8 @@ CREATE TABLE IF NOT EXISTS orders (
 
   channel VARCHAR(40) NOT NULL,
 
+  pickup_date DATE NULL,
+
   pickup_time TIME NULL,
 
   tracking_token_hash CHAR(64) NULL,

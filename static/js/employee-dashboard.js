@@ -103,30 +103,59 @@
       updatePizzaPreview();
     }
 
-    function getMinimumPickupTime() {
-      const today = new Date();
-      const nextMinute = new Date();
-      nextMinute.setSeconds(0, 0);
-      nextMinute.setMinutes(nextMinute.getMinutes() + 1);
-      if (nextMinute.getDate() !== today.getDate() || nextMinute.getMonth() !== today.getMonth() || nextMinute.getFullYear() !== today.getFullYear()) {
-        return null;
-      }
-      return String(nextMinute.getHours()).padStart(2, '0') + ':' + String(nextMinute.getMinutes()).padStart(2, '0');
+    function localDateInputValue(date) {
+      return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+    }
+
+    function localTimeInputValue(date) {
+      return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+    }
+
+    function updatePickupDateMinimum() {
+      const dateInput = document.getElementById('pickup-date');
+      const today = localDateInputValue(new Date());
+      dateInput.min = today;
+      if (!dateInput.value) dateInput.value = today;
+      return today;
     }
 
     function updatePickupTimeValidity() {
-      const input = document.getElementById('pickup-time');
-      const error = document.getElementById('pickup-time-error');
-      const minimum = getMinimumPickupTime();
-      if (minimum) input.min = minimum;
-      else input.removeAttribute('min');
-      const invalidPastTime = Boolean(input.value) && (!minimum || input.value < minimum);
-      input.setCustomValidity(invalidPastTime ? 'Pickup time must be later than the current time today.' : '');
-      error.textContent = minimum
-        ? 'Pickup time must be later than the current time today.'
-        : 'There are no later pickup times available today.';
-      error.hidden = !invalidPastTime;
-      return !invalidPastTime;
+      const dateInput = document.getElementById('pickup-date');
+      const timeInput = document.getElementById('pickup-time');
+      const dateError = document.getElementById('pickup-date-error');
+      const timeError = document.getElementById('pickup-time-error');
+      const today = updatePickupDateMinimum();
+      const selectedDate = dateInput.value;
+      const invalidPastDate = Boolean(selectedDate) && selectedDate < today;
+      dateInput.setCustomValidity(invalidPastDate ? 'Choose today or a future pickup date.' : '');
+      dateInput.classList.toggle('is-invalid', !dateInput.validity.valid);
+      dateError.textContent = invalidPastDate ? 'Past pickup dates are not allowed.' : 'Choose a pickup date.';
+
+      timeInput.removeAttribute('min');
+      let invalidTime = false;
+      if (timeInput.value && selectedDate === today) {
+        const minimum = new Date(Date.now() + 20 * 60 * 1000);
+        if (minimum.getSeconds() > 0 || minimum.getMilliseconds() > 0) minimum.setMinutes(minimum.getMinutes() + 1);
+        minimum.setSeconds(0, 0);
+        const minimumDate = localDateInputValue(minimum);
+        if (minimumDate !== today) {
+          invalidTime = true;
+          timeError.textContent = 'There is not enough time remaining today. Choose a future pickup date.';
+        } else {
+          const minimumTime = localTimeInputValue(minimum);
+          timeInput.min = minimumTime;
+          const selectedTimeParts = timeInput.value.split(':').map(Number);
+          const selectedSeconds = selectedTimeParts[0] * 3600 + selectedTimeParts[1] * 60 + (selectedTimeParts[2] || 0);
+          const minimumSeconds = minimum.getHours() * 3600 + minimum.getMinutes() * 60;
+          invalidTime = selectedSeconds < minimumSeconds;
+          timeError.textContent = 'For pickup today, choose a time at least 20 minutes from now (' + minimumTime.slice(0, 5) + ' or later).';
+        }
+      } else {
+        timeError.textContent = 'For today, choose a pickup time at least 20 minutes from now.';
+      }
+      timeInput.setCustomValidity(invalidTime ? timeError.textContent : '');
+      timeInput.classList.toggle('is-invalid', invalidTime);
+      return dateInput.validity.valid && timeInput.validity.valid;
     }
 
     const customerPhoneInput = document.getElementById('customer-phone');
@@ -137,6 +166,7 @@
       customerLastNameInput,
       customerPhoneInput,
       document.getElementById('order-channel'),
+      document.getElementById('pickup-date'),
       document.getElementById('pickup-time')
     ];
 
@@ -147,20 +177,34 @@
     }
 
     function validateCustomerPhone() {
-      const phone = customerPhoneInput.value.trim();
+      const phone = normalizeCustomerPhone(customerPhoneInput.value);
       const phoneError = document.getElementById('customer-phone-error');
-      const validDigitCount = /^\d{10}$/.test(phone) || /^1\d{10}$/.test(phone);
+      const validDigitCount = /^\d{10}$/.test(phone);
       customerPhoneInput.setCustomValidity(phone && !validDigitCount
-        ? 'Enter 10 digits, or 11 digits starting with 1.' : '');
-      phoneError.textContent = phone ? 'Enter 10 digits, or 11 digits starting with 1.' : 'Enter the customer\'s phone number.';
+        ? 'Enter a valid 10-digit US phone number.' : '');
+      phoneError.textContent = phone ? 'Enter a valid 10-digit US phone number.' : 'Enter the customer\'s phone number.';
       return customerPhoneInput.validity.valid;
+    }
+
+    function normalizeCustomerPhone(value) {
+      let digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+      if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+      return digits;
+    }
+
+    function maskCustomerPhone(value) {
+      const digits = normalizeCustomerPhone(value).slice(0, 10);
+      if (!digits) return '';
+      if (digits.length <= 3) return '(' + digits;
+      if (digits.length <= 6) return '(' + digits.slice(0, 3) + ')' + digits.slice(3);
+      return '(' + digits.slice(0, 3) + ')' + digits.slice(3, 6) + '-' + digits.slice(6);
     }
 
     function formatPhoneNumber(value) {
       const digits = String(value || '').replace(/\D/g, '');
       const localDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
       if (localDigits.length !== 10) return value || 'Not provided';
-      return '(' + localDigits.slice(0, 3) + ') ' + localDigits.slice(3, 6) + '-' + localDigits.slice(6);
+      return '(' + localDigits.slice(0, 3) + ')' + localDigits.slice(3, 6) + '-' + localDigits.slice(6);
     }
 
     function getSelectedDrink() {
@@ -392,6 +436,11 @@
       return (order.items || []).reduce(function (sum, item) { return sum + item.unitPrice * item.quantity; }, 0);
     }
 
+    function formatPickupSchedule(order) {
+      return [order.pickupDate, order.pickupTime].filter(Boolean).join(' ')
+        || (order.pickupTime ? order.pickupTime : 'Not specified');
+    }
+
     function formatOrderItems(items) {
       return (items || []).map(function (item) {
         const toppingSummary = item.type === 'Pizza'
@@ -435,7 +484,7 @@
         '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p><p class="small mb-2"><span class="fw-semibold">Items:</span></p>' +
         '<ul class="small mb-2">' + formatOrderItems(order.items) + '</ul>' +
         '<p class="small mb-2"><span class="fw-semibold">Order total:</span> ' + formatMoney(getOrderTotal(order)) + taxDetails +
-        ' <span class="text-secondary">· Pickup ' + escapeHTML(order.pickupTime || 'Not specified') + '</span></p>' +
+        ' <span class="text-secondary">· Pickup ' + escapeHTML(formatPickupSchedule(order)) + '</span></p>' +
         '<button class="btn btn-sm btn-link link-danger px-0 py-1" type="button" data-details-button="' + id +
         '" aria-label="Show details for order ' + id + '" aria-expanded="false" aria-controls="' + detailsId + '">Show order details</button>' +
         '<div id="' + detailsId + '" class="row g-2 small mt-1" hidden>' + details + '</div></div>' +
@@ -513,12 +562,12 @@
       }
     }
 
-    function pickupTimeHasPassed(pickupTime, now) {
-      const match = /^([01][0-9]|2[0-3]):([0-5][0-9])$/.exec(String(pickupTime || ''));
+    function pickupTimeHasPassed(pickupDate, pickupTime, now) {
+      const match = /^([01][0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$/.exec(String(pickupTime || ''));
       if (!match) return false;
-      const pickupSeconds = Number(match[1]) * 3600 + Number(match[2]) * 60;
-      const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000;
-      return currentSeconds > pickupSeconds;
+      const date = pickupDate || localDateInputValue(now);
+      const scheduled = new Date(date + 'T' + String(pickupTime));
+      return !Number.isNaN(scheduled.getTime()) && now > scheduled;
     }
 
     function updateOrderStatusInUi(order, preserveFocusedSelection) {
@@ -547,7 +596,7 @@
         if (refreshFromApi) synchronizeActiveOrders(await listOrders());
         const now = new Date();
         const candidates = activeOrders.filter(function (order) {
-          return order.status !== 'Completed' && order.status !== 'Overdue' && pickupTimeHasPassed(order.pickupTime, now);
+          return order.status !== 'Completed' && order.status !== 'Overdue' && pickupTimeHasPassed(order.pickupDate, order.pickupTime, now);
         });
 
         for (const order of candidates) {
@@ -1028,7 +1077,7 @@
         heading.textContent = 'Order #' + order.id + ' · ' + order.status;
         const meta = document.createElement('p');
         meta.className = 'small text-secondary mb-2';
-        meta.textContent = [order.createdAt, order.channel, order.pickupTime ? 'Pickup ' + order.pickupTime : ''].filter(Boolean).join(' · ');
+        meta.textContent = [order.createdAt, order.channel, order.pickupDate || order.pickupTime ? 'Pickup ' + formatPickupSchedule(order) : ''].filter(Boolean).join(' · ');
         const lines = document.createElement('ul');
         lines.className = 'small mb-2';
         (order.items || []).forEach(function (line) {
@@ -1232,13 +1281,15 @@
         updatePizzaPreview();
       });
     });
+    document.getElementById('pickup-date').addEventListener('input', updatePickupTimeValidity);
+    document.getElementById('pickup-date').addEventListener('change', updatePickupTimeValidity);
     document.getElementById('pickup-time').addEventListener('input', updatePickupTimeValidity);
     document.getElementById('pickup-time').addEventListener('change', updatePickupTimeValidity);
     posForm.addEventListener('input', function (event) {
       if (event.target === customerFirstNameInput || event.target === customerLastNameInput) validateCustomerNames();
       if (event.target === customerPhoneInput) {
-        const digitsOnly = customerPhoneInput.value.replace(/\D/g, '').slice(0, 11);
-        if (customerPhoneInput.value !== digitsOnly) customerPhoneInput.value = digitsOnly;
+        const maskedPhone = maskCustomerPhone(customerPhoneInput.value);
+        if (customerPhoneInput.value !== maskedPhone) customerPhoneInput.value = maskedPhone;
         validateCustomerPhone();
       }
       if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
@@ -1248,8 +1299,8 @@
     posForm.addEventListener('change', function (event) {
       if (event.target === customerFirstNameInput || event.target === customerLastNameInput) validateCustomerNames();
       if (event.target === customerPhoneInput) {
-        const digitsOnly = customerPhoneInput.value.replace(/\D/g, '').slice(0, 11);
-        if (customerPhoneInput.value !== digitsOnly) customerPhoneInput.value = digitsOnly;
+        const maskedPhone = maskCustomerPhone(customerPhoneInput.value);
+        if (customerPhoneInput.value !== maskedPhone) customerPhoneInput.value = maskedPhone;
         validateCustomerPhone();
       }
       if (posForm.classList.contains('was-validated') && orderValidationFields.includes(event.target)) {
@@ -1326,8 +1377,9 @@
       const orderInput = {
         customerFirstName: String(data.get('customerFirstName')).trim(),
         customerLastName: String(data.get('customerLastName')).trim(),
-        customerPhone: String(data.get('customerPhone')).trim(),
+        customerPhone: normalizeCustomerPhone(data.get('customerPhone')),
         channel: String(data.get('channel')),
+        pickupDate: String(data.get('pickupDate') || ''),
         pickupTime: String(data.get('pickupTime') || ''),
         items: cartItems.map(function (item) {
           return {

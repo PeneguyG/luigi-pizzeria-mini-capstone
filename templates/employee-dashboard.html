@@ -76,8 +76,8 @@
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="customer-phone">Phone number <span aria-hidden="true" class="text-danger">*</span></label>
-                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="numeric" autocomplete="tel" required maxlength="11" pattern="[0-9]{10,11}" aria-label="Customer phone number, required. Enter 10 digits or 11 digits starting with 1." aria-describedby="customer-phone-help customer-phone-error">
-                    <div id="customer-phone-help" class="form-text">Enter digits only. A US number may include 10 digits or 11 digits starting with 1.</div>
+                    <input class="form-control" id="customer-phone" name="customerPhone" type="tel" inputmode="numeric" autocomplete="tel" required maxlength="13" aria-label="Customer phone number, required. Enter a 10-digit US phone number." aria-describedby="customer-phone-help customer-phone-error">
+                    <div id="customer-phone-help" class="form-text">Enter a 10-digit US number. It will be formatted as (123)456-7890.</div>
                     <div id="customer-phone-error" class="invalid-feedback">Enter 10 digits, or 11 digits starting with 1.</div>
                   </div>
                   <div class="col-12 col-md-6">
@@ -86,10 +86,16 @@
                     <div id="order-channel-error" class="invalid-feedback">Choose an order channel.</div>
                   </div>
                   <div class="col-12 col-md-6">
+                    <label class="form-label" for="pickup-date">Requested pickup date <span aria-hidden="true" class="text-danger">*</span></label>
+                    <input class="form-control" id="pickup-date" name="pickupDate" type="date" required aria-describedby="pickup-date-help pickup-date-error">
+                    <div id="pickup-date-help" class="form-text">Choose today or a future date.</div>
+                    <div id="pickup-date-error" class="invalid-feedback" role="alert">Choose today or a future pickup date.</div>
+                  </div>
+                  <div class="col-12 col-md-6">
                     <label class="form-label" for="pickup-time">Requested pickup time</label>
-                    <input class="form-control" id="pickup-time" name="pickupTime" type="time" aria-describedby="pickup-time-help pickup-time-error" aria-label="Requested pickup time, optional">
-                    <div id="pickup-time-help" class="form-text">Optional. Choose a time later today.</div>
-                    <p id="pickup-time-error" class="small text-danger mt-1 mb-0" role="alert" hidden>Pickup time must be later than the current time.</p>
+                    <input class="form-control" id="pickup-time" name="pickupTime" type="time" step="60" aria-describedby="pickup-time-help pickup-time-error" aria-label="Requested pickup time, optional">
+                    <div id="pickup-time-help" class="form-text">For pickup today, schedule at least 20 minutes from now. Future dates can use any time.</div>
+                    <div id="pickup-time-error" class="invalid-feedback" role="alert">For today, choose a pickup time at least 20 minutes from now.</div>
                   </div>
                   <div class="col-12">
                     <label class="form-label" for="order-notes">Order notes</label>
@@ -115,16 +121,15 @@
                     <div id="pizza-quantity-help" class="form-text">Order limit: 50 total items.</div>
                     <div id="pizza-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 50.</div>
                   </div>
-                  <div class="col-12 col-lg-7 d-flex flex-column flex-sm-row align-items-stretch gap-2">
-                    <button class="btn btn-danger flex-fill" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items">Add pizza to order</button>
-                    <button class="btn btn-outline-secondary flex-fill" id="clear-pizza-selection" type="button" aria-controls="pizza-size pizza-quantity pizza-toppings">Clear pizza selection</button>
+                  <div class="col-6 col-sm-3 col-lg-2 d-flex align-items-start pt-4">
+                    <button class="btn btn-outline-secondary" id="clear-pizza-selection" type="button" aria-controls="pizza-size pizza-quantity pizza-toppings">Clear pizza selection</button>
                   </div>
                   <div class="col-12">
                     <fieldset id="pizza-toppings">
                       <legend class="form-label mb-2">Topping servings <span class="small text-secondary fw-normal">(Choose up to 3 servings of each topping. Use the minus button to remove a serving.)</span></legend>
                       <div class="row g-3">
                         <div class="col-12">
-                          <h4 class="h6 text-danger-emphasis">Meat</h4>
+                          <h4 class="h6 text-danger-emphasis">Meats</h4>
                           <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
                             <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-pepperoni" type="button" data-topping="Pepperoni" aria-label="Add one serving of Pepperoni" aria-controls="topping-pepperoni-count">Pepperoni</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Pepperoni" aria-label="Remove one serving of Pepperoni" aria-disabled="true">−</button><span id="topping-pepperoni-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
                             <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-outline-danger flex-grow-1 topping-increment" id="topping-sausage" type="button" data-topping="Italian sausage" aria-label="Add one serving of Italian sausage" aria-controls="topping-sausage-count">Italian sausage</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Italian sausage" aria-label="Remove one serving of Italian sausage" aria-disabled="true">−</button><span id="topping-sausage-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
@@ -155,7 +160,10 @@
                       <span class="badge rounded-pill text-dark">Large: $3 per serving (1 cup)</span>
                     </div>
                   </div>
-                  <div class="col-12"><p class="small mb-0"><span class="fw-semibold">Current pizza estimate:</span> <span id="pizza-estimate">$7.00</span> <span class="text-secondary">per pizza</span></p></div>
+                  <div class="col-12">
+                    <p class="small mb-2"><span class="fw-semibold">Current pizza estimate:</span> <span id="pizza-estimate">$7.00</span> <span class="text-secondary">per pizza</span></p>
+                    <button class="btn btn-danger" id="add-pizza" type="button" aria-label="Add 1 medium pizza to order" aria-controls="cart-items">Add pizza to order</button>
+                  </div>
                 </div>
               </fieldset>
 
@@ -385,6 +393,6 @@
 
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261021-2" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261021-4" defer></script>
 </body>
 </html>
