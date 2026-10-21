@@ -27,6 +27,7 @@
     let activeOrders = [];
     let historyPage = 0;
     let historyHasMore = false;
+    let historyTotal = 0;
     let historyRequestId = 0;
     let historySearchTimer = 0;
     let overdueCheckRunning = false;
@@ -639,52 +640,56 @@
     }
 
     async function renderHistory(options) {
-      const append = Boolean(options && options.append);
-      const requestedPage = append ? historyPage + 1 : 0;
+      const requestedPage = options && Number.isInteger(options.page) ? Math.max(0, options.page) : 0;
       const requestId = ++historyRequestId;
       const query = document.getElementById('history-search').value.trim();
       const list = document.getElementById('history-list');
       const status = document.getElementById('history-status');
       const nextPageButton = document.getElementById('history-next-page');
-      if (!append) {
-        historyPage = 0;
-        historyHasMore = false;
-        list.replaceChildren();
-      }
+      const previousPageButton = document.getElementById('history-previous-page');
+      const pagination = document.getElementById('history-pagination');
+      list.replaceChildren();
       list.setAttribute('aria-busy', 'true');
-      status.textContent = append ? 'Loading more completed orders.' : 'Loading completed orders.';
+      status.textContent = 'Loading completed orders.';
       nextPageButton.disabled = true;
+      previousPageButton.disabled = true;
       try {
         const payload = await listOrderHistory(requestedPage, query);
         if (requestId !== historyRequestId) return;
         const orders = payload.orders || [];
         const cards = orders.map(historyCard).join('');
-        if (append) list.insertAdjacentHTML('beforeend', cards);
-        else list.innerHTML = cards;
+        list.innerHTML = cards;
         historyPage = requestedPage;
         historyHasMore = Boolean(payload.hasMore);
+        historyTotal = Number(payload.total) || 0;
         const loadError = document.getElementById('history-load-error');
         loadError.hidden = true;
         loadError.textContent = '';
         document.getElementById('empty-history').hidden = list.children.length !== 0;
-        document.getElementById('history-count').textContent = String(list.children.length);
-        const total = Number(payload.total) || 0;
-        status.textContent = total
-          ? 'Showing ' + list.children.length + ' of ' + total + ' completed orders.'
+        document.getElementById('history-count').textContent = String(historyTotal);
+        const pageCount = Math.max(1, Math.ceil(historyTotal / 20));
+        const firstItem = historyTotal ? requestedPage * 20 + 1 : 0;
+        const lastItem = Math.min((requestedPage + 1) * 20, historyTotal);
+        status.textContent = historyTotal
+          ? 'Showing orders ' + firstItem + ' to ' + lastItem + ' of ' + historyTotal + '.'
           : (query ? 'No completed orders match your search.' : 'No completed orders are in history.');
-        nextPageButton.hidden = !historyHasMore;
+        document.getElementById('history-page-label').textContent = 'Page ' + (requestedPage + 1) + ' of ' + pageCount;
+        pagination.hidden = pageCount <= 1;
+        previousPageButton.disabled = requestedPage <= 0;
+        nextPageButton.disabled = !historyHasMore;
       } catch (error) {
         if (requestId !== historyRequestId) return;
         const loadError = document.getElementById('history-load-error');
         loadError.textContent = 'Could not load order history. ' + error.message;
         loadError.hidden = false;
-        if (!append) document.getElementById('empty-history').hidden = true;
-        nextPageButton.hidden = !historyHasMore;
+        document.getElementById('empty-history').hidden = true;
+        pagination.hidden = historyTotal <= 20;
         announce('Could not load order history. ' + error.message);
       } finally {
         if (requestId === historyRequestId) {
           list.removeAttribute('aria-busy');
-          nextPageButton.disabled = false;
+          nextPageButton.disabled = !historyHasMore;
+          previousPageButton.disabled = historyPage <= 0;
         }
       }
     }
@@ -1467,7 +1472,10 @@
       announce('Order history refreshed.');
     });
     document.getElementById('history-next-page').addEventListener('click', function () {
-      if (historyHasMore) renderHistory({ append: true });
+      if (historyHasMore) renderHistory({ page: historyPage + 1 });
+    });
+    document.getElementById('history-previous-page').addEventListener('click', function () {
+      if (historyPage > 0) renderHistory({ page: historyPage - 1 });
     });
     document.getElementById('history-search').addEventListener('input', function () {
       window.clearTimeout(historySearchTimer);

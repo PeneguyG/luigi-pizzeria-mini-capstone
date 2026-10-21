@@ -168,10 +168,10 @@
               </fieldset>
 
               <fieldset class="col-12 border-top pt-4">
-                <legend class="h6 mb-3">Drinks</legend>
+                <legend class="visually-hidden">Drink selection</legend>
                 <div class="row g-3 align-items-start">
-                  <fieldset class="col-12 col-lg-4">
-                    <legend class="form-label">Drink type</legend>
+                  <fieldset class="col-12 col-lg-6">
+                    <legend class="visually-hidden">Drink type</legend>
                     <div class="row row-cols-2 g-2" role="group" aria-label="Drink types">
                       <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button active" type="button" data-drink="Iced tea" aria-pressed="true">Iced tea</button></div>
                       <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button" type="button" data-drink="Dr. Pepper" aria-pressed="false">Dr. Pepper</button></div>
@@ -179,18 +179,18 @@
                       <div class="col"><button class="btn btn-outline-danger w-100 drink-type-button" type="button" data-drink="Un-cola" aria-pressed="false">Un-cola</button></div>
                     </div>
                   </fieldset>
-                  <div class="col-12 col-sm-6 col-lg-3">
-                    <label class="form-label" for="drink-size">Size and price</label>
+                  <div class="col-12 col-sm-6 col-lg-2">
+                    <label class="visually-hidden" for="drink-size">Size and price</label>
                     <select class="form-select" id="drink-size" name="drinkSize" aria-label="Drink size and price"><option value="Small">Small — $1</option><option value="Medium" selected>Medium — $2</option><option value="Large">Large — $3</option></select>
                   </div>
-                  <div class="col-12 col-sm-6 col-lg-3">
-                    <label class="form-label" for="drink-quantity">Quantity</label>
+                  <div class="col-12 col-sm-6 col-lg-2">
+                    <label class="visually-hidden" for="drink-quantity">Quantity</label>
                     <input class="form-control" id="drink-quantity" name="drinkQuantity" type="number" min="1" max="50" value="1" aria-label="Drink quantity, from 1 to 50" aria-describedby="drink-quantity-help drink-quantity-error">
                     <div id="drink-quantity-help" class="form-text">Order limit: 50 total items.</div>
                     <div id="drink-quantity-error" class="invalid-feedback">Enter a whole number from 1 to 50.</div>
                   </div>
                   <div class="col-12 col-lg-2">
-                    <label class="form-label d-block" for="add-drink">Add drink</label>
+                    <label class="visually-hidden" for="add-drink">Add drink</label>
                     <button class="btn btn-danger w-100" id="add-drink" type="button" aria-label="Add 1 medium iced tea to order" aria-controls="cart-items">Add drink to order</button>
                   </div>
                 </div>
@@ -249,10 +249,16 @@
             <div id="history-search-help" class="form-text">Search by customer name, order number, or phone number.</div>
           </div>
           <p id="history-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true"></p>
-          <div class="overflow-y-auto d-grid flex-grow-1 gap-3" id="history-list" aria-label="Completed and archived orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
+          <div class="overflow-auto d-grid flex-grow-1 gap-3" id="history-list" role="region" tabindex="0" aria-label="Completed orders on this page" aria-describedby="history-status" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
           <p id="history-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-history" class="border rounded p-4 text-center text-secondary" hidden>No completed orders are in history yet.</div>
-          <div class="d-flex justify-content-center mt-3"><button id="history-next-page" class="btn btn-outline-danger" type="button" aria-controls="history-list" hidden>Next page</button></div>
+          <nav id="history-pagination" class="mt-3" aria-label="Order history pages" hidden>
+            <ul class="pagination justify-content-center align-items-center mb-0">
+              <li class="page-item"><button id="history-previous-page" class="page-link text-danger" type="button" aria-controls="history-list" disabled>Previous</button></li>
+              <li class="page-item disabled"><span id="history-page-label" class="page-link text-body" aria-live="polite">Page 1 of 1</span></li>
+              <li class="page-item"><button id="history-next-page" class="page-link text-danger" type="button" aria-controls="history-list" disabled>Next</button></li>
+            </ul>
+          </nav>
         </div>
       </section>
 
