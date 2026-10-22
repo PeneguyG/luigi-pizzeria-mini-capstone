@@ -107,3 +107,4 @@ INSERT IGNORE INTO toppings (topping_name) VALUES
   ('Onion'),
   ('Black olives'),
   ('Diced tomatoes');
+
