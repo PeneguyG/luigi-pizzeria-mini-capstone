@@ -5,7 +5,7 @@ import os
 import re
 import secrets
 
-from flask import g, jsonify, request
+from flask import g, jsonify, request, session
 import pymysql
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -13,7 +13,7 @@ COOKIE = 'luigi_customer_session'
 DUMMY_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 
-def install_accounts(app, connect):
+def install_accounts(app, connect, guest_checkout):
     def current_account():
         if hasattr(g, 'customer_account'):
             return g.customer_account
@@ -35,7 +35,7 @@ def install_accounts(app, connect):
 
     @app.before_request
     def protect_customer_requests():
-        if request.path.startswith('/api/customer/') and request.method in {'POST', 'PATCH', 'DELETE'}:
+        if request.path.startswith('/api/customer/') and request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}:
             # Cross-origin forms cannot set this header; cross-origin fetches require
             # CORS permission, which this application does not grant.
             if request.headers.get('X-Luigi-Request') != '1' or not request.is_json:
@@ -56,7 +56,7 @@ def install_accounts(app, connect):
         response = jsonify(account)
         response.status_code = status
         response.set_cookie(COOKIE, token, max_age=604800, httponly=True,
-                            secure=os.environ.get('CUSTOMER_COOKIE_SECURE', '1') != '0',
+                            secure=app.config.get('SESSION_COOKIE_SECURE', False),
                             samesite='Lax', path='/')
         return response
 
@@ -78,7 +78,7 @@ def install_accounts(app, connect):
         first_name, last_name = first_name.strip(), last_name.strip()
         if len(email) > 254 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
             return jsonify(error='Enter a valid email address.'), 400
-        if not first_name or not last_name or len(first_name) > 80 or len(last_name) > 80 or len(phone) > 30 or len(re.sub(r'\D', '', phone)) < 10:
+        if not re.fullmatch(r'[A-Za-z ]+', first_name) or not re.fullmatch(r'[A-Za-z ]+', last_name) or len(first_name) > 80 or len(last_name) > 80 or len(phone) > 30 or len(re.sub(r'\D', '', phone)) < 10:
             return jsonify(error='Enter your first and last name and a phone number with at least 10 digits.'), 400
         if not 8 <= len(password) <= 128:
             return jsonify(error='Use a password between 8 and 128 characters.'), 400
@@ -88,6 +88,8 @@ def install_accounts(app, connect):
             cursor = connection.cursor()
             cursor.execute('INSERT INTO customer_accounts (email, full_name, first_name, last_name, phone, password_hash) VALUES (%s, %s, %s, %s, %s, %s)',
                            (email, name, first_name, last_name, phone, password_hash))
+            for receipt in guest_checkout().get('receipts', []):
+                cursor.execute('INSERT IGNORE INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (receipt['id'], email, receipt['token']))
             token = start_session(connection, email)
             connection.commit()
             return session_response(dict(email=email, name=name, firstName=first_name, lastName=last_name, phone=phone), token, 201)
@@ -127,6 +129,8 @@ def install_accounts(app, connect):
             if not customer or not valid:
                 return jsonify(error='Email or password is incorrect.'), 401
             customer.pop('password_hash')
+            for receipt in guest_checkout().get('receipts', []):
+                cursor.execute('INSERT IGNORE INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (receipt['id'], customer['email'], receipt['token']))
             token = start_session(connection, customer['email'])
             connection.commit()
             return session_response(customer, token)
@@ -143,6 +147,7 @@ def install_accounts(app, connect):
             connection.commit()
         finally:
             connection.close()
+        session.pop('checkout_key', None)
         response = jsonify(message='Signed out.')
         response.delete_cookie(COOKIE, path='/')
         return response
