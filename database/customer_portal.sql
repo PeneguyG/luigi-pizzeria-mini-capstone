@@ -260,3 +260,24 @@ CREATE TABLE IF NOT EXISTS staff_users (
   CONSTRAINT chk_staff_users_name CHECK (CHAR_LENGTH(TRIM(full_name)) > 0)
 ) ENGINE=InnoDB;
 
+
+-- Menu specialties and cross-device customer orders.
+CREATE TABLE IF NOT EXISTS menu_settings (
+ setting_key VARCHAR(40) PRIMARY KEY,
+ content TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS customer_drafts (
+ account_email VARCHAR(254) PRIMARY KEY,
+ content TEXT NOT NULL,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS customer_order_receipts (
+ order_id BIGINT UNSIGNED PRIMARY KEY,
+ account_email VARCHAR(254) NOT NULL,
+ tracking_token VARCHAR(43) NOT NULL,
+ INDEX (account_email)
+);
+
+CREATE TABLE IF NOT EXISTS guest_checkouts (checkout_key VARCHAR(43) PRIMARY KEY, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
