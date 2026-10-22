@@ -1,5 +1,5 @@
+import json
 """Flask API and same-origin host for Luigi's employee order dashboard."""
-
 from datetime import datetime, timedelta
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -278,9 +278,26 @@ def required_text(value, label, max_length):
 
         raise ApiError(label + " is too long.")
 
+    if any(ord(character) < 32 for character in value):
+        raise ApiError(label + ' contains invalid control characters.')
     return value
 
+def validate_demo_payment(body):
+    # Expiry metadata is validated and discarded. PAN and CVV never belong here.
+    if body.get('paymentMethod') != 'Demo card' or body.get('paymentLastFour') != '4242':
+        raise ApiError('Complete the demo card details.')
+    month, year = body.get('paymentExpiryMonth'), body.get('paymentExpiryYear')
+    if (not isinstance(month, str) or not re.fullmatch(r'0[1-9]|1[0-2]', month)
+        or not isinstance(year, str) or not re.fullmatch(r'[0-9]{4}', year)):
+        raise ApiError('Use a valid expiry month and four-digit year (MM/YYYY).')
+    now = datetime.now()
+    if (int(year), int(month)) < (now.year, now.month) or int(year) > now.year + 20:
+        raise ApiError('Choose an unexpired card date within the next 20 years.')
+    return '4242'
+
 def normalize_phone_number(value):
+    if not re.fullmatch(r'[0-9+(). \-]+', value):
+        raise ApiError('Use only digits and phone-number punctuation.')
     digits = re.sub(r"\D", "", value)
     if len(digits) == 11 and digits.startswith("1"):
         digits = digits[1:]
@@ -324,6 +341,8 @@ def person_name_parts(body, first_key, last_key, legacy_key, label):
         parts = legacy_name.split(None, 1)
         first_name = parts[0]
         last_name = parts[1] if len(parts) > 1 else ""
+    if not all(re.fullmatch(r"[A-Za-z ]+", part) for part in (first_name, last_name)):
+        raise ApiError(label + " names must use letters and spaces.")
     full_name = " ".join(part for part in (first_name, last_name) if part)
     if len(full_name) > 200:
         raise ApiError(label + " is too long.")
@@ -537,7 +556,7 @@ def prepare_items(raw_items, maximum):
 
     return items, subtotal, tax_amount, subtotal + tax_amount
 
-def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=0):
+def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=15):
     timezone_name = os.environ.get("BUSINESS_TIMEZONE")
 
     try:
@@ -554,6 +573,8 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=0):
         raise ApiError("Pickup date must use YYYY-MM-DD format.")
     else:
         try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value):
+                raise ValueError()
             pickup_date = datetime.strptime(date_value, "%Y-%m-%d").date()
         except ValueError as exc:
             raise ApiError("Pickup date must use YYYY-MM-DD format.") from exc
@@ -562,7 +583,12 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=0):
         raise ApiError("Pickup date cannot be in the past.")
 
     if time_value in (None, ""):
-        return pickup_date, None
+        if pickup_date > now.date():
+            raise ApiError("Choose a pickup time for the selected date.")
+        scheduled = now + timedelta(minutes=15)
+        if scheduled.second or scheduled.microsecond:
+            scheduled = scheduled.replace(second=0, microsecond=0) + timedelta(minutes=1)
+        return scheduled.date(), scheduled.time().replace(tzinfo=None)
     if not isinstance(time_value, str):
         raise ApiError("Pickup time must use HH:MM format.")
     try:
@@ -577,7 +603,7 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=0):
     minimum = now + timedelta(minutes=minimum_buffer_minutes)
     if scheduled < minimum:
         if minimum_buffer_minutes:
-            raise ApiError("For pickup today, choose a time at least 20 minutes from now.")
+            raise ApiError("For pickup today, choose a time at least 15 minutes from now.")
         raise ApiError("Pickup time must be later than the current time.")
 
     return pickup_date, pickup_time
@@ -1460,12 +1486,203 @@ def customer_dashboard():
 @app.after_request
 
 def private_api_response(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
     if request.path.startswith(("/api/", "/employee", "/staff-signin", "/staff-change-password")):
 
         response.headers["Cache-Control"] = "no-store"
 
     return response
+
+def guest_checkout():
+    key = session.get('checkout_key')
+    if not key:
+        return {}
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute('SELECT content FROM guest_checkouts WHERE checkout_key = %s', (key,))
+        row = cursor.fetchone()
+        return json.loads(row['content']) if row else {}
+    finally:
+        connection.close()
+
+@app.before_request
+def validate_customer_payload():
+    if not request.path.startswith('/api/customer/') or request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+        return None
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error='Send a JSON object.'), 400
+    forbidden = {'cardnumber', 'pan', 'cvv', 'cvc', 'cardexpiry', 'carddetails', 'securitycode'}
+    def contains_card_data(value, depth=0):
+        if depth > 12:
+            return True
+        if isinstance(value, dict):
+            return any(re.sub(r'[^a-z]', '', key.lower()) in forbidden or contains_card_data(item, depth + 1) for key, item in value.items())
+        if isinstance(value, list):
+            return any(contains_card_data(item, depth + 1) for item in value)
+        return False
+    if contains_card_data(body):
+        return jsonify(error='Do not send card numbers, security codes, or full card details to this server.'), 400
+    return None
+
+@app.get('/api/customer/signup-details')
+def signup_details():
+    return jsonify(guest_checkout().get('profile', {}))
+
+@app.get('/api/customer/draft')
+def get_customer_draft():
+    account = current_customer_account()
+    if not account:
+        return jsonify(items=[])
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute('SELECT content FROM customer_drafts WHERE account_email = %s', (account['email'],))
+        row = cursor.fetchone()
+        return jsonify(items=json.loads(row['content']) if row else [])
+    finally:
+        connection.close()
+
+@app.put('/api/customer/draft')
+def save_customer_draft():
+    if request.headers.get('X-Luigi-Request') != '1':
+        return jsonify(error='Use the customer website.'), 403
+    account = current_customer_account()
+    if not account:
+        return jsonify(error='Sign in to save a draft across devices.'), 401
+    body = request.get_json(silent=True) or {}
+    items = body.get('items')
+    if not isinstance(items, list):
+        return jsonify(error='Send a list of items.'), 400
+    try:
+        if items:
+            prepared, _, _, _ = prepare_items(items, MAX_CUSTOMER_ORDER_ITEMS)
+            items = [{**item, 'unitPrice': float(item['unitPrice']), 'toppingUnitPrice': float(item['toppingUnitPrice']) if item['toppingUnitPrice'] else None} for item in prepared]
+    except ApiError as exc:
+        return jsonify(error=str(exc)), 400
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute('INSERT INTO customer_drafts (account_email, content) VALUES (%s, %s) ON DUPLICATE KEY UPDATE content = VALUES(content)', (account['email'], json.dumps(items)))
+        connection.commit()
+        return jsonify(saved=True)
+    finally:
+        connection.close()
+
+@app.get('/api/customer/receipts')
+def customer_receipts():
+    account = current_customer_account()
+    if not account:
+        return jsonify(receipts=guest_checkout().get('receipts', []))
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute('SELECT order_id AS id, tracking_token AS token FROM customer_order_receipts WHERE account_email = %s ORDER BY order_id DESC LIMIT 50', (account['email'],))
+        return jsonify(receipts=cursor.fetchall())
+    finally:
+        connection.close()
+
+# Reuse the existing database-backed account module.
+from backend.customer_accounts import install_accounts
+current_customer_account = install_accounts(app, database_connection, guest_checkout)
+
+DEFAULT_SPECIALS = [
+    {"name": "Luigi's Supreme", "description": "Pepperoni, sausage, peppers and onion.", "toppings": ["Pepperoni", "Italian sausage", "Green peppers", "Onion"]},
+    {"name": "Garden Special", "description": "Peppers, onion, olives and tomatoes.", "toppings": ["Green peppers", "Onion", "Black olives", "Diced tomatoes"]},
+    {"name": "Meat Trio", "description": "Pepperoni, Italian sausage and beef.", "toppings": ["Pepperoni", "Italian sausage", "Beef"]},
+    {"name": "Sweet Heat", "description": "Pineapple, jalapenos and pepperoni.", "toppings": ["Pineapple", "Jalapenos", "Pepperoni"]},
+]
+
+def load_specials():
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT content FROM menu_settings WHERE setting_key = 'specials'")
+        row = cursor.fetchone()
+        return json.loads(row["content"]) if row else DEFAULT_SPECIALS
+    finally:
+        connection.close()
+
+def rank_favorite_pizzas(items):
+    """Count pizzas by size and exact topping servings; use current menu prices."""
+    favorites = {}
+    for item in items:
+        toppings = sorted(item['toppings'], key=lambda topping: topping['name'])
+        key = (item['pizzaSize'], tuple((t['name'], t['quantity']) for t in toppings))
+        try:
+            prepared, _, _, _ = prepare_items([dict(type='Pizza', pizzaSize=item['pizzaSize'], quantity=1, toppings=toppings)], 20)
+        except ApiError:
+            continue  # Do not offer a recipe that is no longer on the menu.
+        if key not in favorites:
+            pizza = prepared[0]
+            favorites[key] = dict(type='Pizza', name=pizza['name'], pizzaSize=pizza['pizzaSize'],
+                                  toppings=toppings, quantity=1, unitPrice=float(pizza['unitPrice']),
+                                  orderedCount=0, lastOrdered=0)
+        favorites[key]['orderedCount'] += item['quantity']
+        favorites[key]['lastOrdered'] = max(favorites[key]['lastOrdered'], item['lastOrdered'])
+    return sorted(favorites.values(), key=lambda pizza: (-pizza['orderedCount'], -pizza['lastOrdered'], pizza['name']))[:4]
+
+@app.get('/api/customer/favorites')
+def customer_favorites():
+    account = current_customer_account()
+    if not account:
+        return jsonify(favorites=[], signedIn=False)
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""SELECT oi.order_item_id AS itemId, oi.order_id AS orderId,
+                oi.pizza_size AS pizzaSize, oi.quantity,
+                t.topping_name AS toppingName, oit.quantity AS toppingQuantity
+            FROM customer_order_receipts AS receipt
+            JOIN order_items AS oi ON oi.order_id = receipt.order_id AND oi.item_type = 'Pizza'
+            LEFT JOIN order_item_toppings AS oit ON oit.order_item_id = oi.order_item_id
+            LEFT JOIN toppings AS t ON t.topping_id = oit.topping_id
+            WHERE receipt.account_email = %s
+            ORDER BY oi.order_id DESC, oi.order_item_id, t.topping_name""", (account['email'],))
+        items = {}
+        for row in cursor.fetchall():
+            item = items.setdefault(row['itemId'], dict(pizzaSize=row['pizzaSize'], quantity=int(row['quantity']),
+                                                       lastOrdered=int(row['orderId']), toppings=[]))
+            if row['toppingName']:
+                item['toppings'].append(dict(name=row['toppingName'], quantity=int(row['toppingQuantity'])))
+        return jsonify(favorites=rank_favorite_pizzas(items.values()), signedIn=True)
+    finally:
+        connection.close()
+
+@app.get('/api/customer/specials')
+def customer_specials():
+    return jsonify(specials=load_specials())
+
+@app.put('/api/staff/specials')
+@staff_required
+@roles_required('manager', 'owner')
+@csrf_required
+def update_specials():
+    body = request.get_json(silent=True) or {}
+    specials = body.get('specials')
+    if not isinstance(specials, list) or not 1 <= len(specials) <= 12:
+        return jsonify(error='Provide between 1 and 12 specialties.'), 400
+    for item in specials:
+        if (not isinstance(item, dict) or not isinstance(item.get('name'), str)
+            or not item['name'].strip() or len(item['name']) > 80
+            or not isinstance(item.get('description'), str) or len(item['description']) > 300
+            or not isinstance(item.get('toppings'), list)
+            or any(not isinstance(t, str) or t not in ALLOWED_TOPPINGS for t in item['toppings'])
+            or len(set(item['toppings'])) != len(item['toppings'])):
+            return jsonify(error='Check specialty names, descriptions and available toppings.'), 400
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("INSERT INTO menu_settings (setting_key, content) VALUES ('specials', %s) ON DUPLICATE KEY UPDATE content = VALUES(content)", (json.dumps(specials),))
+        connection.commit()
+        return jsonify(specials=specials)
+    finally:
+        connection.close()
 
 @app.get("/api/customer/menu")
 
@@ -1587,6 +1804,9 @@ def create_order():
 
         is_customer = request.path == "/api/customer/orders"
         maximum_order_items = MAX_CUSTOMER_ORDER_ITEMS if is_customer else MAX_EMPLOYEE_ORDER_ITEMS
+        items, subtotal, tax_amount, total = prepare_items(body.get("items"), maximum_order_items)
+        if is_customer and not any(item["type"] == "Pizza" for item in items):
+            raise ApiError("Add at least one pizza before continuing to payment.")
 
         if not is_customer:
             try:
@@ -1611,6 +1831,11 @@ def create_order():
 
                 return jsonify({"error": "The request security token is missing or expired.", "code": "csrf_failed"}), 400
 
+        if is_customer:
+            account = current_customer_account()
+            if account:
+                body.update(customerFirstName=account["firstName"], customerLastName=account["lastName"],
+                            customerPhone=account["phone"], customerEmail=account["email"])
         source = "Customer portal" if is_customer else "Employee POS"
 
         tracking_token = secrets.token_urlsafe(32) if is_customer else None
@@ -1631,25 +1856,8 @@ def create_order():
 
                 raise ApiError("Enter a valid email address.")
 
-            payment_method = body.get("paymentMethod")
-
-            if payment_method != "Demo card":
-
-                raise ApiError("Card information is required for online orders. Pay at pickup is not available.")
-
-            # Raw card data must never be sent to or stored by this app.
-
-            if any(key in body for key in ("cardNumber", "cvv", "cvc", "cardExpiry", "cardDetails")):
-
-                raise ApiError("Do not send card details to this server. Card payments are a demonstration only.")
-
-            if payment_method == "Demo card":
-
-                payment_last_four = body.get("paymentLastFour")
-
-                if not isinstance(payment_last_four, str) or payment_last_four != "4242":
-
-                    raise ApiError("Complete the demo card details.")
+            payment_method = 'Demo card'
+            payment_last_four = validate_demo_payment(body)
 
         customer_first_name, customer_last_name, customer_name = person_name_parts(
             body, "customerFirstName", "customerLastName", "customerName", "Customer"
@@ -1665,7 +1873,7 @@ def create_order():
 
         pickup_date, pickup_time = pickup_schedule_values(
             body.get("pickupDate"), body.get("pickupTime"),
-            minimum_buffer_minutes=20 if not is_customer else 0,
+            minimum_buffer_minutes=15,
         )
 
         notes = body.get("notes", "")
@@ -1674,7 +1882,7 @@ def create_order():
 
             raise ApiError("Order notes must be text no longer than 4000 characters.")
 
-        items, subtotal, tax_amount, total = prepare_items(body.get("items"), maximum_order_items)
+
 
         connection = database_connection()
 
@@ -1762,6 +1970,18 @@ def create_order():
 
                     )
 
+            if is_customer:
+                profile = dict(firstName=customer_first_name, lastName=customer_last_name, phone=customer_phone, email=customer_email)
+                checkout_key = session.setdefault('checkout_key', secrets.token_urlsafe(32))
+                cursor.execute('SELECT content FROM guest_checkouts WHERE checkout_key = %s', (checkout_key,))
+                previous = cursor.fetchone()
+                receipts = json.loads(previous['content']).get('receipts', []) if previous else []
+                content = dict(profile=profile, receipts=[dict(id=int(order_id), token=tracking_token)] + receipts[:9])
+                cursor.execute('INSERT INTO guest_checkouts (checkout_key, content) VALUES (%s, %s) ON DUPLICATE KEY UPDATE content = VALUES(content)', (checkout_key, json.dumps(content)))
+                account = current_customer_account()
+                if account:
+                    cursor.execute('INSERT INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (order_id, account['email'], tracking_token))
+                    cursor.execute('DELETE FROM customer_drafts WHERE account_email = %s', (account['email'],))
             connection.commit()
 
         except Exception:
@@ -1832,7 +2052,8 @@ def create_order():
 
             "notes": notes,
 
-            "pickupTime": body.get("pickupTime", ""),
+            "pickupTime": pickup_time.strftime("%H:%M") if pickup_time else "",
+            "pickupDate": pickup_date.isoformat(),
 
             "status": "Confirmed",
 
