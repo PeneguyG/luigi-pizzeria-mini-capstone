@@ -1,0 +1,166 @@
+'use strict';
+
+const trackerElement = function (id) { return document.getElementById(id); };
+let refreshTimer = null;
+let currentOrder = null;
+let signedInAccount = null;
+let refreshRunning = false;
+
+function safeText(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
+function formatMoney(value) { return '$' + Number(value || 0).toFixed(2); }
+function announceTracker(message) { trackerElement('tracker-announcement').textContent = message; }
+function showTrackerError(message) {
+  const box = trackerElement('tracker-error');
+  box.textContent = message;
+  box.hidden = !message;
+  if (message) box.focus();
+}
+async function trackerRequest(path, options) {
+  const config = Object.assign({cache: 'no-store', credentials: 'same-origin'}, options || {});
+  const method = String(config.method || 'GET').toUpperCase();
+  if (path.indexOf('/api/customer/') === 0 && !['GET','HEAD','OPTIONS'].includes(method)) {
+    config.headers = Object.assign({}, config.headers || {}, {'X-Luigi-Request':'1'});
+  }
+  const response = await fetch(path, config);
+  let data;
+  try { data = await response.json(); } catch (_error) { throw new Error('The tracking service returned an unexpected response.'); }
+  if (!response.ok) throw new Error(data.error || 'We could not load order tracking.');
+  return data;
+}
+function itemsMarkup(items) {
+  return (items || []).map(function (item) {
+    const description = item.type === 'Pizza' && item.toppings && item.toppings.length
+      ? item.toppings.map(function (topping) { return Number(topping.quantity) + '× ' + topping.name; }).join(', ')
+      : (item.description || '');
+    return '<div class="border-bottom py-3"><div class="d-flex justify-content-between gap-2"><strong>' + Number(item.quantity) + ' × ' + safeText(item.name) + '</strong><span>' + formatMoney(Number(item.quantity) * Number(item.unitPrice)) + '</span></div><p class="small text-secondary mb-0 mt-1">' + safeText(description) + '</p></div>';
+  }).join('') || '<p class="text-secondary">No order items are available.</p>';
+}
+function renderOrder(order, authenticated) {
+  currentOrder = order;
+  trackerElement('order-result').hidden = false;
+  trackerElement('order-result-heading').textContent = 'Order #' + order.id + ' · Thanks, ' + order.customerName + '!';
+  trackerElement('order-pickup').textContent = 'Pickup at Luigi’s Pizzeria' + (order.pickupTime ? ' · Requested time: ' + order.pickupTime : ' · Next available pickup');
+  const statusName = order.status === 'In-Progress' ? 'In the kitchen' : order.status === 'Completed' ? 'Picked up' : order.status;
+  trackerElement('order-status').textContent = statusName;
+  const steps = ['Confirmed','In-Progress','Ready','Completed'];
+  const labels = ['Order received','In the kitchen','Ready for pickup','Picked up'];
+  const current = order.status === 'Overdue' ? 1 : steps.indexOf(order.status);
+  trackerElement('order-steps').innerHTML = steps.map(function (_status, index) {
+    return '<li class="' + (index < current ? 'done' : index === current ? 'current' : '') + '"' + (index === current ? ' aria-current="step"' : '') + '><span class="dot" aria-hidden="true">' + (index < current ? '✓' : index + 1) + '</span><span class="visually-hidden">' + (index < current ? 'Completed: ' : index === current ? 'Current step: ' : 'Upcoming: ') + '</span>' + labels[index] + '</li>';
+  }).join('');
+  const messages = {
+    'Confirmed':'Your order is confirmed. Our team will start preparing it soon.',
+    'In-Progress':'Our kitchen is preparing your order.',
+    'Ready':'Your order is ready. Please give the team your name and order number at pickup.',
+    'Overdue':'Your order is taking longer than expected. The team is working on it.',
+    'Completed':'Your order has been picked up. Thanks for choosing Luigi’s!'
+  };
+  trackerElement('order-status-message').textContent = messages[order.status] || 'Order status loaded.';
+  trackerElement('order-items').innerHTML = itemsMarkup(order.items);
+  const payment = order.paymentMethod === 'Demo card' ? 'Demo card ending ' + (order.paymentLastFour || '—') + ' (no real payment processed).' : 'Pay at pickup.';
+  trackerElement('order-details').innerHTML = '<p>' + safeText(order.customerName) + '<br>' + safeText(order.customerPhone) + (order.customerEmail ? '<br>' + safeText(order.customerEmail) : '') + '</p><p>' + safeText(payment) + '</p><strong>Total: ' + formatMoney(order.totalPrice) + '</strong>' + (order.notes ? '<p class="mt-2">Notes: ' + safeText(order.notes) + '</p>' : '');
+  trackerElement('last-checked').textContent = 'Last checked ' + new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  if (!authenticated && order.customerEmail) {
+    trackerElement('express-account-card').hidden = false;
+    trackerElement('express-account-form').dataset.email = order.customerEmail;
+    trackerElement('express-account-form').dataset.firstName = order.customerFirstName || '';
+    trackerElement('express-account-form').dataset.lastName = order.customerLastName || '';
+    trackerElement('express-account-form').dataset.phone = order.customerPhone || '';
+  } else {
+    trackerElement('express-account-card').hidden = true;
+  }
+  announceTracker('Order ' + order.id + ' status: ' + statusName + '.');
+}
+async function loadGuestOrder(orderNumber, phone, quiet) {
+  if (!quiet) showTrackerError('');
+  try {
+    const result = await trackerRequest('/api/customer/track', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:orderNumber,phone:phone})});
+    renderOrder(result, false);
+    trackerElement('order-result-heading').focus();
+    return result;
+  } catch (error) {
+    if (!quiet) showTrackerError(error.message);
+    throw error;
+  }
+}
+async function refreshAuthenticatedOrders() {
+  if (!signedInAccount || refreshRunning) return;
+  refreshRunning = true;
+  try {
+    const receipts = await trackerRequest('/api/customer/receipts');
+    const results = await Promise.all((receipts.receipts || []).map(async function (receipt) {
+      try { return await trackerRequest('/api/customer/orders/' + receipt.id, {headers:{'X-Order-Token':receipt.token}}); }
+      catch (_error) { return null; }
+    }));
+    const active = results.filter(function (order) { return order && order.status !== 'Completed'; });
+    const list = trackerElement('active-orders-list');
+    trackerElement('active-orders-section').hidden = false;
+    if (!active.length) {
+      list.innerHTML = '<p class="text-secondary mb-0">You have no active orders right now.</p>';
+    } else {
+      list.innerHTML = active.map(function (order) {
+        return '<article class="border-top py-3"><div class="d-flex flex-wrap justify-content-between gap-2"><h3 class="h5">Order #' + order.id + '</h3><span class="badge rounded-pill soft-green align-self-start">' + safeText(order.status === 'In-Progress' ? 'In the kitchen' : order.status) + '</span></div><p class="text-secondary">' + safeText(order.customerName) + (order.pickupTime ? ' · Pickup ' + safeText(order.pickupTime) : '') + '</p><div>' + itemsMarkup(order.items) + '</div><strong>Total: ' + formatMoney(order.totalPrice) + '</strong></article>';
+      }).join('');
+    }
+    const latestOrder = results.find(function (order) { return Boolean(order); });
+    if (latestOrder) renderOrder(latestOrder, true);
+  } catch (error) { showTrackerError(error.message); }
+  finally { refreshRunning = false; }
+}
+async function refreshGuestOrder() {
+  if (!currentOrder || signedInAccount || document.hidden) return;
+  try { await loadGuestOrder(currentOrder.id, trackerElement('lookup-phone').value, true); }
+  catch (_error) { /* Keep the last confirmed status visible during a temporary connection issue. */ }
+}
+trackerElement('guest-tracker-form').addEventListener('submit', async function (event) {
+  event.preventDefault();
+  const submit = trackerElement('guest-lookup-submit');
+  submit.disabled = true;
+  submit.textContent = 'Checking…';
+  try {
+    const order = await loadGuestOrder(trackerElement('order-number').value.trim(), trackerElement('lookup-phone').value.trim(), false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('order', order.id);
+    window.history.replaceState({}, '', url);
+    clearTimeout(refreshTimer);
+    if (order.status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
+  } catch (_error) { /* The accessible error is rendered by loadGuestOrder. */ }
+  finally { submit.disabled = false; submit.textContent = 'Find order'; }
+});
+trackerElement('refresh-active-orders').addEventListener('click', refreshAuthenticatedOrders);
+trackerElement('express-account-form').addEventListener('submit', async function (event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+  const button = trackerElement('express-account-submit');
+  const error = trackerElement('express-account-error');
+  error.hidden = true;
+  button.disabled = true;
+  try {
+    const account = await trackerRequest('/api/customer/signup', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName:form.dataset.firstName,lastName:form.dataset.lastName,phone:form.dataset.phone,email:form.dataset.email,password:trackerElement('express-account-password').value})});
+    form.hidden = true;
+    trackerElement('express-account-status').textContent = 'Account created for ' + account.email + '. Your verified orders are linked to the account.';
+    signedInAccount = account;
+    refreshAuthenticatedOrders();
+  } catch (error) {
+    trackerElement('express-account-error').textContent = error.message;
+    trackerElement('express-account-error').hidden = false;
+  } finally { button.disabled = false; }
+});
+async function initializeTracker() {
+  const requestedOrder = new URLSearchParams(window.location.search).get('order');
+  if (requestedOrder && /^\d+$/.test(requestedOrder)) trackerElement('order-number').value = requestedOrder;
+  try {
+    const account = await trackerRequest('/api/customer/account');
+    signedInAccount = account.customer;
+    if (signedInAccount) {
+      trackerElement('guest-lookup').hidden = true;
+      trackerElement('active-orders-section').hidden = false;
+      await refreshAuthenticatedOrders();
+      refreshTimer = setInterval(refreshAuthenticatedOrders, 10000);
+      return;
+    }
+  } catch (_error) { /* Guest tracking remains available without an account session. */ }
+  if (requestedOrder && /^\d+$/.test(requestedOrder)) trackerElement('lookup-phone').focus();
+}
+initializeTracker();
