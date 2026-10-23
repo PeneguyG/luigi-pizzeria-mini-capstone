@@ -22,27 +22,7 @@ let cart = [];
 
 let menuReady = false;
 
-let savedOrders = [];
-
-let selectedOrder = null;
-
-let pollTimer = null;
-
-let trackingBusy = false;
-
 let sendingOrder = false;
-
-let lastAnnouncedStatus = '';
-
-let updatesPaused = false;
-
-let lastRenderedOrder = '';
-
-let trackingOffline = false;
-
-let lastCheckoutCustomer = null;
-
-let customerAccountExists = false;
 
 function element(id) { return document.getElementById(id); }
 
@@ -106,7 +86,7 @@ function showView(view) {
 
   element('storefront-welcome').hidden = view !== 'menu';
 
-  ['menu', 'checkout', 'tracker'].forEach(function (name) {
+  ['menu', 'checkout'].forEach(function (name) {
 
     const active = name === view;
 
@@ -122,7 +102,6 @@ function showView(view) {
 
   if (view === 'checkout') renderCart();
 
-  if (view === 'tracker') refreshTracker();
 
   return true;
 
@@ -141,140 +120,100 @@ function unlockStep(view) {
 }
 
 function renderToppings() {
-
-  element('topping-options').innerHTML = menu.toppings.map(function (name, index) {
-
-    return '<div class="col"><label class="form-label small mb-1" for="topping-' + index + '">' + escapeHTML(name) + '</label><input id="topping-' + index + '" class="form-control form-control-sm topping" type="number" min="0" max="3" step="1" value="0" data-name="' + escapeHTML(name) + '" aria-label="' + escapeHTML(name) + ' servings per pizza, 0 to 3"></div>';
-
+  const categories = [
+    {name: 'Meats', id: 'meats', toppings: ['Pepperoni', 'Italian sausage', 'Beef']},
+    {name: 'Vegetables', id: 'vegetables', toppings: ['Green peppers', 'Jalapenos', 'Onion', 'Black olives', 'Diced tomatoes']},
+    {name: 'Fruit', id: 'fruit', toppings: ['Pineapple']}
+  ];
+  let inputIndex = 0;
+  element('topping-options').innerHTML = categories.map(function (category) {
+    const available = category.toppings.filter(function (name) { return menu.toppings.includes(name); });
+    if (!available.length) return '';
+    const controls = available.map(function (name) {
+      const index = inputIndex++;
+      return '<div class="col-sm-6 col-xl-4"><button id="topping-' + index + '" class="btn btn-outline-danger w-100 d-flex justify-content-between align-items-center topping" type="button" data-name="' + escapeHTML(name) + '" data-count="0" aria-label="Add one serving of ' + escapeHTML(name) + '" aria-describedby="topping-count-' + index + '">' + escapeHTML(name) + '<span id="topping-count-' + index + '" class="badge rounded-pill soft-green" aria-live="polite" aria-atomic="true">0x</span></button></div>';
+    }).join('');
+    return '<section class="col-12" aria-labelledby="topping-category-' + category.id + '"><h4 class="h6 mb-2" id="topping-category-' + category.id + '">' + category.name + '</h4><div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3">' + controls + '</div></section>';
   }).join('');
-
+  element('pizza-form').reset();
+  updatePizzaEstimate();
+  renderCart();
 }
 
 function currentPizzaPrice() {
-
   const size = element('pizza-size').value;
-
   let servings = 0;
-
-  document.querySelectorAll('.topping').forEach(function (input) { servings += Number(input.value) || 0; });
-
+  document.querySelectorAll('.topping').forEach(function (button) { servings += Number(button.dataset.count) || 0; });
   return menu.pizzas[size].base + servings * menu.pizzas[size].topping;
-
 }
 
 function updatePizzaEstimate() {
-
   const size = element('pizza-size').value;
-
   element('pizza-estimate').textContent = money(currentPizzaPrice());
-
   element('topping-price').textContent = money(menu.pizzas[size].topping) + ' per serving for ' + size.toLowerCase() + '.';
-
 }
 
 function totals(items) {
-
   const subtotalCents = items.reduce(function (sum, item) { return sum + Math.round(item.unitPrice * 100) * item.quantity; }, 0);
-
   const taxCents = Math.round(subtotalCents * menu.taxRate);
-
   return {subtotal: subtotalCents / 100, tax: taxCents / 100, total: (subtotalCents + taxCents) / 100};
-
 }
 
 function getCartItemCount() {
-
   return cart.reduce(function (sum, item) { return sum + item.quantity; }, 0);
-
 }
 
 function clearCartLimitError() {
-
   const error = element('cart-limit-error');
-
   error.textContent = '';
-
   error.hidden = true;
-
-  ['pizza-quantity', 'drink-quantity'].forEach(function (id) {
-
-    element(id).setAttribute('aria-describedby', 'order-limit-help');
-
-  });
-
+  ['pizza-quantity', 'drink-quantity'].forEach(function (id) { element(id).setAttribute('aria-describedby', 'order-limit-help'); });
 }
 
 function canAddToCart(quantity, input) {
-
   const currentCount = getCartItemCount();
-
-  if (currentCount + quantity <= MAX_ORDER_ITEMS) {
-
-    clearCartLimitError();
-
-    return true;
-
-  }
-
+  if (currentCount + quantity <= MAX_ORDER_ITEMS) { clearCartLimitError(); return true; }
   const remaining = Math.max(0, MAX_ORDER_ITEMS - currentCount);
-
   const error = element('cart-limit-error');
-
-  error.textContent = 'An order can contain up to ' + MAX_ORDER_ITEMS + ' total items. There are ' + currentCount +
-    ' already in your order, so you can add at most ' + remaining + ' more.';
-
+  error.textContent = 'An order can contain up to ' + MAX_ORDER_ITEMS + ' total items. There are ' + currentCount + ' already in your order, so you can add at most ' + remaining + ' more.';
   error.hidden = false;
-
   input.setAttribute('aria-describedby', 'order-limit-help cart-limit-error');
-
   input.focus();
-
   return false;
-
 }
 
 function totalsHTML(items) {
-
   const prices = totals(items);
-
   return '<div class="border-top pt-3 mt-3"><div class="d-flex justify-content-between mb-2"><span>Subtotal</span><span>' + money(prices.subtotal) + '</span></div><div class="d-flex justify-content-between small text-secondary mb-3"><span>Tax (' + (menu.taxRate * 100).toFixed(2) + '%)</span><span>' + money(prices.tax) + '</span></div><div class="d-flex justify-content-between fw-semibold"><span>Total</span><span>' + money(prices.total) + '</span></div></div>';
-
 }
 
 function itemsHTML(items, removable) {
-
   return items.map(function (item, index) {
-
     let description = item.description || '';
-
-    if (item.type === 'Pizza' && item.toppings) {
-
-      description = item.toppings.map(function (topping) { return topping.quantity + '× ' + topping.name; }).join(', ') || 'Cheese and marinara';
-
-    }
-
+    if (item.type === 'Pizza' && item.toppings) description = item.toppings.map(function (topping) { return topping.quantity + '× ' + topping.name; }).join(', ') || 'Cheese and marinara';
     return '<div class="border-bottom py-3"><div class="d-flex justify-content-between gap-2"><strong class="small">' + item.quantity + ' × ' + escapeHTML(item.name) + '</strong><span class="small text-nowrap">' + money(item.quantity * item.unitPrice) + '</span></div><p class="small text-secondary mb-0 mt-1">' + escapeHTML(description) + '</p>' + (removable ? '<button class="btn btn-link btn-sm text-danger p-0 mt-1" type="button" data-remove="' + index + '" aria-label="Remove ' + escapeHTML(item.name) + '">Remove</button>' : '') + '</div>';
-
   }).join('');
-
 }
 
 function renderCart() {
-
   element('cart-count').textContent = getCartItemCount() + ' of ' + MAX_ORDER_ITEMS + ' items';
-
   element('cart-items').innerHTML = cart.length ? itemsHTML(cart, true) : '<p class="text-secondary py-3">Your cart is waiting for something delicious. Add a pizza or drink to get started.</p>';
-
   element('cart-totals').innerHTML = totalsHTML(cart);
-
   element('checkout-items').innerHTML = cart.length ? itemsHTML(cart, false) : '<p class="text-secondary">Your cart is empty. Return to the menu to add something.</p>';
-
   element('checkout-totals').innerHTML = totalsHTML(cart);
-
   element('go-checkout').disabled = !cart.length || !menuReady;
-
   element('place-order').disabled = !cart.length || !menuReady || sendingOrder;
+}
 
+function setToppingCount(button, count) {
+  const servings = Math.max(0, Math.min(3, Number(count) || 0));
+  button.dataset.count = String(servings);
+  button.querySelector('.badge').textContent = servings + 'x';
+  button.setAttribute('aria-label', servings >= 3 ? button.dataset.name + ', maximum 3 servings selected' : 'Add one serving of ' + button.dataset.name + (servings ? ', ' + servings + ' selected' : ''));
+}
+
+function resetToppingButtons() {
+  document.querySelectorAll('.topping').forEach(function (button) { setToppingCount(button, 0); });
 }
 
 function addPizza(event) {
@@ -289,7 +228,7 @@ function addPizza(event) {
 
   document.querySelectorAll('.topping').forEach(function (input) {
 
-    if (Number(input.value) > 0) toppings.push({name: input.dataset.name, quantity: Number(input.value)});
+    if (Number(input.dataset.count) > 0) toppings.push({name: input.dataset.name, quantity: Number(input.dataset.count)});
 
   });
 
@@ -300,6 +239,8 @@ function addPizza(event) {
   cart.push({type: 'Pizza', name: size + ' pizza', pizzaSize: size, quantity: quantity, toppings: toppings, unitPrice: currentPizzaPrice()});
 
   element('pizza-form').reset();
+
+  resetToppingButtons();
 
   updatePizzaEstimate();
 
@@ -351,9 +292,14 @@ function clearCheckoutErrors() {
 
     element(id).removeAttribute('aria-invalid');
 
+    element(id).classList.remove('is-invalid');
+
     element(id).setAttribute('aria-describedby', 'card-help');
 
   });
+
+  element('card-expiry').setAttribute('aria-describedby', 'card-help card-expiry-error');
+  element('card-expiry-error').textContent = 'Enter a valid future expiration date as MM / YYYY.';
 
 }
 
@@ -371,7 +317,10 @@ function showCheckoutError(error) {
 
     input.setAttribute('aria-invalid', 'true');
 
-    input.setAttribute('aria-describedby', 'card-help checkout-error');
+    input.classList.add('is-invalid');
+
+    input.setAttribute('aria-describedby', error.fieldId === 'card-expiry' ? 'card-help card-expiry-error checkout-error' : 'card-help checkout-error');
+    if (error.fieldId === 'card-expiry') element('card-expiry-error').textContent = error.message;
 
     input.focus();
 
@@ -383,242 +332,44 @@ function showCheckoutError(error) {
 
 }
 
-function updateTrackerConnection() {
-
-  element('tracker-connection').textContent = 'Last checked ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', second: '2-digit'}) + (updatesPaused ? ' · Automatic updates paused. Use Refresh status to check manually.' : element('tracked-status').textContent === 'Picked up' ? ' · Order complete.' : ' · Updates every 5 seconds.');
-
-}
-
-function toggleAutomaticUpdates() {
-
-  updatesPaused = !updatesPaused;
-
-  clearTimeout(pollTimer);
-
-  element('toggle-updates').setAttribute('aria-pressed', String(updatesPaused));
-
-  element('toggle-updates').textContent = updatesPaused ? 'Resume automatic updates' : 'Pause automatic updates';
-
-  announce(updatesPaused ? 'Automatic order updates paused. You can still refresh manually.' : 'Automatic order updates resumed.');
-
-  updateTrackerConnection();
-
-  if (!updatesPaused) refreshTracker();
-
+function validateExpiry() {
+  const digits = element('card-expiry').value.replace(/\D/g, '');
+  const match = /^(0[1-9]|1[0-2])(\d{4})$/.exec(digits);
+  if (!match) throw cardError('Enter all 6 expiry digits as MM / YYYY.', 'card-expiry');
+  const now = new Date();
+  const year = Number(match[2]);
+  const month = Number(match[1]);
+  if (year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)) {
+    throw cardError('The expiration date entered has passed.', 'card-expiry');
+  }
+  if (year > now.getFullYear() + 20) throw cardError('Choose an expiration date within the next 20 years.', 'card-expiry');
+  return {month: match[1], year: match[2]};
 }
 
 function demoCardLastFour() {
-
   if (!element('card-name').value.trim()) throw cardError('Enter the name on the demo card.', 'card-name');
-
   const number = element('card-number').value.replace(/\s/g, '');
-
   if (number !== '4242424242424242') throw cardError('Use the demo number 4242 4242 4242 4242. Do not enter a real card.', 'card-number');
-
-  const match = /^(0[1-9]|1[0-2])\/(\d{2})$/.exec(element('card-expiry').value);
-
-  if (!match) throw cardError('Enter the demo expiry as MM/YY.', 'card-expiry');
-
-  const now = new Date();
-
-  const year = 2000 + Number(match[2]);
-
-  const month = Number(match[1]);
-
-  if (year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)) throw cardError('Choose a demo expiry that has not passed.', 'card-expiry');
-
+  validateExpiry();
   if (!/^\d{3}$/.test(element('card-cvv').value)) throw cardError('Enter a 3-digit demo security code.', 'card-cvv');
-
   return number.slice(-4);
-
 }
 
-function readReceipts() {
-
-  try {
-
-    const stored = JSON.parse(localStorage.getItem('luigi-order-receipts') || '[]');
-
-    savedOrders = Array.isArray(stored) ? stored.filter(function (item) { return Number.isSafeInteger(item.id) && item.id > 0 && typeof item.token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(item.token); }).slice(0, 10) : [];
-
-  } catch (_error) { savedOrders = []; }
-
-  selectedOrder = savedOrders[0] || null;
-
-  renderReceipts();
-
+function maskExpiryInput() {
+  const input = element('card-expiry');
+  const digits = input.value.replace(/\D/g, '').slice(0, 6);
+  input.value = digits.length > 2 ? digits.slice(0, 2) + ' / ' + digits.slice(2) : digits;
+  input.classList.remove('is-invalid');
+  input.removeAttribute('aria-invalid');
+  element('card-expiry-error').textContent = 'Enter a valid future expiration date as MM / YYYY.';
 }
 
-function prefillSignedInCustomer() {
-
-  try {
-
-    const email = localStorage.getItem('luigis_customer_session');
-
-    const customers = JSON.parse(localStorage.getItem('luigis_customers') || '[]');
-
-    const customer = Array.isArray(customers) ? customers.find(function (record) {
-
-      return record && typeof record.email === 'string' && record.email.toLowerCase() === String(email || '').toLowerCase();
-
-    }) : null;
-
-    if (!customer) return;
-
-    const legacyNameParts = String(customer.name || '').trim().split(/\s+/);
-    const firstName = customer.firstName || legacyNameParts.shift() || '';
-    const lastName = customer.lastName || legacyNameParts.join(' ');
-
-    if (firstName && !element('customer-first-name').value) element('customer-first-name').value = firstName;
-
-    if (lastName && !element('customer-last-name').value) element('customer-last-name').value = lastName;
-
-    if (customer.phone && !element('customer-phone').value) element('customer-phone').value = customer.phone;
-
-    if (customer.email && !element('customer-email').value) element('customer-email').value = customer.email;
-
-  } catch (_error) {
-
-    // Guest ordering remains available when browser storage is disabled.
-
-  }
-
-}
-
-function rememberOrder(order) {
-
-  selectedOrder = {id: order.id, token: order.trackingToken};
-
-  savedOrders = [selectedOrder].concat(savedOrders.filter(function (saved) { return saved.id !== order.id; })).slice(0, 10);
-
-  try { localStorage.setItem('luigi-order-receipts', JSON.stringify(savedOrders)); }
-
-  catch (_error) { showMessage('Your browser could not save this receipt. Keep this tab open to track the order.'); }
-
-  renderReceipts();
-
-}
-
-function renderReceipts() {
-
-  element('saved-order-wrap').hidden = !savedOrders.length;
-
-  element('saved-order').innerHTML = savedOrders.map(function (saved) { return '<option value="' + saved.id + '"' + (selectedOrder && selectedOrder.id === saved.id ? ' selected' : '') + '>Order #' + saved.id + '</option>'; }).join('');
-
-}
-
-function renderTrackedOrder(order) {
-
-  const signature = JSON.stringify(order);
-
-  if (lastRenderedOrder === signature) { updateTrackerConnection(); return; }
-
-  lastRenderedOrder = signature;
-
-  element('tracker-empty').hidden = true;
-
-  element('tracker-order').hidden = false;
-
-  element('tracked-title').textContent = 'Order #' + order.id + ' · Thanks, ' + order.customerName + '!';
-
-  element('tracked-pickup').textContent = 'Pickup at Luigi\'s Pizzeria · ' + (order.pickupTime ? 'Requested time: ' + order.pickupTime : 'Next available pickup');
-
-  element('tracked-status').textContent = order.status === 'In-Progress' ? 'In the kitchen' : order.status === 'Completed' ? 'Picked up' : order.status;
-
-  const steps = ['Confirmed', 'In-Progress', 'Ready', 'Completed'];
-
-  const labels = ['Order received', 'In the kitchen', 'Ready for pickup', 'Picked up'];
-
-  const current = order.status === 'Overdue' ? 1 : steps.indexOf(order.status);
-
-  element('tracker-steps').innerHTML = steps.map(function (status, index) {
-
-    return '<li class="' + (index < current ? 'done' : index === current ? 'current' : '') + '"' + (index === current ? ' aria-current="step"' : '') + '><span class="dot" aria-hidden="true">' + (index < current ? '✓' : index + 1) + '</span>' + '<span class="visually-hidden">' + (index < current ? 'Completed: ' : index === current ? 'Current step: ' : 'Upcoming: ') + '</span>' + labels[index] + '</li>';
-
-  }).join('');
-
-  const messages = {
-
-    'Confirmed': 'Your order is in! Our team has received it and will start preparing it soon.',
-
-    'In-Progress': 'Our kitchen is working on your order. We will show you when it is ready.',
-
-    'Ready': 'Your order is ready. Come to the pickup counter and give the team your name and order number.',
-
-    'Overdue': 'Your order is taking longer than expected. The team is working on it. Please contact the restaurant if you need help.',
-
-    'Completed': 'Your order has been collected. Thanks for ordering from Luigi\'s!'
-
-  };
-
-  element('tracker-status-message').textContent = messages[order.status] || 'Checking your order status.';
-
-  element('tracked-items').innerHTML = itemsHTML(order.items || [], false);
-
-  const payment = order.paymentMethod === 'Demo card' ? 'Demo card ending ' + (order.paymentLastFour || '4242') + ' — demonstration complete; no real payment processed.' : 'Pay at pickup — payment due when collected.';
-
-  element('tracked-details').innerHTML = '<p class="mb-2">' + escapeHTML(order.customerName) + '<br>' + escapeHTML(order.customerPhone) + '<br>' + escapeHTML(order.customerEmail) + '</p><p class="mb-2">' + escapeHTML(payment) + '</p><strong>Total: ' + money(order.totalPrice) + '</strong>' + (order.notes ? '<p class="mt-2 mb-0">Notes: ' + escapeHTML(order.notes) + '</p>' : '');
-
-  element('tracking-badge').hidden = order.status === 'Completed';
-
-  updateTrackerConnection();
-
-  if (lastAnnouncedStatus !== String(order.id) + order.status) {
-
-    announce('Order ' + order.id + ': ' + element('tracked-status').textContent);
-
-    lastAnnouncedStatus = String(order.id) + order.status;
-
-  }
-
-}
-
-async function refreshTracker() {
-
-  clearTimeout(pollTimer);
-
-  if (!selectedOrder || trackingBusy) return;
-
-  const receipt = selectedOrder;
-
-  trackingBusy = true;
-
-  let complete = false;
-
-  try {
-
-    const order = await apiRequest('/api/customer/orders/' + receipt.id, {headers: {'X-Order-Token': receipt.token}});
-
-    if (!selectedOrder || selectedOrder.id !== receipt.id) return;
-
-    if (trackingOffline) { announce('Connection restored. Your order status is up to date.'); trackingOffline = false; }
-
-    renderTrackedOrder(order);
-
-    complete = order.status === 'Completed';
-
-  } catch (error) {
-
-    if (selectedOrder && selectedOrder.id === receipt.id) {
-
-      if (!trackingOffline) announce('Order updates are temporarily unavailable. Your last confirmed status is still shown.');
-
-      trackingOffline = true;
-
-      element('tracker-connection').textContent = 'Connection interrupted: ' + error.message + (updatesPaused ? ' Automatic updates are paused.' : ' Retrying in 5 seconds.');
-
-      if (element('tracker-order').hidden) showMessage(error.message);
-
-    }
-
-  } finally {
-
-    trackingBusy = false;
-
-    if (selectedOrder && !updatesPaused && !document.hidden && (!complete || selectedOrder.id !== receipt.id)) pollTimer = setTimeout(refreshTracker, 5000);
-
-  }
-
+function prefillCustomer(customer) {
+  if (!customer) return;
+  if (customer.firstName && !element('customer-first-name').value) element('customer-first-name').value = customer.firstName;
+  if (customer.lastName && !element('customer-last-name').value) element('customer-last-name').value = customer.lastName;
+  if (customer.phone && !element('customer-phone').value) element('customer-phone').value = customer.phone;
+  if (customer.email && !element('customer-email').value) element('customer-email').value = customer.email;
 }
 
 async function placeOrder(event) {
@@ -655,6 +406,10 @@ async function placeOrder(event) {
 
       paymentLastFour: demoCardLastFour(),
 
+      paymentExpiryMonth: element('card-expiry').value.replace(/\D/g, '').slice(0, 2),
+
+      paymentExpiryYear: element('card-expiry').value.replace(/\D/g, '').slice(2),
+
       // Server recalculates every price; card number and CVV are never sent.
 
       items: cart.map(function (item) { return {type: item.type, pizzaSize: item.pizzaSize, drinkName: item.drinkName, drinkSize: item.drinkSize, quantity: item.quantity, toppings: item.toppings}; })
@@ -669,16 +424,8 @@ async function placeOrder(event) {
 
     const order = await apiRequest('/api/customer/orders', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
 
-    lastCheckoutCustomer = {
-      firstName: payload.customerFirstName,
-      lastName: payload.customerLastName,
-      phone: payload.customerPhone,
-      email: payload.customerEmail
-    };
-
-    if (!customerAccountExists) element('express-account-card').hidden = false;
-
-    rememberOrder(order);
+    element('order-success').innerHTML = 'Order #' + Number(order.id) + ' was placed. <a class="alert-link" href="/order-tracker.html?order=' + encodeURIComponent(order.id) + '">Track your order</a> using your order number and phone number.';
+    element('order-success').hidden = false;
 
     cart = [];
 
@@ -686,15 +433,9 @@ async function placeOrder(event) {
 
     renderCart();
 
-    renderTrackedOrder(order);
+    element('order-success').focus();
 
-    unlockStep('tracker');
-
-    showView('tracker');
-
-    element('tracked-title').focus();
-
-    announce('Order ' + order.id + ' placed. You can follow its progress here.');
+    announce('Order ' + order.id + ' placed. Use the tracking link and your phone number to follow its progress.');
 
   } catch (error) {
 
@@ -722,22 +463,12 @@ async function initializeCustomerDashboard() {
 
   renderCart();
 
-  readReceipts();
-
-  if (savedOrders.length) {
-    unlockStep('tracker');
-    element('hero-track-order').disabled = false;
-    element('hero-track-order').setAttribute('aria-disabled', 'false');
-  }
-
   try {
     const accountState = await apiRequest('/api/customer/account');
-    customerAccountExists = Boolean(accountState.customer);
+    prefillCustomer(accountState.customer);
   } catch (_error) {
     // Guest ordering and tracking continue if account lookup is unavailable.
   }
-
-  prefillSignedInCustomer();
 
   try {
 
@@ -765,8 +496,6 @@ async function initializeCustomerDashboard() {
 
   } catch (error) { showMessage(error.message); }
 
-  if (selectedOrder) refreshTracker();
-
   const requestedFocus = new URLSearchParams(window.location.search).get('focus');
 
   if (requestedFocus === 'order') {
@@ -774,12 +503,6 @@ async function initializeCustomerDashboard() {
     showView('menu');
 
     window.requestAnimationFrame(function () { element('menu-tab').focus(); });
-
-  } else if (requestedFocus === 'tracker' && !element('tracker-tab').disabled) {
-
-    showView('tracker');
-
-    window.requestAnimationFrame(function () { element('tracker-tab').focus(); });
 
   }
 
@@ -824,7 +547,7 @@ document.querySelectorAll('[data-preset]').forEach(function (button) {
     element('pizza-size').value = 'Medium';
     element('pizza-quantity').value = '1';
     document.querySelectorAll('.topping').forEach(function (input) {
-      input.value = button.dataset.preset === 'pepperoni' && input.dataset.name === 'Pepperoni' ? '1' : '0';
+      setToppingCount(input, button.dataset.preset === 'pepperoni' && input.dataset.name === 'Pepperoni' ? '1' : '0');
     });
     updatePizzaEstimate();
     element('pizza-size').focus();
@@ -837,75 +560,35 @@ element('drink-form').addEventListener('submit', addDrink);
 
 element('pizza-form').addEventListener('input', updatePizzaEstimate);
 
-element('checkout-form').addEventListener('submit', placeOrder);
-
-element('express-account-form').addEventListener('submit', async function (event) {
-
-  event.preventDefault();
-
-  const form = event.currentTarget;
-
-  const status = element('express-account-status');
-
-  const error = element('express-account-error');
-
-  const submitButton = element('express-account-submit');
-
-  error.hidden = true;
-
-  error.textContent = '';
-
-  if (!lastCheckoutCustomer) {
-    error.textContent = 'Place an order before creating an account from checkout details.';
-    error.hidden = false;
+element('topping-options').addEventListener('click', function (event) {
+  const button = event.target.closest('.topping');
+  if (!button) return;
+  const current = Number(button.dataset.count);
+  if (current >= 3) {
+    announce(button.dataset.name + ' is already at the maximum of 3 servings.');
     return;
   }
-
-  if (!form.reportValidity()) return;
-
-  submitButton.disabled = true;
-
-  status.textContent = 'Creating your account.';
-
-  try {
-
-    const account = await apiRequest('/api/customer/signup', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        firstName: lastCheckoutCustomer.firstName,
-        lastName: lastCheckoutCustomer.lastName,
-        phone: lastCheckoutCustomer.phone,
-        email: lastCheckoutCustomer.email,
-        password: element('express-account-password').value
-      })
-    });
-
-    customerAccountExists = true;
-
-    form.reset();
-
-    form.hidden = true;
-
-    status.textContent = 'Account created for ' + account.email + '. Your order is linked to your account.';
-
-    announce('Your account has been created and your order was linked.');
-
-  } catch (signupError) {
-
-    error.textContent = signupError.message;
-
-    error.hidden = false;
-
-    status.textContent = 'Account could not be created.';
-
-  } finally {
-
-    submitButton.disabled = false;
-
-  }
-
+  setToppingCount(button, current + 1);
+  updatePizzaEstimate();
+  announce(button.dataset.name + ': ' + (current + 1) + ' servings selected. Maximum 3.');
 });
+
+element('checkout-form').addEventListener('submit', placeOrder);
+
+element('card-expiry').addEventListener('input', maskExpiryInput);
+element('card-expiry').addEventListener('blur', function () {
+  try {
+    validateExpiry();
+    element('card-expiry').classList.remove('is-invalid');
+    element('card-expiry').removeAttribute('aria-invalid');
+  } catch (error) {
+    element('card-expiry').classList.add('is-invalid');
+    element('card-expiry').setAttribute('aria-invalid', 'true');
+    element('card-expiry-error').textContent = error.message;
+  }
+});
+
+
 
 element('go-checkout').addEventListener('click', function () {
   if (!cart.length || !menuReady) return;
@@ -914,28 +597,6 @@ element('go-checkout').addEventListener('click', function () {
 });
 
 element('back-menu').addEventListener('click', function () { showView('menu'); element('menu-tab').focus(); });
-
-element('tracker-start').addEventListener('click', function () { showView('menu'); element('menu-tab').focus(); });
-
-element('order-again').addEventListener('click', function () { showView('menu'); element('menu-tab').focus(); });
-
-element('refresh-tracker').addEventListener('click', refreshTracker);
-
-element('toggle-updates').addEventListener('click', toggleAutomaticUpdates);
-
-element('saved-order').addEventListener('change', function () {
-
-  selectedOrder = savedOrders.find(function (saved) { return saved.id === Number(element('saved-order').value); });
-
-  lastRenderedOrder = '';
-
-  element('tracker-order').hidden = true;
-
-  element('tracker-empty').hidden = false;
-
-  refreshTracker();
-
-});
 
 element('cart-items').addEventListener('click', function (event) {
 
@@ -959,13 +620,6 @@ element('cart-items').addEventListener('click', function (event) {
 
 });
 
-document.addEventListener('visibilitychange', function () {
-
-  clearTimeout(pollTimer);
-
-  if (!document.hidden && !updatesPaused) refreshTracker();
-
-});
 
 initializeCustomerDashboard();
 

@@ -1483,6 +1483,11 @@ def staff_change_password_page():
 def customer_dashboard():
     return render_template("customer-portal.html")
 
+@app.get("/order-tracker")
+@app.get("/order-tracker.html")
+def order_tracker_page():
+    return render_template("order-tracker.html")
+
 @app.after_request
 
 def private_api_response(response):
@@ -1491,7 +1496,7 @@ def private_api_response(response):
     response.headers['Referrer-Policy'] = 'same-origin'
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-    if request.path.startswith(("/api/", "/employee", "/staff-signin", "/staff-change-password")):
+    if request.path.startswith(("/api/", "/employee", "/staff-signin", "/staff-change-password", "/order-tracker")):
 
         response.headers["Cache-Control"] = "no-store"
 
@@ -1725,6 +1730,43 @@ def track_customer_order(order_id):
         app.logger.exception("Could not track customer order")
 
         return jsonify({"error": "We could not check your order. Your last confirmed status is still shown. Please try again."}), 503
+
+@app.post("/api/customer/track")
+def track_guest_order():
+    """Look up a guest order after verifying the full phone number on the order."""
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error="Enter your order number and phone number."), 400
+    order_number = str(body.get("orderNumber", "")).strip()
+    if not re.fullmatch(r"[0-9]{1,20}", order_number):
+        return jsonify(error="Enter your order number and phone number."), 400
+    order_id = int(order_number)
+    phone = re.sub(r"\D", "", str(body.get("phone", "")))
+    if phone.startswith("1") and len(phone) == 11:
+        phone = phone[1:]
+    if order_id < 1 or len(phone) != 10:
+        return jsonify(error="Enter your order number and a 10-digit phone number."), 400
+    connection = database_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""SELECT o.tracking_token_hash, c.phone
+            FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id
+            WHERE o.order_id = %s""", (order_id,))
+        row = cursor.fetchone()
+        stored_phone = re.sub(r"\D", "", str(row["phone"] or "")) if row else ""
+        if stored_phone.startswith("1") and len(stored_phone) == 11:
+            stored_phone = stored_phone[1:]
+        if not row or not row["tracking_token_hash"] or stored_phone != phone:
+            return jsonify(error="We could not find that order. Check the order number and phone number and try again."), 404
+        orders = load_orders(None, order_id, row["tracking_token_hash"])
+        if not orders:
+            return jsonify(error="We could not find that order. Check the order number and phone number and try again."), 404
+        return jsonify(orders[0])
+    except Exception:
+        app.logger.exception("Could not verify guest order tracking request")
+        return jsonify(error="Order tracking is temporarily unavailable. Please try again."), 503
+    finally:
+        connection.close()
 
 @app.get("/api/employee/orders")
 @staff_required
