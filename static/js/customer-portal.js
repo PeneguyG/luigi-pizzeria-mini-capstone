@@ -40,6 +40,10 @@ let lastRenderedOrder = '';
 
 let trackingOffline = false;
 
+let lastCheckoutCustomer = null;
+
+let customerAccountExists = false;
+
 function element(id) { return document.getElementById(id); }
 
 function money(value) { return '$' + Number(value).toFixed(2); }
@@ -72,7 +76,18 @@ async function apiRequest(path, options) {
 
   }
 
-  const response = await fetch(path, Object.assign({cache: 'no-store'}, options || {}));
+  const requestOptions = Object.assign({cache: 'no-store'}, options || {});
+
+  const method = String(requestOptions.method || 'GET').toUpperCase();
+
+  if (path.indexOf('/api/customer/') === 0 && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+
+    // The server requires this marker on same-origin JSON writes to reject cross-site submissions.
+    requestOptions.headers = Object.assign({}, requestOptions.headers || {}, {'X-Luigi-Request': '1'});
+
+  }
+
+  const response = await fetch(path, requestOptions);
 
   let data;
 
@@ -85,6 +100,10 @@ async function apiRequest(path, options) {
 }
 
 function showView(view) {
+  const targetTab = element(view + '-tab');
+
+  if (!targetTab || targetTab.disabled) return false;
+
   element('storefront-welcome').hidden = view !== 'menu';
 
   ['menu', 'checkout', 'tracker'].forEach(function (name) {
@@ -104,6 +123,20 @@ function showView(view) {
   if (view === 'checkout') renderCart();
 
   if (view === 'tracker') refreshTracker();
+
+  return true;
+
+}
+
+function unlockStep(view) {
+
+  const tab = element(view + '-tab');
+
+  tab.disabled = false;
+
+  tab.setAttribute('aria-disabled', 'false');
+
+  tab.classList.remove('disabled');
 
 }
 
@@ -636,6 +669,15 @@ async function placeOrder(event) {
 
     const order = await apiRequest('/api/customer/orders', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
 
+    lastCheckoutCustomer = {
+      firstName: payload.customerFirstName,
+      lastName: payload.customerLastName,
+      phone: payload.customerPhone,
+      email: payload.customerEmail
+    };
+
+    if (!customerAccountExists) element('express-account-card').hidden = false;
+
     rememberOrder(order);
 
     cart = [];
@@ -645,6 +687,8 @@ async function placeOrder(event) {
     renderCart();
 
     renderTrackedOrder(order);
+
+    unlockStep('tracker');
 
     showView('tracker');
 
@@ -679,6 +723,19 @@ async function initializeCustomerDashboard() {
   renderCart();
 
   readReceipts();
+
+  if (savedOrders.length) {
+    unlockStep('tracker');
+    element('hero-track-order').disabled = false;
+    element('hero-track-order').setAttribute('aria-disabled', 'false');
+  }
+
+  try {
+    const accountState = await apiRequest('/api/customer/account');
+    customerAccountExists = Boolean(accountState.customer);
+  } catch (_error) {
+    // Guest ordering and tracking continue if account lookup is unavailable.
+  }
 
   prefillSignedInCustomer();
 
@@ -718,7 +775,7 @@ async function initializeCustomerDashboard() {
 
     window.requestAnimationFrame(function () { element('menu-tab').focus(); });
 
-  } else if (requestedFocus === 'tracker') {
+  } else if (requestedFocus === 'tracker' && !element('tracker-tab').disabled) {
 
     showView('tracker');
 
@@ -734,9 +791,11 @@ document.querySelectorAll('[data-view]').forEach(function (button) {
 
   button.addEventListener('keydown', function (event) {
 
-    const tabs = Array.from(document.querySelectorAll('[data-view]'));
+    const tabs = Array.from(document.querySelectorAll('[data-view]')).filter(function (tab) { return !tab.disabled; });
 
     let index = tabs.indexOf(button);
+
+    if (index < 0 || tabs.length < 2) return;
 
     if (event.key === 'ArrowRight') index = (index + 1) % tabs.length;
 
@@ -757,8 +816,7 @@ document.querySelectorAll('[data-view]').forEach(function (button) {
 // Familiar ordering shortcuts, with our own layout and no automatic cart additions.
 document.querySelectorAll('[data-open-view]').forEach(function (button) {
   button.addEventListener('click', function () {
-    showView(button.dataset.openView);
-    element(button.dataset.openView + '-tab').focus();
+    if (showView(button.dataset.openView)) element(button.dataset.openView + '-tab').focus();
   });
 });
 document.querySelectorAll('[data-preset]').forEach(function (button) {
@@ -781,7 +839,79 @@ element('pizza-form').addEventListener('input', updatePizzaEstimate);
 
 element('checkout-form').addEventListener('submit', placeOrder);
 
-element('go-checkout').addEventListener('click', function () { showView('checkout'); element('customer-first-name').focus(); });
+element('express-account-form').addEventListener('submit', async function (event) {
+
+  event.preventDefault();
+
+  const form = event.currentTarget;
+
+  const status = element('express-account-status');
+
+  const error = element('express-account-error');
+
+  const submitButton = element('express-account-submit');
+
+  error.hidden = true;
+
+  error.textContent = '';
+
+  if (!lastCheckoutCustomer) {
+    error.textContent = 'Place an order before creating an account from checkout details.';
+    error.hidden = false;
+    return;
+  }
+
+  if (!form.reportValidity()) return;
+
+  submitButton.disabled = true;
+
+  status.textContent = 'Creating your account.';
+
+  try {
+
+    const account = await apiRequest('/api/customer/signup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        firstName: lastCheckoutCustomer.firstName,
+        lastName: lastCheckoutCustomer.lastName,
+        phone: lastCheckoutCustomer.phone,
+        email: lastCheckoutCustomer.email,
+        password: element('express-account-password').value
+      })
+    });
+
+    customerAccountExists = true;
+
+    form.reset();
+
+    form.hidden = true;
+
+    status.textContent = 'Account created for ' + account.email + '. Your order is linked to your account.';
+
+    announce('Your account has been created and your order was linked.');
+
+  } catch (signupError) {
+
+    error.textContent = signupError.message;
+
+    error.hidden = false;
+
+    status.textContent = 'Account could not be created.';
+
+  } finally {
+
+    submitButton.disabled = false;
+
+  }
+
+});
+
+element('go-checkout').addEventListener('click', function () {
+  if (!cart.length || !menuReady) return;
+  unlockStep('checkout');
+  if (showView('checkout')) element('customer-first-name').focus();
+});
 
 element('back-menu').addEventListener('click', function () { showView('menu'); element('menu-tab').focus(); });
 
