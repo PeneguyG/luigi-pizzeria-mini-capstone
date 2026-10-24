@@ -1610,11 +1610,30 @@ from backend.customer_accounts import install_accounts
 current_customer_account = install_accounts(app, database_connection, guest_checkout)
 
 DEFAULT_SPECIALS = [
-    {"name": "Luigi's Supreme", "description": "Pepperoni, sausage, peppers and onion.", "toppings": ["Pepperoni", "Italian sausage", "Green peppers", "Onion"]},
-    {"name": "Garden Special", "description": "Peppers, onion, olives and tomatoes.", "toppings": ["Green peppers", "Onion", "Black olives", "Diced tomatoes"]},
-    {"name": "Meat Trio", "description": "Pepperoni, Italian sausage and beef.", "toppings": ["Pepperoni", "Italian sausage", "Beef"]},
-    {"name": "Sweet Heat", "description": "Pineapple, jalapenos and pepperoni.", "toppings": ["Pineapple", "Jalapenos", "Pepperoni"]},
+    {"name": "Luigi's Supreme", "description": "Pepperoni, sausage, peppers and onion.", "size": "Medium", "toppings": [{"name": "Pepperoni", "quantity": 1}, {"name": "Italian sausage", "quantity": 1}, {"name": "Green peppers", "quantity": 1}, {"name": "Onion", "quantity": 1}]},
+    {"name": "Garden Special", "description": "Peppers, onion, olives and tomatoes.", "size": "Medium", "toppings": [{"name": "Green peppers", "quantity": 1}, {"name": "Onion", "quantity": 1}, {"name": "Black olives", "quantity": 1}, {"name": "Diced tomatoes", "quantity": 1}]},
 ]
+
+def normalize_specials(specials):
+    """Read legacy saved specials and expose exactly two configurable pizza slots."""
+    normalized = []
+    for item in (specials or [])[:2]:
+        if not isinstance(item, dict):
+            continue
+        toppings = []
+        for topping in item.get("toppings", []) if isinstance(item.get("toppings", []), list) else []:
+            if isinstance(topping, str):
+                topping = {"name": topping, "quantity": 1}
+            if (isinstance(topping, dict) and topping.get("name") in ALLOWED_TOPPINGS
+                and type(topping.get("quantity", 1)) is int and 1 <= topping.get("quantity", 1) <= 3):
+                toppings.append({"name": topping["name"], "quantity": topping.get("quantity", 1)})
+        size = item.get("size", "Medium")
+        normalized.append({"name": str(item.get("name", "Pizza special"))[:80],
+                           "description": str(item.get("description", ""))[:300],
+                           "size": size if size in PIZZA_PRICES else "Medium", "toppings": toppings})
+    while len(normalized) < 2:
+        normalized.append(dict(DEFAULT_SPECIALS[len(normalized)]))
+    return normalized
 
 def load_specials():
     connection = database_connection()
@@ -1622,7 +1641,7 @@ def load_specials():
         cursor = connection.cursor()
         cursor.execute("SELECT content FROM menu_settings WHERE setting_key = 'specials'")
         row = cursor.fetchone()
-        return json.loads(row["content"]) if row else DEFAULT_SPECIALS
+        return normalize_specials(json.loads(row["content"])) if row else normalize_specials(DEFAULT_SPECIALS)
     finally:
         connection.close()
 
@@ -1643,7 +1662,7 @@ def rank_favorite_pizzas(items):
                                   orderedCount=0, lastOrdered=0)
         favorites[key]['orderedCount'] += item['quantity']
         favorites[key]['lastOrdered'] = max(favorites[key]['lastOrdered'], item['lastOrdered'])
-    return sorted(favorites.values(), key=lambda pizza: (-pizza['orderedCount'], -pizza['lastOrdered'], pizza['name']))[:4]
+    return sorted(favorites.values(), key=lambda pizza: (-pizza['lastOrdered'], -pizza['orderedCount'], pizza['name']))[:4]
 
 @app.get('/api/customer/favorites')
 def customer_favorites():
@@ -1656,12 +1675,16 @@ def customer_favorites():
         cursor.execute("""SELECT oi.order_item_id AS itemId, oi.order_id AS orderId,
                 oi.pizza_size AS pizzaSize, oi.quantity,
                 t.topping_name AS toppingName, oit.quantity AS toppingQuantity
-            FROM customer_order_receipts AS receipt
-            JOIN order_items AS oi ON oi.order_id = receipt.order_id AND oi.item_type = 'Pizza'
+            FROM order_items AS oi
+            LEFT JOIN customer_order_receipts AS receipt ON receipt.order_id = oi.order_id
             LEFT JOIN order_item_toppings AS oit ON oit.order_item_id = oi.order_item_id
             LEFT JOIN toppings AS t ON t.topping_id = oit.topping_id
-            WHERE receipt.account_email = %s
-            ORDER BY oi.order_id DESC, oi.order_item_id, t.topping_name""", (account['email'],))
+            WHERE oi.item_type = 'Pizza' AND (receipt.account_email = %s OR oi.order_id IN (
+                SELECT o.order_id FROM orders AS o
+                JOIN customers AS c ON c.customer_id = o.customer_id
+                WHERE c.phone = %s
+            ))
+            ORDER BY oi.order_id DESC, oi.order_item_id, t.topping_name""", (account['email'], account.get('phone', '')))
         items = {}
         for row in cursor.fetchall():
             item = items.setdefault(row['itemId'], dict(pizzaSize=row['pizzaSize'], quantity=int(row['quantity']),
@@ -1683,16 +1706,24 @@ def customer_specials():
 def update_specials():
     body = request.get_json(silent=True) or {}
     specials = body.get('specials')
-    if not isinstance(specials, list) or not 1 <= len(specials) <= 12:
-        return jsonify(error='Provide between 1 and 12 specialties.'), 400
+    if not isinstance(specials, list) or len(specials) != 2:
+        return jsonify(error='Exactly two specials are required.'), 400
     for item in specials:
         if (not isinstance(item, dict) or not isinstance(item.get('name'), str)
             or not item['name'].strip() or len(item['name']) > 80
-            or not isinstance(item.get('description'), str) or len(item['description']) > 300
+            or not isinstance(item.get('description', ''), str) or len(item.get('description', '')) > 300
+            or item.get('size') not in PIZZA_PRICES
             or not isinstance(item.get('toppings'), list)
-            or any(not isinstance(t, str) or t not in ALLOWED_TOPPINGS for t in item['toppings'])
-            or len(set(item['toppings'])) != len(item['toppings'])):
-            return jsonify(error='Check specialty names, descriptions and available toppings.'), 400
+            or any(not isinstance(t, dict) or t.get('name') not in ALLOWED_TOPPINGS
+                   or type(t.get('quantity')) is not int or not 1 <= t['quantity'] <= 3 for t in item['toppings'])
+            or len({t['name'] for t in item['toppings'] if isinstance(t, dict) and isinstance(t.get('name'), str)}) != len(item['toppings'])):
+            return jsonify(error='Check special names, pizza sizes and topping servings (maximum 3 each).'), 400
+        try:
+            prepare_items([dict(type='Pizza', pizzaSize=item['size'], quantity=1, toppings=item['toppings'])], 20)
+        except ApiError as error:
+            return jsonify(error=str(error)), 400
+        item['name'] = item['name'].strip()
+        item['description'] = item.get('description', '').strip()
     connection = database_connection()
     try:
         cursor = connection.cursor()

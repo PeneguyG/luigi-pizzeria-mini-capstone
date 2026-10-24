@@ -23,6 +23,7 @@ let cart = [];
 let menuReady = false;
 
 let sendingOrder = false;
+let customerAccount = null;
 
 function element(id) { return document.getElementById(id); }
 
@@ -465,7 +466,8 @@ async function initializeCustomerDashboard() {
 
   try {
     const accountState = await apiRequest('/api/customer/account');
-    prefillCustomer(accountState.customer);
+    customerAccount = accountState.customer || null;
+    prefillCustomer(customerAccount);
   } catch (_error) {
     // Guest ordering and tracking continue if account lookup is unavailable.
   }
@@ -493,6 +495,8 @@ async function initializeCustomerDashboard() {
     updatePizzaEstimate();
 
     renderCart();
+
+    await loadCustomerSuggestions();
 
   } catch (error) { showMessage(error.message); }
 
@@ -542,17 +546,92 @@ document.querySelectorAll('[data-open-view]').forEach(function (button) {
     if (showView(button.dataset.openView)) element(button.dataset.openView + '-tab').focus();
   });
 });
-document.querySelectorAll('[data-preset]').forEach(function (button) {
-  button.addEventListener('click', function () {
-    element('pizza-size').value = 'Medium';
-    element('pizza-quantity').value = '1';
-    document.querySelectorAll('.topping').forEach(function (input) {
-      setToppingCount(input, button.dataset.preset === 'pepperoni' && input.dataset.name === 'Pepperoni' ? '1' : '0');
-    });
-    updatePizzaEstimate();
-    element('pizza-size').focus();
-    announce('Medium ' + button.dataset.preset + ' pizza selected. Customize it, then add it to your order.');
+function renderCustomerSuggestions(items, mode) {
+  const container = element('customer-suggestions');
+  container.replaceChildren();
+  const specials = mode === 'specials';
+  element('suggestions-heading').textContent = specials ? "Today's specials" : 'Your recent pizzas';
+  element('suggestions-context').textContent = specials ? 'Choose one to customize' : 'Add a recent pizza to your order';
+  if (!items.length) {
+    const empty = document.createElement('p'); empty.className = 'col-12 small text-secondary';
+    empty.textContent = specials ? 'No specials are available right now.' : 'No recent pizza orders were found.';
+    container.append(empty);
+  }
+  items.forEach(function (item, index) {
+    const col = document.createElement('div'); col.className = 'col-sm-6';
+    const card = document.createElement('article'); card.className = 'favorite-card h-100';
+    const mark = document.createElement('span'); mark.className = 'favorite-mark'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = String(index + 1).padStart(2, '0');
+    const body = document.createElement('div');
+    const title = document.createElement('h4'); title.className = 'h6 mb-1'; title.textContent = item.name || ('Recent ' + item.pizzaSize + ' pizza');
+    const details = document.createElement('p'); details.className = 'small text-secondary mb-2';
+    details.textContent = item.size || item.pizzaSize;
+    if (item.toppings && item.toppings.length) details.textContent += ' · ' + item.toppings.map(function (t) { return (t.quantity > 1 ? t.quantity + '× ' : '') + t.name; }).join(', ');
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-sm btn-outline-danger';
+    button.dataset.suggestionAction = specials ? 'customize' : 'reorder'; button.dataset.suggestionIndex = String(index);
+    button.textContent = specials ? 'Customize this special' : 'Add to order';
+    button.setAttribute('aria-label', (specials ? 'Customize ' : 'Add to order: ') + (item.name || item.pizzaSize + ' pizza'));
+    body.append(title, details, button); card.append(mark, body); col.append(card); container.append(col);
   });
+  container.setAttribute('aria-busy', 'false');
+}
+
+let customerSuggestionItems = [];
+let customerSuggestionMode = 'specials';
+
+async function loadCustomerSuggestions() {
+  const container = element('customer-suggestions');
+  container.setAttribute('aria-busy', 'true');
+  try {
+    if (customerAccount) {
+      try {
+        const history = await apiRequest('/api/customer/favorites');
+        if (history.signedIn && history.favorites && history.favorites.length) {
+          customerSuggestionItems = history.favorites.slice(0, 4);
+          customerSuggestionMode = 'favorites';
+          renderCustomerSuggestions(customerSuggestionItems, 'favorites');
+          element('suggestions-status').textContent = 'Based on your recent order history.';
+          return;
+        }
+      } catch (_historyError) {
+        // If account history is unavailable, still show the public specials.
+      }
+    }
+    const payload = await apiRequest('/api/customer/specials');
+    customerSuggestionItems = (payload.specials || []).slice(0, 2);
+    customerSuggestionMode = 'specials';
+    renderCustomerSuggestions(customerSuggestionItems, 'specials');
+    element('suggestions-status').textContent = customerAccount ? 'No previous pizza orders yet. Try a current special.' : 'Ordering as a guest? Try one of these specials.';
+  } catch (error) {
+    container.setAttribute('aria-busy', 'false');
+    element('suggestions-status').textContent = 'Suggestions could not be loaded. You can still build a pizza below.';
+  }
+}
+
+function applyPizzaSuggestion(item) {
+  if (customerSuggestionMode === 'favorites') {
+    if (!canAddToCart(1, element('pizza-quantity'))) return;
+    cart.push({type: 'Pizza', name: item.name || (item.pizzaSize + ' pizza'), pizzaSize: item.pizzaSize,
+      quantity: 1, toppings: item.toppings || [], unitPrice: Number(item.unitPrice) || menu.pizzas[item.pizzaSize].base});
+    renderCart();
+    announce((item.name || item.pizzaSize + ' pizza') + ' added to your order.');
+    return;
+  }
+  element('pizza-size').value = item.size || 'Medium';
+  element('pizza-quantity').value = '1';
+  document.querySelectorAll('.topping').forEach(function (button) {
+    const topping = (item.toppings || []).find(function (choice) { return choice.name === button.dataset.name; });
+    setToppingCount(button, topping ? topping.quantity : 0);
+  });
+  updatePizzaEstimate();
+  element('pizza-size').focus();
+  announce(item.name + ' selected. Adjust the pizza, then add it to your order.');
+}
+
+element('customer-suggestions').addEventListener('click', function (event) {
+  const button = event.target.closest('[data-suggestion-action]');
+  if (!button) return;
+  const item = customerSuggestionItems[Number(button.dataset.suggestionIndex)];
+  if (item) applyPizzaSuggestion(item);
 });
 element('pizza-form').addEventListener('submit', addPizza);
 

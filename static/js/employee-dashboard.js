@@ -769,6 +769,153 @@
       }
     }
 
+    let managerSpecials = [];
+    let specialsRequestActive = false;
+
+    function showSpecialMessage(message, isError) {
+      const target = document.getElementById('specials-message');
+      target.textContent = message;
+      target.className = 'alert mb-3 ' + (isError ? 'alert-danger' : 'alert-success');
+      target.setAttribute('role', isError ? 'alert' : 'status');
+      target.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+      target.hidden = !message;
+    }
+
+    function renderSpecialToppings(selected) {
+      const counts = new Map((selected || []).map(function (topping) { return [topping.name, Number(topping.quantity) || 0]; }));
+      const groups = {Meats: ['Pepperoni', 'Italian sausage', 'Beef'], Vegetables: ['Green peppers', 'Jalapenos', 'Onion', 'Black olives', 'Diced tomatoes'], Fruit: ['Pineapple']};
+      const container = document.getElementById('special-toppings');
+      container.replaceChildren();
+      Object.keys(groups).forEach(function (category) {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-lg-4';
+        const fieldset = document.createElement('fieldset');
+        fieldset.className = 'border rounded p-2 h-100';
+        const legend = document.createElement('legend');
+        legend.className = 'h6 px-1';
+        legend.textContent = category;
+        fieldset.append(legend);
+        groups[category].forEach(function (name) {
+          const row = document.createElement('div');
+          row.className = 'd-flex align-items-center justify-content-between gap-2 py-1';
+          const label = document.createElement('span');
+          label.className = 'small';
+          label.textContent = name;
+          const controls = document.createElement('div');
+          controls.className = 'btn-group btn-group-sm';
+          controls.setAttribute('role', 'group');
+          controls.setAttribute('aria-label', name + ' servings');
+          const count = counts.get(name) || 0;
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.className = 'btn btn-outline-secondary'; remove.dataset.specialTopping = name; remove.dataset.change = '-1';
+          remove.textContent = '−'; remove.disabled = count <= 0; remove.setAttribute('aria-label', 'Remove one serving of ' + name);
+          const value = document.createElement('span');
+          value.className = 'btn btn-light border topping-count'; value.textContent = count + 'x'; value.setAttribute('aria-live', 'polite'); value.setAttribute('aria-label', count + ' servings of ' + name);
+          const add = document.createElement('button');
+          add.type = 'button'; add.className = 'btn btn-outline-danger'; add.dataset.specialTopping = name; add.dataset.change = '1';
+          add.textContent = '+'; add.disabled = count >= MAX_TOPPING_SERVINGS; add.setAttribute('aria-label', 'Add one serving of ' + name + (count >= MAX_TOPPING_SERVINGS ? ', maximum reached' : ''));
+          controls.append(remove, value, add); row.append(label, controls); fieldset.append(row);
+        });
+        col.append(fieldset); container.append(col);
+      });
+      updateSpecialEstimate();
+    }
+
+    function selectedSpecialToppings() {
+      return Array.from(document.querySelectorAll('#special-toppings .topping-count')).map(function (count) {
+        const name = count.getAttribute('aria-label').replace(/^\d+ servings? of /, '');
+        const quantity = Number.parseInt(count.textContent, 10) || 0;
+        return {name: name, quantity: quantity};
+      }).filter(function (topping) { return topping.quantity > 0; });
+    }
+
+    function updateSpecialEstimate() {
+      const size = document.getElementById('special-size').value;
+      const price = pizzaPricing[size];
+      const servings = selectedSpecialToppings().reduce(function (sum, topping) { return sum + topping.quantity; }, 0);
+      document.getElementById('special-estimate').textContent = 'Estimated pizza price: ' + formatMoney(price.base + servings * price.topping);
+    }
+
+    function renderCurrentSpecials() {
+      const container = document.getElementById('current-specials');
+      container.replaceChildren();
+      managerSpecials.forEach(function (special, index) {
+        const col = document.createElement('div'); col.className = 'col-12 col-md-6';
+        const card = document.createElement('article'); card.className = 'card h-100';
+        const body = document.createElement('div'); body.className = 'card-body';
+        const heading = document.createElement('h5'); heading.className = 'h6'; heading.textContent = 'Special ' + (index + 1) + ': ' + special.name;
+        const description = document.createElement('p'); description.className = 'small text-secondary'; description.textContent = special.description || 'No description provided.';
+        const toppings = document.createElement('p'); toppings.className = 'small mb-3'; toppings.textContent = special.size + ' · ' + (special.toppings.map(function (t) { return (t.quantity > 1 ? t.quantity + '× ' : '') + t.name; }).join(', ') || 'Cheese and marinara');
+        const replace = document.createElement('button'); replace.type = 'button'; replace.className = 'btn btn-sm btn-outline-danger'; replace.dataset.editSpecial = String(index); replace.textContent = 'Replace this special';
+        body.append(heading, description, toppings, replace); card.append(body); col.append(card); container.append(col);
+      });
+      container.setAttribute('aria-busy', 'false');
+    }
+
+    function fillSpecialForm(index) {
+      const special = managerSpecials[index];
+      if (!special) return;
+      document.getElementById('special-slot').value = String(index);
+      document.getElementById('special-name').value = special.name;
+      document.getElementById('special-description').value = special.description || '';
+      document.getElementById('special-size').value = special.size;
+      renderSpecialToppings(special.toppings);
+      document.getElementById('special-name').focus();
+    }
+
+    async function loadManagerSpecials() {
+      if (specialsRequestActive || !['manager', 'owner'].includes(currentStaff.role)) return;
+      specialsRequestActive = true;
+      const list = document.getElementById('current-specials');
+      list.setAttribute('aria-busy', 'true');
+      try {
+        const payload = await apiRequest('/api/customer/specials');
+        managerSpecials = payload.specials || [];
+        renderCurrentSpecials();
+        fillSpecialForm(Number(document.getElementById('special-slot').value) || 0);
+        showSpecialMessage('', false);
+      } catch (error) {
+        list.setAttribute('aria-busy', 'false');
+        showSpecialMessage('Could not load specials. ' + error.message, true);
+      } finally { specialsRequestActive = false; }
+    }
+
+    document.getElementById('special-toppings').addEventListener('click', function (event) {
+      const button = event.target.closest('[data-special-topping]');
+      if (!button) return;
+      const current = Number(button.parentElement.querySelector('.topping-count').textContent) || 0;
+      const next = Math.max(0, Math.min(MAX_TOPPING_SERVINGS, current + Number(button.dataset.change)));
+      const name = button.dataset.specialTopping;
+      const toppings = selectedSpecialToppings().filter(function (t) { return t.name !== name; });
+      if (next) toppings.push({name: name, quantity: next});
+      renderSpecialToppings(toppings);
+      document.getElementById('special-topping-status').textContent = name + ': ' + next + (next === 1 ? ' serving selected.' : ' servings selected.') + ' Maximum 3.';
+    });
+    document.getElementById('special-size').addEventListener('change', updateSpecialEstimate);
+    document.getElementById('special-slot').addEventListener('change', function () { fillSpecialForm(Number(this.value)); });
+    document.getElementById('current-specials').addEventListener('click', function (event) {
+      const button = event.target.closest('[data-edit-special]');
+      if (!button) return;
+      fillSpecialForm(Number(button.dataset.editSpecial));
+    });
+    document.getElementById('clear-special-form').addEventListener('click', function () {
+      document.getElementById('special-form').reset(); renderSpecialToppings([]); document.getElementById('special-name').focus();
+    });
+    document.getElementById('special-form').addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (!this.reportValidity()) return;
+      const slot = Number(document.getElementById('special-slot').value);
+      const next = {name: document.getElementById('special-name').value.trim(), description: document.getElementById('special-description').value.trim(), size: document.getElementById('special-size').value, toppings: selectedSpecialToppings()};
+      const updated = managerSpecials.slice(); updated[slot] = next;
+      const button = document.getElementById('save-special'); button.disabled = true;
+      try {
+        const payload = await apiRequest('/api/staff/specials', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({specials: updated})});
+        managerSpecials = payload.specials || updated; renderCurrentSpecials();
+        showSpecialMessage('Special ' + (slot + 1) + ' saved. Customers without order history will see it.');
+      } catch (error) { showSpecialMessage('Special could not be saved. ' + error.message, true); }
+      finally { button.disabled = false; }
+    });
+
     function roleCanSee(element) {
       const requiredRole = element.dataset.minimumRole;
       return !requiredRole || (roleLevels[currentStaff.role] || 0) >= roleLevels[requiredRole];
@@ -797,7 +944,7 @@
       if (moveFocus !== false) tab.focus();
       if (tab.id === 'orders-tab') renderOrders();
       if (tab.id === 'history-tab') renderHistory();
-      if (tab.id === 'manager-tab') loadManagerSalesSummary();
+      if (tab.id === 'manager-tab') { loadManagerSalesSummary(); loadManagerSpecials(); }
       if (tab.id === 'customers-tab') loadCustomerDirectory();
     }
 

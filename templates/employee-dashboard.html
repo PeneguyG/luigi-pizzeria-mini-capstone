@@ -311,6 +311,22 @@
               </div>
             </div>
           </div>
+          <section class="border-top mt-5 pt-4" aria-labelledby="specials-heading">
+            <div class="mb-3"><p class="small text-uppercase fw-semibold mb-1">Customer menu</p><h4 id="specials-heading" class="h5 mb-1">Manage the two rotating specials</h4><p class="text-secondary mb-0">Customers without order history see these. Returning customers see their recent pizzas.</p></div>
+            <p id="specials-message" class="alert mb-3" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+            <div id="current-specials" class="row g-3 mb-4" aria-live="polite" aria-busy="true"></div>
+            <form id="special-form" class="card bg-light border-0 p-3 p-md-4">
+              <h5 class="h6 mb-3">Create or replace a special</h5>
+              <div class="row g-3">
+                <div class="col-12 col-md-4"><label class="form-label" for="special-slot">Special to replace <span class="text-danger" aria-hidden="true">*</span></label><select class="form-select" id="special-slot" required><option value="0">Special 1</option><option value="1">Special 2</option></select></div>
+                <div class="col-12 col-md-8"><label class="form-label" for="special-name">Special name <span class="text-danger" aria-hidden="true">*</span></label><input class="form-control" id="special-name" maxlength="80" required></div>
+                <div class="col-12"><label class="form-label" for="special-description">Short description <span class="text-secondary">(optional)</span></label><input class="form-control" id="special-description" maxlength="300"></div>
+                <div class="col-12 col-md-4"><label class="form-label" for="special-size">Pizza size</label><select class="form-select" id="special-size"><option value="Small">Small</option><option value="Medium" selected>Medium</option><option value="Large">Large</option></select></div>
+                <div class="col-12"><fieldset><legend class="h6">Toppings</legend><p class="small text-secondary">Each topping can have up to 3 servings.</p><p id="special-topping-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p><div id="special-toppings" class="row g-2"></div></fieldset></div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 align-items-center mt-3"><button class="btn btn-danger" id="save-special" type="submit">Save special</button><button class="btn btn-outline-secondary" id="clear-special-form" type="button">Clear form</button><span id="special-estimate" class="small text-secondary" aria-live="polite"></span></div>
+            </form>
+          </section>
         </div>
       </section>
 
@@ -399,6 +415,6 @@
 
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261021-4" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-1" defer></script>
 </body>
 </html>
