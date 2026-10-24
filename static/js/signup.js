@@ -1,15 +1,7 @@
 'use strict';
 
-// Prototype-only customer accounts. A production account system must validate
-// credentials and store password hashes on the server, never in browser storage.
-const CUSTOMERS_KEY = 'luigis_customers';
-const SESSION_KEY = 'luigis_customer_session';
 const DEFAULT_ORDER_URL = '/customer?focus=order';
-const allowedReturnUrls = new Set([
-  '/customer?focus=order',
-  '/customer?focus=tracker'
-]);
-
+const allowedReturnUrls = new Set(['/customer?focus=order', '/order-tracker.html']);
 const signupForm = document.getElementById('signupForm');
 const signinForm = document.getElementById('signinForm');
 const signupPanel = document.getElementById('signupPanel');
@@ -25,30 +17,19 @@ function returnUrl() {
   return allowedReturnUrls.has(requested) ? requested : DEFAULT_ORDER_URL;
 }
 
-function loadCustomers() {
-  try {
-    const records = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || '[]');
-    return Array.isArray(records) ? records.filter(function (record) {
-      return record && typeof record.email === 'string' && typeof record.passwordHash === 'string';
-    }) : [];
-  } catch (_error) {
-    return [];
+async function accountRequest(path, body) {
+  const options = {method: 'GET', cache: 'no-store', credentials: 'same-origin'};
+  if (body !== undefined) {
+    options.method = 'POST';
+    options.headers = {'Content-Type': 'application/json', 'X-Luigi-Request': '1'};
+    options.body = JSON.stringify(body);
   }
-}
-
-function saveCustomers(customers) {
-  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
-}
-
-async function hashPassword(password) {
-  if (!window.crypto || !window.crypto.subtle) {
-    throw new Error('This browser cannot run the account demo securely. Open the site over HTTPS or localhost.');
-  }
-  const bytes = new TextEncoder().encode(password);
-  const digest = await window.crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest)).map(function (byte) {
-    return byte.toString(16).padStart(2, '0');
-  }).join('');
+  const response = await fetch(path, options);
+  let payload;
+  try { payload = await response.json(); }
+  catch (_error) { throw new Error('The account service returned an unexpected response.'); }
+  if (!response.ok) throw new Error(payload.error || 'The account request could not be completed.');
+  return payload;
 }
 
 function showMessage(text, type) {
@@ -75,23 +56,12 @@ function switchTab(name, moveFocus) {
   signinPanel.classList.toggle('hidden', isSignup);
   clearMessage();
   if (moveFocus) {
-    const form = isSignup ? signupForm : signinForm;
-    const firstField = form.querySelector('input');
-    if (firstField) firstField.focus();
+    const field = (isSignup ? signupForm : signinForm).querySelector('input');
+    if (field) field.focus();
   }
 }
 
-function signedInCustomer() {
-  try {
-    const email = localStorage.getItem(SESSION_KEY);
-    return loadCustomers().find(function (customer) { return customer.email === email; }) || null;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function renderSession() {
-  const customer = signedInCustomer();
+function renderSession(customer) {
   const signedIn = Boolean(customer);
   authPanel.hidden = signedIn;
   authPanel.classList.toggle('hidden', signedIn);
@@ -104,16 +74,21 @@ function renderSession() {
   const welcome = document.getElementById('welcome');
   welcome.hidden = !signedIn;
   welcome.classList.toggle('hidden', !signedIn);
-
   if (signedIn) {
-    const firstName = (customer.firstName || (customer.name || '').trim().split(/\s+/)[0] || 'there').trim();
+    const firstName = (customer.firstName || customer.name || 'there').trim().split(/\s+/)[0];
     welcome.textContent = 'Signed in as ' + firstName;
     document.getElementById('accountGreeting').textContent = 'Welcome back, ' + firstName + '!';
   }
 }
 
-function redirectToOrder() {
-  window.location.assign(returnUrl());
+function redirectToOrder() { window.location.assign(returnUrl()); }
+
+function setSubmitting(form, isSubmitting, label) {
+  const button = form.querySelector('[type="submit"]');
+  if (!button.dataset.defaultLabel) button.dataset.defaultLabel = button.textContent;
+  button.disabled = isSubmitting;
+  button.textContent = isSubmitting ? label : button.dataset.defaultLabel;
+  form.setAttribute('aria-busy', String(isSubmitting));
 }
 
 async function handleSignup(event) {
@@ -131,73 +106,61 @@ async function handleSignup(event) {
   const phone = phoneInput.value.trim();
   const password = passwordInput.value;
   const confirm = confirmInput.value;
+  const phoneDigits = phone.replace(/\D/g, '');
 
   firstNameInput.setCustomValidity(firstName ? '' : 'Enter your first name.');
   lastNameInput.setCustomValidity(lastName ? '' : 'Enter your last name.');
-  phoneInput.setCustomValidity(phone.replace(/\D/g, '').length >= 10 ? '' : 'Enter a phone number with at least 10 digits.');
+  phoneInput.setCustomValidity(phoneDigits.length === 10 || (phoneDigits.length === 11 && phoneDigits[0] === '1') ? '' : 'Enter a valid 10-digit US phone number.');
   passwordInput.setCustomValidity(password.length >= 8 ? '' : 'Use at least 8 characters.');
   confirmInput.setCustomValidity(password === confirm ? '' : 'The passwords do not match.');
-  const invalid = [firstNameInput, lastNameInput, emailInput, phoneInput, passwordInput, confirmInput].find(function (input) {
-    return !input.validity.valid;
-  });
-  if (invalid) {
-    invalid.reportValidity();
-    invalid.focus();
-    return;
-  }
+  const invalid = [firstNameInput, lastNameInput, emailInput, phoneInput, passwordInput, confirmInput].find(function (input) { return !input.validity.valid; });
+  if (invalid) { invalid.reportValidity(); invalid.focus(); return; }
 
-  const customers = loadCustomers();
-  if (customers.some(function (customer) { return customer.email.toLowerCase() === email; })) {
-    switchTab('signin', true);
-    document.getElementById('siEmail').value = email;
-    showMessage('An account with this email already exists. Choose Sign in instead.', 'error');
-    return;
-  }
-
+  setSubmitting(signupForm, true, 'Creating account…');
   try {
-    customers.push({
+    await accountRequest('/api/customer/signup', {
       firstName: firstName,
       lastName: lastName,
-      name: firstName + ' ' + lastName,
       email: email,
       phone: phone,
-      passwordHash: await hashPassword(password),
-      createdAt: new Date().toISOString()
+      password: password
     });
-    saveCustomers(customers);
-    localStorage.setItem(SESSION_KEY, email);
-    event.target.reset();
+    signupForm.reset();
     redirectToOrder();
   } catch (error) {
-    showMessage(error.message || 'This browser could not save the demo account.', 'error');
-  }
+    if (error.message.indexOf('already exists') !== -1) {
+      switchTab('signin', false);
+      document.getElementById('siEmail').value = email;
+    }
+    showMessage(error.message, 'error');
+  } finally { setSubmitting(signupForm, false); }
 }
 
 async function handleSignin(event) {
   event.preventDefault();
   clearMessage();
-  const email = document.getElementById('siEmail').value.trim().toLowerCase();
-  const password = document.getElementById('siPassword').value;
-  const customer = loadCustomers().find(function (record) { return record.email.toLowerCase() === email; });
-
+  if (!signinForm.reportValidity()) return;
+  setSubmitting(signinForm, true, 'Signing in…');
   try {
-    if (!customer || customer.passwordHash !== await hashPassword(password)) {
-      showMessage('Email or password is incorrect.', 'error');
-      document.getElementById('siEmail').focus();
-      return;
-    }
-    localStorage.setItem(SESSION_KEY, customer.email);
-    event.target.reset();
+    await accountRequest('/api/customer/signin', {
+      email: document.getElementById('siEmail').value.trim().toLowerCase(),
+      password: document.getElementById('siPassword').value
+    });
+    signinForm.reset();
     redirectToOrder();
   } catch (error) {
-    showMessage(error.message || 'This browser could not complete sign in.', 'error');
-  }
+    showMessage(error.message, 'error');
+    document.getElementById('siEmail').focus();
+  } finally { setSubmitting(signinForm, false); }
 }
 
-function handleSignOut() {
-  localStorage.removeItem(SESSION_KEY);
-  renderSession();
-  switchTab('signin', true);
+async function handleSignOut() {
+  clearMessage();
+  try {
+    await accountRequest('/api/customer/signout', {});
+    renderSession(null);
+    switchTab('signin', true);
+  } catch (error) { showMessage(error.message, 'error'); }
 }
 
 tabs.forEach(function (tab, index) {
@@ -216,8 +179,8 @@ tabs.forEach(function (tab, index) {
   });
 });
 
-document.getElementById('signupForm').addEventListener('submit', handleSignup);
-document.getElementById('signinForm').addEventListener('submit', handleSignin);
+signupForm.addEventListener('submit', handleSignup);
+signinForm.addEventListener('submit', handleSignin);
 document.getElementById('signOut').addEventListener('click', handleSignOut);
 document.getElementById('headerSignIn').addEventListener('click', function () { switchTab('signin', true); });
 document.getElementById('suPhone').addEventListener('input', function () { this.setCustomValidity(''); });
@@ -229,8 +192,13 @@ document.getElementById('suConfirm').addEventListener('input', function () { thi
 
 const initialMode = query.get('mode') === 'signin' ? 'signin' : 'signup';
 switchTab(initialMode, false);
-renderSession();
-if (!signedInCustomer() && (query.has('mode') || query.has('next'))) {
-  const firstField = (initialMode === 'signin' ? signinForm : signupForm).querySelector('input');
-  if (firstField) firstField.focus();
-}
+renderSession(null);
+accountRequest('/api/customer/account').then(function (response) {
+  renderSession(response.customer);
+  if (!response.customer && (query.has('mode') || query.has('next'))) {
+    const field = (initialMode === 'signin' ? signinForm : signupForm).querySelector('input');
+    if (field) field.focus();
+  }
+}).catch(function (error) {
+  showMessage(error.message + ' You can still try signing in or creating an account.', 'error');
+});

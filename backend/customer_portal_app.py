@@ -1193,14 +1193,23 @@ def list_customers():
                      WHERE searched_order.customer_id = c.customer_id
                        AND searched_order.customer_email LIKE %s
                 )
+                OR EXISTS (
+                    SELECT 1 FROM customer_accounts AS searched_account
+                     WHERE RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(searched_account.phone, '+', ''), '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), 10) = c.phone
+                       AND searched_account.email LIKE %s
+                )
             """
-            parameters.extend([pattern] * 5)
+            parameters.extend([pattern] * 6)
         cursor.execute(
             """
             SELECT c.customer_id AS id, c.first_name AS firstName,
                    c.last_name AS lastName, c.full_name AS fullName,
                    c.phone AS phone,
                    COALESCE((
+                       SELECT a.email FROM customer_accounts AS a
+                        WHERE RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(a.phone, '+', ''), '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), 10) = c.phone
+                        ORDER BY a.created_at DESC LIMIT 1
+                   ), (
                        SELECT o.customer_email FROM orders AS o
                         WHERE o.customer_id = c.customer_id AND o.customer_email <> ''
                         ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1
@@ -1248,6 +1257,10 @@ def get_customer_order_history(customer_id):
                    c.last_name AS lastName, c.full_name AS fullName,
                    c.phone AS phone,
                    COALESCE((
+                       SELECT a.email FROM customer_accounts AS a
+                        WHERE RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(a.phone, '+', ''), '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), 10) = c.phone
+                        ORDER BY a.created_at DESC LIMIT 1
+                   ), (
                        SELECT o.customer_email FROM orders AS o
                         WHERE o.customer_id = c.customer_id AND o.customer_email <> ''
                         ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1

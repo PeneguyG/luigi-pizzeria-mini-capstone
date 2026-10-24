@@ -14,6 +14,24 @@ DUMMY_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 
 def install_accounts(app, connect, guest_checkout):
+    def normalize_phone(value):
+        if not re.fullmatch(r'[0-9+(). \-]+', value):
+            raise ValueError('Use a valid 10-digit US phone number.')
+        digits = re.sub(r'\D', '', value)
+        if len(digits) == 11 and digits.startswith('1'):
+            digits = digits[1:]
+        if len(digits) != 10:
+            raise ValueError('Use a valid 10-digit US phone number.')
+        return digits
+
+    def sync_customer_directory(cursor, first_name, last_name, phone):
+        full_name = first_name + ' ' + last_name
+        cursor.execute('''INSERT INTO customers (full_name, first_name, last_name, phone)
+            VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE
+            full_name = VALUES(full_name), first_name = VALUES(first_name),
+            last_name = VALUES(last_name), customer_id = LAST_INSERT_ID(customer_id)''',
+            (full_name, first_name, last_name, phone))
+
     def current_account():
         if hasattr(g, 'customer_account'):
             return g.customer_account
@@ -74,12 +92,16 @@ def install_accounts(app, connect, guest_checkout):
         name = first_name.strip() + ' ' + last_name.strip() if isinstance(first_name, str) and isinstance(last_name, str) else ''
         if not all(isinstance(value, str) for value in (email, first_name, last_name, phone, password)):
             return jsonify(error='Account fields must be text.'), 400
-        email, name, phone = email.strip().lower(), name.strip(), phone.strip()
+        email, name = email.strip().lower(), name.strip()
         first_name, last_name = first_name.strip(), last_name.strip()
         if len(email) > 254 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
             return jsonify(error='Enter a valid email address.'), 400
-        if not re.fullmatch(r'[A-Za-z ]+', first_name) or not re.fullmatch(r'[A-Za-z ]+', last_name) or len(first_name) > 80 or len(last_name) > 80 or len(phone) > 30 or len(re.sub(r'\D', '', phone)) < 10:
+        if not re.fullmatch(r'[A-Za-z ]+', first_name) or not re.fullmatch(r'[A-Za-z ]+', last_name) or len(first_name) > 80 or len(last_name) > 80:
             return jsonify(error='Enter your first and last name and a phone number with at least 10 digits.'), 400
+        try:
+            phone = normalize_phone(phone.strip())
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
         if not 8 <= len(password) <= 128:
             return jsonify(error='Use a password between 8 and 128 characters.'), 400
         password_hash = generate_password_hash(password)
@@ -88,6 +110,7 @@ def install_accounts(app, connect, guest_checkout):
             cursor = connection.cursor()
             cursor.execute('INSERT INTO customer_accounts (email, full_name, first_name, last_name, phone, password_hash) VALUES (%s, %s, %s, %s, %s, %s)',
                            (email, name, first_name, last_name, phone, password_hash))
+            sync_customer_directory(cursor, first_name, last_name, phone)
             for receipt in guest_checkout().get('receipts', []):
                 cursor.execute('INSERT IGNORE INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (receipt['id'], email, receipt['token']))
             token = start_session(connection, email)
@@ -129,6 +152,12 @@ def install_accounts(app, connect, guest_checkout):
             if not customer or not valid:
                 return jsonify(error='Email or password is incorrect.'), 401
             customer.pop('password_hash')
+            try:
+                customer['phone'] = normalize_phone(customer['phone'])
+            except ValueError:
+                return jsonify(error='This account needs an updated phone number. Contact the restaurant.'), 409
+            cursor.execute('UPDATE customer_accounts SET phone = %s WHERE email = %s', (customer['phone'], customer['email']))
+            sync_customer_directory(cursor, customer['firstName'], customer['lastName'], customer['phone'])
             for receipt in guest_checkout().get('receipts', []):
                 cursor.execute('INSERT IGNORE INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (receipt['id'], customer['email'], receipt['token']))
             token = start_session(connection, customer['email'])

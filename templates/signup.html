@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Create a Luigi's Pizzeria customer demo account or sign in before ordering.">
+  <meta name="description" content="Create a Luigi's Pizzeria customer account or sign in before ordering.">
   <title>Customer Account | Luigi's Pizzeria</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
@@ -29,7 +29,7 @@
     <section class="container" id="account" aria-labelledby="account-options-title">
       <h2 id="account-options-title" class="visually-hidden">Customer account options</h2>
       <div id="authPanel" class="auth-wrap card">
-        <p id="auth-help" class="muted">Demo only: this prototype saves account details in this browser and does not create a server account.</p>
+          <p id="auth-help" class="muted">Create an account to save your contact details securely for future orders.</p>
         <div class="tabs" role="tablist" aria-label="Customer account options">
           <button class="tab active" id="signup-tab" data-tab="signup" type="button" role="tab" aria-selected="true" aria-controls="signupPanel" tabindex="0">Create account</button>
           <button class="tab" id="signin-tab" data-tab="signin" type="button" role="tab" aria-selected="false" aria-controls="signinPanel" tabindex="-1">Sign in</button>
@@ -78,7 +78,7 @@
 
       <div id="accountPanel" class="auth-wrap card hidden" hidden>
         <h2 id="accountGreeting">Welcome back</h2>
-        <p class="muted">This demo account is saved in this browser.</p>
+        <p class="muted">Your account is stored securely and can be used on any device.</p>
         <a id="continueOrder" class="btn block text-center" href="/customer?focus=order">Continue to pickup ordering</a>
       </div>
     </section>
@@ -90,6 +90,6 @@
     <a href="/">Back to Luigi's Pizzeria</a>
   </footer>
 
-  <script src="{{ url_for('static', filename='js/signup.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/signup.js') }}?v=20261024-1" defer></script>
 </body>
 </html>
