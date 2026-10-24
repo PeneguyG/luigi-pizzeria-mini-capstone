@@ -1,4 +1,4 @@
-body{background:#f7f5ed;color:#302c2b}header{background:#f1dada;border-bottom:1px solid #d9bcbc}.brand-box{width:4.5rem;height:4.5rem;background:#fbfaf5;color:#603b3b;border:2px solid #c99c9c;border-radius:.375rem;display:block;object-fit:cover}.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:#674747}.card{background:#fffefa}.btn-danger{--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336}.nav-pills .nav-link{color:#302c2b}.nav-pills .nav-link.active{background:#f1dada;color:#592f2f}.soft-green{background:#e4efe3;color:#315430}.soft-cream{background:#f4f1e7}.tracker{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.tracker li{position:relative;text-align:center;font-size:.85rem;padding:.4rem}.tracker .dot{width:2.5rem;height:2.5rem;border-radius:50%;background:#eee9df;color:#746b62;margin:0 auto .6rem;display:grid;place-items:center;font-weight:600;position:relative;z-index:1}.tracker li:before{content:'';height:3px;background:#eee9df;position:absolute;width:100%;left:-50%;top:calc(.4rem + 1.25rem);transform:translateY(-50%)}.tracker li:first-child:before{display:none}.tracker .done .dot,.tracker .done:before{background:#d7e6d4;color:#315430}.tracker .current .dot{background:#a84d50;color:#fff;outline:4px solid #f1dada}.tracker .current{font-weight:600;color:#7b3538}.summary{position:sticky;top:1rem}.form-control:focus,.form-select:focus{border-color:#a84d50;box-shadow:0 0 0 .2rem #a84d5020}button:focus-visible,a:focus-visible{outline:3px solid #603b3b;outline-offset:3px}[hidden]{display:none!important}@media(max-width:575px){.tracker{gap:0}.tracker li{font-size:.75rem}.brand-box{width:3.5rem;height:3.5rem}.summary{position:static}}
+body{background:#f7f5ed;color:#302c2b}header{background:#f1dada;border-bottom:1px solid #d9bcbc}.brand-box{width:4.5rem;height:4.5rem;background:#fbfaf5;color:#603b3b;border:2px solid #c99c9c;border-radius:.375rem;display:block;object-fit:cover}.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:#674747}.card{background:#fffefa}.btn-danger{--bs-btn-bg:#a84d50;--bs-btn-border-color:#a84d50;--bs-btn-hover-bg:#8e3f42;--bs-btn-hover-border-color:#8e3f42;--bs-btn-active-bg:#753336;--bs-btn-active-border-color:#753336}.nav-pills .nav-link{color:#302c2b}.nav-pills .nav-link.active{background:#f1dada;color:#592f2f}.soft-green{background:#e4efe3;color:#315430}.soft-cream{background:#f4f1e7}.tracker{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem}.tracker li{position:relative;text-align:center;font-size:.85rem;padding:.4rem}.tracker .dot{width:2.5rem;height:2.5rem;border-radius:50%;background:#eee9df;color:#746b62;margin:0 auto .6rem;display:grid;place-items:center;font-weight:600;position:relative;z-index:1}.tracker li:before{content:'';height:3px;background:#eee9df;position:absolute;left:-50%;right:50%;top:1.65rem}.tracker li:first-child:before{display:none}.tracker .done .dot,.tracker .done:before{background:#d7e6d4;color:#315430}.tracker .current .dot{background:#a84d50;color:#fff;outline:4px solid #f1dada}.tracker .current{font-weight:600;color:#7b3538}.summary{position:sticky;top:1rem}.form-control:focus,.form-select:focus{border-color:#a84d50;box-shadow:0 0 0 .2rem #a84d5020}button:focus-visible,a:focus-visible{outline:3px solid #603b3b;outline-offset:3px}[hidden]{display:none!important}@media(max-width:575px){.tracker{gap:0}.tracker li{font-size:.75rem}.brand-box{width:3.5rem;height:3.5rem}.summary{position:static}}
   
     /* Keep text, controls and keyboard focus easy to see on the original palette. */
     .text-secondary,.form-text{color:#615b57!important}.text-danger{color:#9c2f3b!important}
@@ -21,6 +21,26 @@ body{background:#f7f5ed;color:#302c2b}header{background:#f1dada;border-bottom:1p
     .nav-pills{padding:.5rem;background:#fffefa;border:1px solid #ded5d2;border-radius:.65rem}.nav-pills .nav-link{border-radius:.35rem;font-weight:600}.summary{border-top:4px solid #a84d50!important}.summary .card-body{padding-top:1.3rem!important}
     @media(max-width:767px){.welcome{grid-template-columns:1fr;padding:1.5rem;gap:.75rem}.welcome-art{display:none}.welcome h2{font-size:2.75rem}.nav-pills .nav-link{width:100%;text-align:left}.favorite-card{padding:1rem}}
 
-/* Equal grid columns anchor each connector to neighboring dot centers. */
-.tracker{column-gap:0;align-items:start}.tracker li{padding-inline:0}.tracker .dot{box-sizing:border-box;flex-shrink:0}
-#guest-tracker-form .form-label{min-height:1.5em}
+/* Keep the lookup inputs and button on the same baseline.
+   The phone hint sits below the row instead of changing its column height. */
+@media (min-width: 768px) {
+  #guest-tracker-form > .row {
+    padding-bottom: 2rem;
+    align-items: flex-end;
+  }
+  #guest-tracker-form .col-md-5 {
+    position: relative;
+  }
+  #guest-tracker-form #phone-help {
+    position: absolute;
+    top: 100%;
+    left: calc(var(--bs-gutter-x, 1.5rem) * .5);
+    right: calc(var(--bs-gutter-x, 1.5rem) * .5);
+    margin-top: .25rem;
+  }
+  #guest-tracker-form .form-control,
+  #guest-lookup-submit {
+    height: 44px;
+    min-height: 44px;
+  }
+}
