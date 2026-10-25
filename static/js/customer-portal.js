@@ -217,6 +217,13 @@ function resetToppingButtons() {
   document.querySelectorAll('.topping').forEach(function (button) { setToppingCount(button, 0); });
 }
 
+function clearPizzaSelection() {
+  element('pizza-form').reset();
+  resetToppingButtons();
+  updatePizzaEstimate();
+  announce('Pizza selections cleared. Size reset to medium and quantity reset to 1.');
+}
+
 function addPizza(event) {
 
   event.preventDefault();
@@ -509,6 +516,10 @@ async function initializeCustomerDashboard() {
     const accountState = await apiRequest('/api/customer/account');
     customerAccount = accountState.customer || null;
     prefillCustomer(customerAccount);
+    if (customerAccount && customerAccount.firstName) {
+      element('customer-welcome').textContent = 'Welcome back, ' + customerAccount.firstName + '!';
+      element('customer-welcome').hidden = false;
+    }
   } catch (_error) {
     // Guest ordering and tracking continue if account lookup is unavailable.
   }
@@ -675,6 +686,7 @@ element('customer-suggestions').addEventListener('click', function (event) {
   if (item) applyPizzaSuggestion(item);
 });
 element('pizza-form').addEventListener('submit', addPizza);
+element('clear-pizza-selection').addEventListener('click', clearPizzaSelection);
 
 element('drink-form').addEventListener('submit', addDrink);
 
