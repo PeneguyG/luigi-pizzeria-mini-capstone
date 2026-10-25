@@ -714,9 +714,15 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
 
         if public_order_code is not None:
 
-            where_clause += " AND o.public_order_code = %s AND o.tracking_token_hash = %s"
+            where_clause += " AND o.public_order_code = %s"
 
-            parameters.extend((public_order_code, tracking_hash))
+            parameters.append(public_order_code)
+
+            if tracking_hash is not None:
+
+                where_clause += " AND o.tracking_token_hash = %s"
+
+                parameters.append(tracking_hash)
 
         if account_email is not None:
 
