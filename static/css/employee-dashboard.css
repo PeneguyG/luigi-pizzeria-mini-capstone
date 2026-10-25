@@ -1,2 +1,4 @@
 :focus-visible { outline: 3px solid #603b3b !important; outline-offset: 3px; }
     [hidden] { display: none !important; }
+.topping-increment { min-height: 7rem; }
+.topping-image { width: 4rem; height: 4rem; object-fit: contain; }
