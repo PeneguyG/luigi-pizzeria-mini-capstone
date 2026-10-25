@@ -1,6 +1,6 @@
 import json
 """Flask API and same-origin host for Luigi's employee order dashboard."""
-from datetime import datetime, timedelta, time as datetime_time
+from datetime import datetime, timedelta, timezone, time as datetime_time
 import calendar
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -88,9 +88,9 @@ DRINK_PRICES = {
 
 PIZZA_PRICES = {
 
-    "Small": {"inches": 12, "base": Decimal("5.00"), "topping": Decimal("1.00"), "portion": "Â¼ cup"},
+    "Small": {"inches": 12, "base": Decimal("5.00"), "topping": Decimal("1.00"), "portion": "Ã‚Â¼ cup"},
 
-    "Medium": {"inches": 14, "base": Decimal("7.00"), "topping": Decimal("2.00"), "portion": "Â½ cup"},
+    "Medium": {"inches": 14, "base": Decimal("7.00"), "topping": Decimal("2.00"), "portion": "Ã‚Â½ cup"},
 
     "Large": {"inches": 18, "base": Decimal("9.00"), "topping": Decimal("3.00"), "portion": "1 cup"},
 
@@ -293,7 +293,7 @@ def validate_demo_payment(body):
     if (not isinstance(month, str) or not re.fullmatch(r'0[1-9]|1[0-2]', month)
         or not isinstance(year, str) or not re.fullmatch(r'[0-9]{4}', year)):
         raise ApiError('Use a valid expiry month and four-digit year (MM/YYYY).')
-    now = datetime.now()
+    now = business_now()
     if (int(year), int(month)) < (now.year, now.month) or int(year) > now.year + 20:
         raise ApiError('Choose an unexpired card date within the next 20 years.')
     return '4242'
@@ -310,7 +310,7 @@ def normalize_phone_number(value):
 
 def business_now():
     """Current aware time in the restaurant timezone used for pickup scheduling."""
-    timezone_name = os.environ.get("BUSINESS_TIMEZONE")
+    timezone_name = os.environ.get("BUSINESS_TIMEZONE", "America/Chicago")
     try:
         return datetime.now(ZoneInfo(timezone_name)) if timezone_name else datetime.now().astimezone()
     except ZoneInfoNotFoundError as exc:
@@ -492,7 +492,7 @@ def prepare_items(raw_items, maximum):
 
             topping_text = ", ".join(
 
-                "{}Ã— {}".format(topping["quantity"], topping["name"])
+                "{}Ãƒâ€” {}".format(topping["quantity"], topping["name"])
 
                 for topping in toppings
 
@@ -647,7 +647,12 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=20):
 
 def iso_timestamp(value):
 
-    return value.isoformat(sep=" ", timespec="milliseconds") if value else None
+    # Database connections use UTC; DATETIME values arrive without tzinfo.
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 def generate_public_order_code():
     """Return a human-readable, unpredictable customer-facing order code."""
@@ -1094,7 +1099,7 @@ def list_staff_accounts():
 def get_sales_summary():
     connection = None
     try:
-        timezone_name = os.environ.get("BUSINESS_TIMEZONE", "UTC")
+        timezone_name = os.environ.get("BUSINESS_TIMEZONE", "America/Chicago")
         try:
             business_timezone = ZoneInfo(timezone_name)
         except ZoneInfoNotFoundError as exc:
@@ -1508,7 +1513,7 @@ def dashboard():
         "employee-dashboard.html",
         staff=staff,
         csrf_token=ensure_csrf_token(),
-        business_timezone=os.environ.get("BUSINESS_TIMEZONE", ""),
+        business_timezone=os.environ.get("BUSINESS_TIMEZONE", "America/Chicago"),
     )
 
 @app.get("/staff-change-password")
@@ -2160,6 +2165,8 @@ def create_order():
                 if account:
                     cursor.execute('INSERT INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (order_id, account['email'], tracking_token))
                     cursor.execute('DELETE FROM customer_drafts WHERE account_email = %s', (account['email'],))
+            cursor.execute("SELECT created_at FROM orders WHERE order_id = %s", (order_id,))
+            created_at = cursor.fetchone()["created_at"]
             connection.commit()
 
         except Exception:
@@ -2172,7 +2179,6 @@ def create_order():
 
             connection.close()
 
-        created_at = datetime.now().astimezone().replace(tzinfo=None)
 
         response_order = {
 
