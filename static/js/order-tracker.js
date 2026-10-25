@@ -10,6 +10,18 @@ function safeText(value) { return String(value == null ? '' : value).replace(/[&
 function formatMoney(value) { return '$' + Number(value || 0).toFixed(2); }
 function displayOrderCode(order) { return String(order.publicOrderCode || ('PZ-LEGACY-' + order.id)); }
 function announceTracker(message) { trackerElement('tracker-announcement').textContent = message; }
+function maskPhoneInput(value) {
+  let digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  const countryCode = digits.length === 11 && digits[0] === '1';
+  if (countryCode) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+  let formatted = '';
+  if (digits.length) formatted = '(' + digits.slice(0, 3);
+  if (digits.length >= 3) formatted += ') ';
+  if (digits.length > 3) formatted += digits.slice(3, 6);
+  if (digits.length > 6) formatted += '-' + digits.slice(6, 10);
+  return countryCode && digits.length === 10 ? '+1 ' + formatted : formatted;
+}
 function showTrackerError(message) {
   const box = trackerElement('tracker-error');
   box.textContent = message;
@@ -77,6 +89,7 @@ async function loadGuestOrder(orderCode, phone, quiet) {
   if (!quiet) showTrackerError('');
   try {
     const result = await trackerRequest('/api/customer/track', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:orderCode,phone:phone})});
+    if (Array.isArray(result.orders)) return result;
     renderOrder(result, false);
     trackerElement('order-result-heading').focus();
     return result;
@@ -114,18 +127,107 @@ async function refreshGuestOrder() {
   try { await loadGuestOrder(displayOrderCode(currentOrder), trackerElement('lookup-phone').value, true); }
   catch (_error) { /* Keep the last confirmed status visible during a temporary connection issue. */ }
 }
+function showPhoneMatches(orders) {
+  const section = trackerElement('phone-order-matches');
+  const list = trackerElement('phone-matches-list');
+  const result = trackerElement('order-result');
+  result.hidden = true;
+  list.replaceChildren();
+  orders.forEach(function (order) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'list-group-item list-group-item-action d-flex flex-wrap justify-content-between align-items-center gap-2';
+    const description = document.createElement('span');
+    const code = document.createElement('strong');
+    code.textContent = 'Order ' + displayOrderCode(order);
+    const meta = document.createElement('span');
+    meta.className = 'd-block small text-secondary';
+    meta.textContent = [order.status, order.pickupTime ? 'Pickup ' + order.pickupTime : ''].filter(Boolean).join(' · ');
+    description.append(code, meta);
+    const total = document.createElement('span');
+    total.className = 'fw-semibold';
+    total.textContent = formatMoney(order.totalPrice);
+    button.append(description, total);
+    button.addEventListener('click', function () {
+      currentOrder = order;
+      section.hidden = true;
+      renderOrder(order, false);
+      trackerElement('order-result-heading').focus();
+      const url = new URL(window.location.href);
+      url.searchParams.set('order', displayOrderCode(order));
+      window.history.replaceState({}, '', url);
+      clearTimeout(refreshTimer);
+      if (order.status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
+    });
+    list.append(button);
+  });
+  section.hidden = false;
+  section.querySelector('h2').focus();
+  announceTracker(orders.length + (orders.length === 1 ? ' order found for that phone number.' : ' orders found for that phone number.'));
+}
+trackerElement('lookup-phone').addEventListener('input', function (event) {
+  const input = event.currentTarget;
+  const start = input.selectionStart;
+  const priorDigits = input.value.slice(0, start).replace(/\D/g, '').length;
+  input.value = maskPhoneInput(input.value);
+  let cursor = input.value.length;
+  if (priorDigits === 0) {
+    cursor = 0;
+  } else if (priorDigits < 10) {
+    let seen = 0;
+    for (let index = 0; index < input.value.length; index += 1) {
+      if (/\d/.test(input.value[index])) seen += 1;
+      if (seen >= priorDigits) { cursor = index + 1; break; }
+    }
+  }
+  input.setSelectionRange(cursor, cursor);
+});
 trackerElement('guest-tracker-form').addEventListener('submit', async function (event) {
   event.preventDefault();
+  const orderCode = trackerElement('order-number').value.trim().toUpperCase();
+  const phoneValue = trackerElement('lookup-phone').value.trim();
+  const phoneDigits = phoneValue.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  if (!orderCode && !phoneValue) {
+    showTrackerError('Enter either your order code or phone number.');
+    trackerElement('order-number').focus();
+    return;
+  }
+  if (phoneValue && phoneDigits.length !== 10) {
+    showTrackerError('Enter a complete 10-digit phone number.');
+    trackerElement('lookup-phone').focus();
+    return;
+  }
+  if (orderCode && !trackerElement('order-number').checkValidity()) {
+    trackerElement('order-number').reportValidity();
+    return;
+  }
+  trackerElement('phone-order-matches').hidden = true;
+  trackerElement('order-result').hidden = true;
+  currentOrder = null;
+  clearTimeout(refreshTimer);
   const submit = trackerElement('guest-lookup-submit');
   submit.disabled = true;
   submit.textContent = 'Checking…';
   try {
-    const order = await loadGuestOrder(trackerElement('order-number').value.trim().toUpperCase(), trackerElement('lookup-phone').value.trim(), false);
+    const result = await loadGuestOrder(orderCode, phoneDigits, false);
+    if (Array.isArray(result.orders)) {
+      if (result.orders.length === 1) {
+        renderOrder(result.orders[0], false);
+        trackerElement('order-result-heading').focus();
+        currentOrder = result.orders[0];
+        if (result.orders[0].status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
+      } else {
+        showPhoneMatches(result.orders);
+      }
+    }
+    const order = Array.isArray(result.orders) ? result.orders[0] : result;
     const url = new URL(window.location.href);
     url.searchParams.set('order', displayOrderCode(order));
     window.history.replaceState({}, '', url);
-    clearTimeout(refreshTimer);
-    if (order.status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
+    if (!Array.isArray(result.orders)) {
+      clearTimeout(refreshTimer);
+      if (order.status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
+    }
   } catch (_error) { /* The accessible error is rendered by loadGuestOrder. */ }
   finally { submit.disabled = false; submit.textContent = 'Find order'; }
 });
@@ -167,6 +269,6 @@ async function initializeTracker() {
       return;
     }
   } catch (_error) { /* Guest tracking remains available without an account session. */ }
-  if (hasRequestedCode) trackerElement('lookup-phone').focus();
+  if (hasRequestedCode) trackerElement('order-number').focus();
 }
 initializeTracker();

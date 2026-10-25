@@ -25,13 +25,14 @@ body{background:#f7f5ed;color:#302c2b}header{background:#f1dada;border-bottom:1p
    The phone hint sits below the row instead of changing its column height. */
 @media (min-width: 768px) {
   #guest-tracker-form > .row {
-    padding-bottom: 2rem;
+    padding-bottom: 2.25rem;
     align-items: flex-end;
   }
   #guest-tracker-form .col-md-5 {
     position: relative;
   }
-  #guest-tracker-form #phone-help {
+  #guest-tracker-form #phone-help,
+  #guest-tracker-form #order-code-help {
     position: absolute;
     top: 100%;
     left: calc(var(--bs-gutter-x, 1.5rem) * .5);

@@ -1811,39 +1811,58 @@ def track_customer_order(order_code):
 
 @app.post("/api/customer/track")
 def track_guest_order():
-    """Look up a guest order after verifying the full phone number on the order."""
+    """Look up an order by its unpredictable public code, phone, or both."""
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
-        return jsonify(error="Enter your order code and phone number."), 400
+        return jsonify(error="Enter an order code or phone number."), 400
     order_code = str(body.get("orderNumber", "")).strip().upper()
     code_pattern = r"PZ-(?:[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}|LEGACY-[0-9]{1,20})"
-    if not re.fullmatch(code_pattern, order_code):
-        return jsonify(error="Enter a valid order code and phone number."), 400
     phone = re.sub(r"\D", "", str(body.get("phone", "")))
     if phone.startswith("1") and len(phone) == 11:
         phone = phone[1:]
-    if len(phone) != 10:
-        return jsonify(error="Enter your order code and a 10-digit phone number."), 400
+    if not order_code and not phone:
+        return jsonify(error="Enter either an order code or phone number."), 400
+    if order_code and not re.fullmatch(code_pattern, order_code):
+        return jsonify(error="Check the order code format and try again."), 400
+    if phone and len(phone) != 10:
+        return jsonify(error="Enter a complete 10-digit phone number."), 400
     connection = database_connection()
     try:
         cursor = connection.cursor()
-        cursor.execute("""SELECT o.tracking_token_hash, c.phone
+        if order_code:
+            cursor.execute("""SELECT o.public_order_code, o.tracking_token_hash, c.phone
             FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id
-            WHERE o.public_order_code = %s""", (order_code,))
-        row = cursor.fetchone()
-        stored_phone = re.sub(r"\D", "", str(row["phone"] or "")) if row else ""
-        if stored_phone.startswith("1") and len(stored_phone) == 11:
-            stored_phone = stored_phone[1:]
-        if not row or not row["tracking_token_hash"] or stored_phone != phone:
-            return jsonify(error="We could not find that order. Check the order code and phone number and try again."), 404
-        orders = load_orders(
-            None,
-            tracking_hash=row["tracking_token_hash"],
-            public_order_code=order_code,
-        )
-        if not orders:
-            return jsonify(error="We could not find that order. Check the order code and phone number and try again."), 404
-        return jsonify(orders[0])
+            WHERE o.public_order_code = %s AND o.tracking_token_hash IS NOT NULL""", (order_code,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify(error="We could not find that order. Check the code and try again."), 404
+            stored_phone = re.sub(r"\D", "", str(row["phone"] or ""))
+            if stored_phone.startswith("1") and len(stored_phone) == 11:
+                stored_phone = stored_phone[1:]
+            # Legacy codes contain the old sequential database ID, so keep phone
+            # verification mandatory for those predictable codes.
+            is_legacy = order_code.startswith("PZ-LEGACY-")
+            if (phone or is_legacy) and stored_phone != phone:
+                return jsonify(error="We could not find that order. Check the code and phone number and try again."), 404
+            orders = load_orders(None, tracking_hash=row["tracking_token_hash"], public_order_code=order_code)
+            if not orders:
+                return jsonify(error="We could not find that order. Check the code and try again."), 404
+            return jsonify(orders[0])
+
+        cursor.execute("""SELECT o.public_order_code, o.tracking_token_hash
+            FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id
+            WHERE o.tracking_token_hash IS NOT NULL
+              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', '') IN (%s, %s)
+            ORDER BY o.created_at DESC LIMIT 20""", (phone, "1" + phone))
+        receipt_rows = cursor.fetchall()
+        matches = []
+        for receipt in receipt_rows:
+            order = load_orders(None, tracking_hash=receipt["tracking_token_hash"], public_order_code=receipt["public_order_code"])
+            if order:
+                matches.append(order[0])
+        if not matches:
+            return jsonify(error="We could not find an order for that phone number. Check it and try again."), 404
+        return jsonify({"orders": matches})
     except Exception:
         app.logger.exception("Could not verify guest order tracking request")
         return jsonify(error="Order tracking is temporarily unavailable. Please try again."), 503
