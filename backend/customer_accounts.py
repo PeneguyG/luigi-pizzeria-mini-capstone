@@ -1,6 +1,7 @@
 """Database-backed customer identity. Email is the unique public account ID."""
 from datetime import datetime, timedelta, timezone
 import hashlib
+import hmac
 import os
 import re
 import secrets
@@ -113,9 +114,10 @@ def install_accounts(app, connect, guest_checkout):
             sync_customer_directory(cursor, first_name, last_name, phone)
             for receipt in guest_checkout().get('receipts', []):
                 cursor.execute('INSERT IGNORE INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (receipt['id'], email, receipt['token']))
+            recovery_code = write_recovery_code(cursor, email)
             token = start_session(connection, email)
             connection.commit()
-            return session_response(dict(email=email, name=name, firstName=first_name, lastName=last_name, phone=phone), token, 201)
+            return session_response(dict(email=email, name=name, firstName=first_name, lastName=last_name, phone=phone, recoveryCode=recovery_code), token, 201)
         except pymysql.err.IntegrityError as exc:
             connection.rollback()
             if exc.args[0] == 1062:
@@ -178,6 +180,122 @@ def install_accounts(app, connect, guest_checkout):
             connection.close()
         session.pop('checkout_key', None)
         response = jsonify(message='Signed out.')
+        response.delete_cookie(COOKIE, path='/')
+        return response
+
+    @app.after_request
+    def protect_account_responses(response):
+        if request.path.startswith('/api/customer/') or request.path == '/signup.html':
+            response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    def write_recovery_code(cursor, email):
+        raw = secrets.token_hex(16).upper()
+        code_hash = hashlib.sha256(raw.encode('ascii')).hexdigest()
+        cursor.execute('''INSERT INTO customer_recovery_codes (account_email, code_hash)
+            VALUES (%s, %s) ON DUPLICATE KEY UPDATE code_hash = VALUES(code_hash),
+            updated_at = CURRENT_TIMESTAMP''', (email, code_hash))
+        return '-'.join(raw[index:index + 8] for index in range(0, 32, 8))
+
+    def recovery_limited(cursor, scope, value, maximum):
+        key = hashlib.sha256((scope + ':' + value).encode()).hexdigest()
+        cursor.execute('''INSERT INTO customer_login_limits (email_hash, attempts, window_start)
+            VALUES (%s, 1, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE
+            attempts = IF(window_start <= UTC_TIMESTAMP() - INTERVAL 15 MINUTE, 1, attempts + 1),
+            window_start = IF(window_start <= UTC_TIMESTAMP() - INTERVAL 15 MINUTE, UTC_TIMESTAMP(), window_start)''', (key,))
+        cursor.execute('SELECT attempts FROM customer_login_limits WHERE email_hash = %s', (key,))
+        return cursor.fetchone()['attempts'] > maximum
+
+    @app.post('/api/customer/recovery-code')
+    def generate_recovery_code():
+        customer = current_account()
+        if not customer:
+            return jsonify(error='Please sign in before generating a recovery code.'), 401
+        body = request.get_json(silent=True)
+        password = body.get('password') if isinstance(body, dict) else None
+        if not isinstance(password, str) or not 1 <= len(password) <= 128:
+            return jsonify(error='Enter your current password.'), 400
+        connection = connect()
+        try:
+            cursor = connection.cursor()
+            blocked = recovery_limited(cursor, 'recovery-generate', customer['email'], 10)
+            connection.commit()
+            if blocked:
+                return jsonify(error='Too many attempts. Please try again in 15 minutes.'), 429
+            cursor.execute('SELECT password_hash FROM customer_accounts WHERE email = %s FOR UPDATE', (customer['email'],))
+            account = cursor.fetchone()
+            token_hash = hashlib.sha256(request.cookies.get(COOKIE, '').encode()).hexdigest()
+            cursor.execute('''SELECT token_hash FROM customer_sessions WHERE token_hash = %s
+                AND account_email = %s AND expires_at > UTC_TIMESTAMP() FOR UPDATE''', (token_hash, customer['email']))
+            if not account or not cursor.fetchone():
+                connection.rollback()
+                return jsonify(error='Your session expired. Please sign in again.'), 401
+            if not check_password_hash(account['password_hash'], password):
+                connection.rollback()
+                return jsonify(error='Your current password is incorrect.'), 401
+            code = write_recovery_code(cursor, customer['email'])
+            connection.commit()
+            return jsonify(recoveryCode=code)
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    @app.post('/api/customer/recover-password')
+    def recover_password():
+        invalid = 'The email or recovery code is incorrect, or that code was already replaced.'
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return jsonify(error=invalid), 400
+        email, code, password, confirm = (body.get(k) for k in ('email', 'recoveryCode', 'password', 'confirmPassword'))
+        if (not isinstance(email, str) or len(email) > 254
+                or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email.strip())
+                or not isinstance(code, str) or len(code) > 100):
+            return jsonify(error=invalid), 400
+        email = email.strip().lower()
+        raw = re.sub(r'[-\s]', '', code).upper()
+        if not re.fullmatch(r'[0-9A-F]{32}', raw):
+            return jsonify(error=invalid), 400
+        if not isinstance(password, str) or not 8 <= len(password) <= 128:
+            return jsonify(error='Use a password between 8 and 128 characters.'), 400
+        if password != confirm:
+            return jsonify(error='The passwords do not match.'), 400
+        connection = connect()
+        try:
+            cursor = connection.cursor()
+            # Preserve UTC throttle windows. Never trust raw forwarded-IP headers.
+            by_ip = recovery_limited(cursor, 'recovery-ip', request.remote_addr or 'unknown', 30)
+            by_email = recovery_limited(cursor, 'recovery-email', email, 5)
+            connection.commit()
+            if by_ip or by_email:
+                response = jsonify(error='Too many recovery attempts. Please try again in 15 minutes.')
+                response.headers['Retry-After'] = '900'
+                return response, 429
+            # Always lock the account first so generation/reset share lock order.
+            cursor.execute('SELECT email FROM customer_accounts WHERE email = %s FOR UPDATE', (email,))
+            account = cursor.fetchone()
+            cursor.execute('SELECT code_hash FROM customer_recovery_codes WHERE account_email = %s FOR UPDATE', (email,))
+            stored = cursor.fetchone()
+            supplied = hashlib.sha256(raw.encode('ascii')).hexdigest()
+            matches = hmac.compare_digest(supplied, stored['code_hash'] if stored else '0' * 64)
+            if not account or not stored or not matches:
+                connection.rollback()
+                return jsonify(error=invalid), 400
+            cursor.execute('UPDATE customer_accounts SET password_hash = %s WHERE email = %s',
+                           (generate_password_hash(password), email))
+            replacement = write_recovery_code(cursor, email)
+            cursor.execute('DELETE FROM customer_sessions WHERE account_email = %s', (email,))
+            cursor.execute('DELETE FROM customer_login_limits WHERE email_hash = %s', (hashlib.sha256(email.encode()).hexdigest(),))
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+        g.customer_account = None
+        session.pop('checkout_key', None)
+        response = jsonify(message='Password updated. Save your replacement recovery code, then sign in.', recoveryCode=replacement)
         response.delete_cookie(COOKIE, path='/')
         return response
 
