@@ -1210,7 +1210,7 @@
         select.dataset.customerEmail = String(customer.email);
         select.setAttribute('aria-controls', 'customer-order-history');
         select.setAttribute('aria-expanded', 'false');
-        select.setAttribute('aria-label', 'View order history for registered account ' + customer.fullName + ', ' + customer.orderCount + ' orders');
+        select.setAttribute('aria-label', 'View order history for registered account ' + customer.fullName);
 
         const name = document.createElement('span');
         name.className = 'd-block fw-semibold';
@@ -1218,9 +1218,7 @@
         const details = document.createElement('span');
         details.className = 'd-block small text-secondary';
         const contact = [formatPhoneNumber(customer.phone), customer.email].filter(Boolean).join(' · ');
-        details.textContent = (contact ? contact + ' · ' : '') + customer.orderCount +
-          (customer.orderCount === 1 ? ' order' : ' orders') +
-          (customer.lastOrderAt ? ' · Last order ' + customer.lastOrderAt : '');
+        details.textContent = contact;
         select.append(name, details);
         item.append(select);
         customerDirectoryList.append(item);

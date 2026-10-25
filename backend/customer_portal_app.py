@@ -720,9 +720,9 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
 
         if account_email is not None:
 
-            where_clause += " AND (o.account_email = %s OR EXISTS (SELECT 1 FROM customer_order_receipts AS account_receipt WHERE account_receipt.order_id = o.order_id AND account_receipt.account_email = %s))"
+            where_clause += " AND EXISTS (SELECT 1 FROM customer_order_receipts AS account_receipt WHERE account_receipt.order_id = o.order_id AND account_receipt.account_email = %s)"
 
-            parameters.extend((account_email, account_email))
+            parameters.append(account_email)
 
         if customer_id is not None:
 
@@ -1241,19 +1241,7 @@ def list_customers():
         cursor.execute(
             """
             SELECT a.email AS id, a.email AS email, a.first_name AS firstName,
-                   a.last_name AS lastName, a.full_name AS fullName, a.phone AS phone,
-                   (SELECT COUNT(*) FROM orders AS order_count
-                     WHERE order_count.account_email = a.email OR EXISTS (
-                       SELECT 1 FROM customer_order_receipts AS order_receipt
-                        WHERE order_receipt.order_id = order_count.order_id
-                          AND order_receipt.account_email = a.email
-                     )) AS orderCount,
-                   (SELECT MAX(order_date.created_at) FROM orders AS order_date
-                     WHERE order_date.account_email = a.email OR EXISTS (
-                       SELECT 1 FROM customer_order_receipts AS date_receipt
-                        WHERE date_receipt.order_id = order_date.order_id
-                          AND date_receipt.account_email = a.email
-                     )) AS lastOrderAt
+                   a.last_name AS lastName, a.full_name AS fullName, a.phone AS phone
               FROM customer_accounts AS a
             """ + where_clause + " ORDER BY a.last_name, a.first_name, a.email",
             tuple(parameters),
@@ -1267,8 +1255,6 @@ def list_customers():
                 "fullName": row["fullName"],
                 "phone": row["phone"],
                 "email": row["email"],
-                "orderCount": int(row["orderCount"]),
-                "lastOrderAt": iso_timestamp(row["lastOrderAt"]),
             })
         return jsonify({"customers": customers})
     except Exception:
