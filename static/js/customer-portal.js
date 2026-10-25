@@ -132,7 +132,7 @@ function renderToppings() {
     if (!available.length) return '';
     const controls = available.map(function (name) {
       const index = inputIndex++;
-      return '<div class="col-sm-6 col-xl-4"><button id="topping-' + index + '" class="btn btn-outline-danger w-100 d-flex justify-content-between align-items-center topping" type="button" data-name="' + escapeHTML(name) + '" data-count="0" aria-label="Add one serving of ' + escapeHTML(name) + '" aria-describedby="topping-count-' + index + '">' + escapeHTML(name) + '<span id="topping-count-' + index + '" class="badge rounded-pill soft-green" aria-live="polite" aria-atomic="true">0x</span></button></div>';
+      return '<div class="col-sm-6 col-xl-4"><div class="d-flex align-items-stretch gap-2 h-100"><button id="topping-' + index + '" class="btn btn-outline-danger flex-grow-1 d-flex justify-content-between align-items-center gap-2 topping" style="min-width:0" type="button" data-name="' + escapeHTML(name) + '" data-count="0" aria-label="Add one serving of ' + escapeHTML(name) + '" aria-describedby="topping-count-' + index + '"><span class="text-start text-break">' + escapeHTML(name) + '</span><span id="topping-count-' + index + '" class="badge rounded-pill soft-green flex-shrink-0" aria-live="polite" aria-atomic="true">0x</span></button><button id="topping-remove-' + index + '" class="btn btn-outline-secondary flex-shrink-0 topping-decrement" style="width:44px;min-height:44px" type="button" data-topping-id="topping-' + index + '" aria-label="Remove one serving of ' + escapeHTML(name) + '" aria-describedby="topping-count-' + index + '" aria-controls="topping-' + index + '" disabled><span aria-hidden="true">−</span></button></div></div>';
     }).join('');
     return '<section class="col-12" aria-labelledby="topping-category-' + category.id + '"><h4 class="h6 mb-2" id="topping-category-' + category.id + '">' + category.name + '</h4><div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3">' + controls + '</div></section>';
   }).join('');
@@ -209,6 +209,8 @@ function renderCart() {
 function setToppingCount(button, count) {
   const servings = Math.max(0, Math.min(3, Number(count) || 0));
   button.dataset.count = String(servings);
+  const removeButton = element(button.id.replace('topping-', 'topping-remove-'));
+  if (removeButton) removeButton.disabled = servings === 0;
   button.querySelector('.badge').textContent = servings + 'x';
   button.setAttribute('aria-label', servings >= 3 ? button.dataset.name + ', maximum 3 servings selected' : 'Add one serving of ' + button.dataset.name + (servings ? ', ' + servings + ' selected' : ''));
 }
@@ -700,6 +702,17 @@ element('drink-form').addEventListener('submit', addDrink);
 element('pizza-form').addEventListener('input', updatePizzaEstimate);
 
 element('topping-options').addEventListener('click', function (event) {
+  const removeButton = event.target.closest('.topping-decrement');
+  if (removeButton) {
+    const selectedButton = element(removeButton.dataset.toppingId);
+    if (!selectedButton || removeButton.disabled) return;
+    const next = Math.max(0, Number(selectedButton.dataset.count) - 1);
+    setToppingCount(selectedButton, next);
+    updatePizzaEstimate();
+    if (next === 0) selectedButton.focus();
+    announce(selectedButton.dataset.name + ': ' + next + ' servings selected. Maximum 3.');
+    return;
+  }
   const button = event.target.closest('.topping');
   if (!button) return;
   const current = Number(button.dataset.count);
