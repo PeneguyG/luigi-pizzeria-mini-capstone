@@ -7,4 +7,4 @@
 .order-history-panel > .card-body { min-height: 0; overflow: hidden; }
 .order-history-scroll { min-height: 0; max-height: 100%; flex: 1 1 0; overflow-y: auto; overflow-x: hidden; }
 .active-orders-scroll > *, .order-history-scroll > * { min-width: 0; max-width: 100%; }
-.manager-specials-container { background: linear-gradient(135deg, #e6efe4 0%, #fffefa 60%, #f4e2df 100%); }
+.manager-specials-container { background: #f8d7da; }
