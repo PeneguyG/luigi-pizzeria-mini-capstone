@@ -78,7 +78,7 @@ function renderOrder(order, authenticated) {
   trackerElement('order-items').innerHTML = itemsMarkup(order.items);
   const payment = order.paymentMethod === 'Demo card' ? 'Demo card ending ' + (order.paymentLastFour || '—') + ' (no real payment processed).' : 'Pay at pickup.';
   trackerElement('order-details').innerHTML = '<p>' + safeText(order.customerName) + '<br>' + safeText(order.customerPhone) + (order.customerEmail ? '<br>' + safeText(order.customerEmail) : '') + '</p><p>' + safeText(payment) + '</p><strong>Total: ' + formatMoney(order.totalPrice) + '</strong>' + (order.notes ? '<p class="mt-2">Notes: ' + safeText(order.notes) + '</p>' : '');
-  trackerElement('last-checked').textContent = 'Last checked ' + new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  trackerElement('last-checked').textContent = 'Last checked ' + new Date().toLocaleTimeString([], {timeZone:LuigiTime.zone,hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   if (!authenticated && order.customerEmail) {
     trackerElement('express-account-card').hidden = false;
     trackerElement('express-account-form').dataset.email = order.customerEmail;
@@ -135,7 +135,7 @@ async function loadGuestOrder(orderCode, phone, quiet) {
     const result = await trackerRequest('/api/customer/track', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:orderCode,phone:phone})});
     if (Array.isArray(result.orders)) return result;
     renderOrder(result, false);
-    trackerElement('order-result-heading').focus();
+    if (!quiet) trackerElement('order-result-heading').focus();
     return result;
   } catch (error) {
     if (!quiet) showTrackerError(error.message);
@@ -166,10 +166,20 @@ async function refreshAuthenticatedOrders() {
   finally { refreshRunning = false; }
 }
 async function refreshGuestOrder() {
-  if (!currentOrder || signedInAccount || document.hidden) return;
-  try { await loadGuestOrder(displayOrderCode(currentOrder), trackerElement('lookup-phone').value, true); }
-  catch (_error) { /* Keep the last confirmed status visible during a temporary connection issue. */ }
+  clearTimeout(refreshTimer);
+  if (!currentOrder || signedInAccount || currentOrder.status === 'Completed') return;
+  try {
+    if (!document.hidden) {
+      await loadGuestOrder(displayOrderCode(currentOrder), trackerElement('lookup-phone').value, true);
+    }
+  } catch (_error) { /* Retry after a temporary connection issue. */ }
+  finally {
+    if (currentOrder && !signedInAccount && currentOrder.status !== 'Completed') {
+      refreshTimer = setTimeout(refreshGuestOrder, 5000);
+    }
+  }
 }
+
 function showPhoneMatches(orders) {
   const section = trackerElement('phone-order-matches');
   const list = trackerElement('phone-matches-list');
