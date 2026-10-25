@@ -11,6 +11,13 @@ const accountPanel = document.getElementById('accountPanel');
 const authPanel = document.getElementById('authPanel');
 const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
 const query = new URLSearchParams(window.location.search);
+const recoveryPanel = document.getElementById('recoveryPanel');
+const recoveryForm = document.getElementById('recoveryForm');
+const backupPanel = document.getElementById('backupCodePanel');
+let signedInCustomer = null;
+let backupFlow = null;
+let recoveringEmail = '';
+let accountBusy = false;
 
 function returnUrl() {
   const requested = query.get('next');
@@ -52,16 +59,20 @@ function switchTab(name, moveFocus) {
   });
   signupPanel.hidden = !isSignup;
   signupPanel.classList.toggle('hidden', !isSignup);
-  signinPanel.hidden = isSignup;
-  signinPanel.classList.toggle('hidden', isSignup);
+  const isSignin = name === 'signin';
+  signinPanel.hidden = !isSignin;
+  signinPanel.classList.toggle('hidden', !isSignin);
+  recoveryPanel.hidden = name !== 'recovery';
+  recoveryPanel.classList.toggle('hidden', name !== 'recovery');
   clearMessage();
   if (moveFocus) {
-    const field = (isSignup ? signupForm : signinForm).querySelector('input');
+    const field = (name === 'recovery' ? recoveryForm : isSignup ? signupForm : signinForm).querySelector('input');
     if (field) field.focus();
   }
 }
 
 function renderSession(customer) {
+  signedInCustomer = customer;
   const signedIn = Boolean(customer);
   authPanel.hidden = signedIn;
   authPanel.classList.toggle('hidden', signedIn);
@@ -118,7 +129,7 @@ async function handleSignup(event) {
 
   setSubmitting(signupForm, true, 'Creating account…');
   try {
-    await accountRequest('/api/customer/signup', {
+    const created = await accountRequest('/api/customer/signup', {
       firstName: firstName,
       lastName: lastName,
       email: email,
@@ -126,7 +137,8 @@ async function handleSignup(event) {
       password: password
     });
     signupForm.reset();
-    redirectToOrder();
+    renderSession({email: created.email, firstName: created.firstName, name: created.name});
+    presentBackup(created.recoveryCode, 'signup');
   } catch (error) {
     if (error.message.indexOf('already exists') !== -1) {
       switchTab('signin', false);
@@ -142,12 +154,13 @@ async function handleSignin(event) {
   if (!signinForm.reportValidity()) return;
   setSubmitting(signinForm, true, 'Signing in…');
   try {
-    await accountRequest('/api/customer/signin', {
+    const customer = await accountRequest('/api/customer/signin', {
       email: document.getElementById('siEmail').value.trim().toLowerCase(),
       password: document.getElementById('siPassword').value
     });
     signinForm.reset();
-    redirectToOrder();
+    renderSession(customer);
+    document.getElementById('accountGreeting').focus();
   } catch (error) {
     showMessage(error.message, 'error');
     document.getElementById('siEmail').focus();
@@ -194,6 +207,7 @@ const initialMode = query.get('mode') === 'signin' ? 'signin' : 'signup';
 switchTab(initialMode, false);
 renderSession(null);
 accountRequest('/api/customer/account').then(function (response) {
+  if (backupFlow) return;
   renderSession(response.customer);
   if (!response.customer && (query.has('mode') || query.has('next'))) {
     const field = (initialMode === 'signin' ? signinForm : signupForm).querySelector('input');
@@ -201,4 +215,112 @@ accountRequest('/api/customer/account').then(function (response) {
   }
 }).catch(function (error) {
   showMessage(error.message + ' You can still try signing in or creating an account.', 'error');
+});
+
+
+function presentBackup(code, flow) {
+  if (!code) throw new Error('Your code could not be displayed. Sign in to generate a replacement.');
+  backupFlow = flow;
+  authPanel.hidden = true;
+  authPanel.classList.add('hidden');
+  accountPanel.hidden = true;
+  accountPanel.classList.add('hidden');
+  backupPanel.hidden = false;
+  backupPanel.classList.remove('hidden');
+  document.getElementById('headerSignIn').hidden = true;
+  document.getElementById('headerSignIn').classList.add('hidden');
+  document.getElementById('signOut').hidden = true;
+  document.getElementById('signOut').classList.add('hidden');
+  document.getElementById('backupCodeValue').value = code;
+  document.getElementById('backupSaved').checked = false;
+  document.getElementById('backupContinue').disabled = true;
+  document.getElementById('backupContinue').textContent = flow === 'reset' ? 'Continue to sign in' : 'Continue to ordering';
+  document.getElementById('backupCodeMessage').textContent = flow === 'reset'
+    ? 'Your password was updated and existing sessions were signed out. This replacement code invalidates your old code.'
+    : flow === 'signup' ? 'Your account is ready. Save this code before continuing.'
+    : 'This replacement code immediately invalidates your previous recovery code.';
+  document.getElementById('backupCodeHeading').focus();
+}
+
+document.getElementById('openRecovery').addEventListener('click', function () {
+  if (accountBusy) return;
+  document.getElementById('reEmail').value = document.getElementById('siEmail').value;
+  switchTab('recovery', true);
+});
+document.getElementById('backToSignin').addEventListener('click', function () {
+  if (!accountBusy) switchTab('signin', true);
+});
+document.getElementById('backupSaved').addEventListener('change', function () {
+  document.getElementById('backupContinue').disabled = !this.checked;
+});
+document.getElementById('backupContinue').addEventListener('click', function () {
+  if (!document.getElementById('backupSaved').checked) return;
+  const flow = backupFlow;
+  document.getElementById('backupCodeValue').value = '';
+  backupFlow = null;
+  backupPanel.hidden = true;
+  backupPanel.classList.add('hidden');
+  if (flow === 'reset') {
+    renderSession(null);
+    switchTab('signin', true);
+    document.getElementById('siEmail').value = recoveringEmail;
+    showMessage('Password updated. Sign in with your new password.', 'success');
+  } else {
+    redirectToOrder();
+  }
+});
+
+const newPassword = document.getElementById('rePassword');
+const newConfirm = document.getElementById('reConfirm');
+[newPassword, newConfirm].forEach(function (input) {
+  input.addEventListener('input', function () { newConfirm.setCustomValidity(''); });
+});
+recoveryForm.addEventListener('submit', async function (event) {
+  event.preventDefault();
+  if (accountBusy) return;
+  newConfirm.setCustomValidity(newPassword.value === newConfirm.value ? '' : 'The passwords do not match.');
+  if (!recoveryForm.reportValidity()) return;
+  accountBusy = true;
+  recoveringEmail = document.getElementById('reEmail').value.trim().toLowerCase();
+  setSubmitting(recoveryForm, true, 'Resetting password…');
+  try {
+    const result = await accountRequest('/api/customer/recover-password', {
+      email: recoveringEmail, recoveryCode: document.getElementById('reCode').value,
+      password: newPassword.value, confirmPassword: newConfirm.value
+    });
+    recoveryForm.reset();
+    renderSession(null);
+    presentBackup(result.recoveryCode, 'reset');
+  } catch (error) {
+    showMessage(error.message, 'error');
+    newPassword.value = '';
+    newConfirm.value = '';
+  } finally {
+    accountBusy = false;
+    setSubmitting(recoveryForm, false);
+  }
+});
+const generateForm = document.getElementById('generateCodeForm');
+generateForm.addEventListener('submit', async function (event) {
+  event.preventDefault();
+  if (accountBusy || !generateForm.reportValidity()) return;
+  accountBusy = true;
+  const errorBox = document.getElementById('generateCodeError');
+  errorBox.hidden = true;
+  setSubmitting(generateForm, true, 'Generating code…');
+  try {
+    const result = await accountRequest('/api/customer/recovery-code', {
+      password: document.getElementById('codeCurrentPassword').value
+    });
+    generateForm.reset();
+    presentBackup(result.recoveryCode, 'generate');
+  } catch (error) {
+    errorBox.textContent = error.message;
+    errorBox.hidden = false;
+    document.getElementById('codeCurrentPassword').focus();
+  } finally {
+    document.getElementById('codeCurrentPassword').value = '';
+    accountBusy = false;
+    setSubmitting(generateForm, false);
+  }
 });
