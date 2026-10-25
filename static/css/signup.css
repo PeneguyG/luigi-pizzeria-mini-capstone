@@ -162,7 +162,21 @@ form .btn { margin-top: 18px; }
   background: var(--pastel-green);
   color: var(--ink);
 }
-.staff-login { max-width: 380px; margin: 64px auto; }
+.staff #staff-main {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 3rem) 1rem;
+}
+.staff-login {
+  width: min(100%, 30rem);
+  max-width: none;
+  margin: 0;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+.staff-login h1 { font-size: clamp(1.5rem, 4vw, 2rem); }
 .demo-warning {
   padding: 12px;
   color: #5c3113;
