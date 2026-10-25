@@ -133,6 +133,16 @@ ensure_column tracking_token_hash "CHAR(64) NULL AFTER pickup_time"
 ensure_column customer_email "VARCHAR(254) NOT NULL DEFAULT '' AFTER tracking_token_hash"
 ensure_column payment_method "VARCHAR(40) NOT NULL DEFAULT 'Pay at pickup' AFTER customer_email"
 ensure_column payment_last_four "CHAR(4) NULL AFTER payment_method"
+ensure_column public_order_code "VARCHAR(40) NULL AFTER order_id"
+mariadb --protocol=socket --user=root --database="$DB_NAME" \
+  -e "UPDATE orders SET public_order_code=CONCAT('PZ-LEGACY-', order_id) WHERE public_order_code IS NULL"
+mariadb --protocol=socket --user=root --database="$DB_NAME" \
+  -e 'ALTER TABLE orders MODIFY COLUMN public_order_code VARCHAR(40) NOT NULL'
+public_order_code_index="$(mariadb --protocol=socket --user=root --batch --skip-column-names \
+  -e "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='orders' AND INDEX_NAME='uq_orders_public_order_code'")"
+if [[ "$public_order_code_index" == 0 ]]; then
+  mariadb --protocol=socket --user=root --database="$DB_NAME" -e 'ALTER TABLE orders ADD UNIQUE KEY uq_orders_public_order_code (public_order_code)'
+fi
 ensure_topping_quantity="$(mariadb --protocol=socket --user=root --batch --skip-column-names \
   -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='order_item_toppings' AND COLUMN_NAME='quantity'")"
 if [[ "$ensure_topping_quantity" == 0 ]]; then

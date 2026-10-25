@@ -10,7 +10,7 @@
 </head>
 <body class="min-vh-100">
   <a class="skip-link visually-hidden-focusable position-absolute top-0 start-0 m-2 p-2 bg-white text-dark rounded" href="#main-content">Skip to main content</a>
-  <header><div class="container py-3"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3"><div class="d-flex align-items-center gap-3"><img class="brand-box" src="{{ url_for('static', filename='images/luigis-vintage-pizza-badge.png') }}" alt=""><div><p class="eyebrow mb-1">Customer portal</p><h1 class="h3 mb-0">Luigi's Pizzeria</h1><p id="customer-welcome" class="small fw-semibold text-success-emphasis mb-0" role="status" aria-live="polite" aria-atomic="true" hidden></p></div></div><span class="badge rounded-pill border text-dark px-3 py-2" style="background:#fbfaf5;border-color:#d9bcbc!important">Fresh pizza. Easy pickup.</span></div></div></header>
+  <header><div class="container py-3"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3"><div class="d-flex align-items-center gap-3"><img class="brand-box" src="{{ url_for('static', filename='images/luigis-vintage-pizza-badge.png') }}" alt=""><div><p class="eyebrow mb-1">Customer portal</p><h1 class="h3 mb-0">Luigi's Pizzeria</h1></div></div><p id="customer-welcome" class="badge rounded-pill border text-dark px-3 py-2 mb-0" style="background:#fbfaf5;border-color:#d9bcbc!important" role="status" aria-live="polite" aria-atomic="true" hidden></p></div></div></header>
   <main tabindex="-1" id="main-content" class="container py-4 py-lg-5">
     <section id="storefront-welcome" class="welcome mb-4" aria-labelledby="welcome-title">
       <div class="welcome-copy"><p class="eyebrow mb-2">Your neighborhood pizza stop</p><h2 id="welcome-title">Good pizza.<br>Great pickup.</h2><p class="text-secondary mb-4">Make it yours and order online for pickup.</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-danger px-4" href="#menu-panel">Start your order</a><a class="btn btn-outline-danger px-4" href="/order-tracker.html">Track an order</a></div><p class="small text-secondary mt-3 mb-0">Made your way · Online ordering · Kitchen updates</p></div>
@@ -40,7 +40,7 @@
     <div id="order-success" class="alert alert-success mt-4" role="status" aria-live="polite" tabindex="-1" hidden></div>
     <footer class="text-center small text-secondary mt-5"><p class="mb-2">Luigi's Pizzeria · Pickup made simple.</p><a class="text-muted text-decoration-none" href="/" aria-label="Return to the Luigi's Pizzeria home page">Return to home</a></footer>
   </main>
-  <script src="{{ url_for('static', filename='js/customer-portal.js') }}?v=20261024-4" defer></script>
+  <script src="{{ url_for('static', filename='js/customer-portal.js') }}?v=20261024-5" defer></script>
 </body>
 </html>
 

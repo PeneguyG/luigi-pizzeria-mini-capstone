@@ -8,6 +8,7 @@ let refreshRunning = false;
 
 function safeText(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
 function formatMoney(value) { return '$' + Number(value || 0).toFixed(2); }
+function displayOrderCode(order) { return String(order.publicOrderCode || ('PZ-LEGACY-' + order.id)); }
 function announceTracker(message) { trackerElement('tracker-announcement').textContent = message; }
 function showTrackerError(message) {
   const box = trackerElement('tracker-error');
@@ -38,7 +39,8 @@ function itemsMarkup(items) {
 function renderOrder(order, authenticated) {
   currentOrder = order;
   trackerElement('order-result').hidden = false;
-  trackerElement('order-result-heading').textContent = 'Order #' + order.id + ' · Thanks, ' + order.customerName + '!';
+  const orderCode = displayOrderCode(order);
+  trackerElement('order-result-heading').textContent = 'Order ' + orderCode + ' · Thanks, ' + order.customerName + '!';
   trackerElement('order-pickup').textContent = 'Pickup at Luigi’s Pizzeria' + (order.pickupTime ? ' · Requested time: ' + order.pickupTime : ' · Next available pickup');
   const statusName = order.status === 'In-Progress' ? 'In the kitchen' : order.status === 'Completed' ? 'Picked up' : order.status;
   trackerElement('order-status').textContent = statusName;
@@ -51,7 +53,7 @@ function renderOrder(order, authenticated) {
   const messages = {
     'Confirmed':'Your order is confirmed. Our team will start preparing it soon.',
     'In-Progress':'Our kitchen is preparing your order.',
-    'Ready':'Your order is ready. Please give the team your name and order number at pickup.',
+    'Ready':'Your order is ready. Please give the team your name and order code at pickup.',
     'Overdue':'Your order is taking longer than expected. The team is working on it.',
     'Completed':'Your order has been picked up. Thanks for choosing Luigi’s!'
   };
@@ -69,12 +71,12 @@ function renderOrder(order, authenticated) {
   } else {
     trackerElement('express-account-card').hidden = true;
   }
-  announceTracker('Order ' + order.id + ' status: ' + statusName + '.');
+  announceTracker('Order code ' + orderCode + ' status: ' + statusName + '.');
 }
-async function loadGuestOrder(orderNumber, phone, quiet) {
+async function loadGuestOrder(orderCode, phone, quiet) {
   if (!quiet) showTrackerError('');
   try {
-    const result = await trackerRequest('/api/customer/track', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:orderNumber,phone:phone})});
+    const result = await trackerRequest('/api/customer/track', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:orderCode,phone:phone})});
     renderOrder(result, false);
     trackerElement('order-result-heading').focus();
     return result;
@@ -89,7 +91,7 @@ async function refreshAuthenticatedOrders() {
   try {
     const receipts = await trackerRequest('/api/customer/receipts');
     const results = await Promise.all((receipts.receipts || []).map(async function (receipt) {
-      try { return await trackerRequest('/api/customer/orders/' + receipt.id, {headers:{'X-Order-Token':receipt.token}}); }
+      try { return await trackerRequest('/api/customer/orders/' + encodeURIComponent(receipt.orderCode), {headers:{'X-Order-Token':receipt.token}}); }
       catch (_error) { return null; }
     }));
     const active = results.filter(function (order) { return order && order.status !== 'Completed'; });
@@ -99,7 +101,7 @@ async function refreshAuthenticatedOrders() {
       list.innerHTML = '<p class="text-secondary mb-0">You have no active orders right now.</p>';
     } else {
       list.innerHTML = active.map(function (order) {
-        return '<article class="border-top py-3"><div class="d-flex flex-wrap justify-content-between gap-2"><h3 class="h5">Order #' + order.id + '</h3><span class="badge rounded-pill soft-green align-self-start">' + safeText(order.status === 'In-Progress' ? 'In the kitchen' : order.status) + '</span></div><p class="text-secondary">' + safeText(order.customerName) + (order.pickupTime ? ' · Pickup ' + safeText(order.pickupTime) : '') + '</p><div>' + itemsMarkup(order.items) + '</div><strong>Total: ' + formatMoney(order.totalPrice) + '</strong></article>';
+        return '<article class="border-top py-3"><div class="d-flex flex-wrap justify-content-between gap-2"><h3 class="h5">Order ' + safeText(displayOrderCode(order)) + '</h3><span class="badge rounded-pill soft-green align-self-start">' + safeText(order.status === 'In-Progress' ? 'In the kitchen' : order.status) + '</span></div><p class="text-secondary">' + safeText(order.customerName) + (order.pickupTime ? ' · Pickup ' + safeText(order.pickupTime) : '') + '</p><div>' + itemsMarkup(order.items) + '</div><strong>Total: ' + formatMoney(order.totalPrice) + '</strong></article>';
       }).join('');
     }
     const latestOrder = results.find(function (order) { return Boolean(order); });
@@ -109,7 +111,7 @@ async function refreshAuthenticatedOrders() {
 }
 async function refreshGuestOrder() {
   if (!currentOrder || signedInAccount || document.hidden) return;
-  try { await loadGuestOrder(currentOrder.id, trackerElement('lookup-phone').value, true); }
+  try { await loadGuestOrder(displayOrderCode(currentOrder), trackerElement('lookup-phone').value, true); }
   catch (_error) { /* Keep the last confirmed status visible during a temporary connection issue. */ }
 }
 trackerElement('guest-tracker-form').addEventListener('submit', async function (event) {
@@ -118,9 +120,9 @@ trackerElement('guest-tracker-form').addEventListener('submit', async function (
   submit.disabled = true;
   submit.textContent = 'Checking…';
   try {
-    const order = await loadGuestOrder(trackerElement('order-number').value.trim(), trackerElement('lookup-phone').value.trim(), false);
+    const order = await loadGuestOrder(trackerElement('order-number').value.trim().toUpperCase(), trackerElement('lookup-phone').value.trim(), false);
     const url = new URL(window.location.href);
-    url.searchParams.set('order', order.id);
+    url.searchParams.set('order', displayOrderCode(order));
     window.history.replaceState({}, '', url);
     clearTimeout(refreshTimer);
     if (order.status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
@@ -149,7 +151,11 @@ trackerElement('express-account-form').addEventListener('submit', async function
 });
 async function initializeTracker() {
   const requestedOrder = new URLSearchParams(window.location.search).get('order');
-  if (requestedOrder && /^\d+$/.test(requestedOrder)) trackerElement('order-number').value = requestedOrder;
+  const requestedCode = requestedOrder && /^\d+$/.test(requestedOrder)
+    ? 'PZ-LEGACY-' + requestedOrder
+    : String(requestedOrder || '').trim().toUpperCase();
+  const hasRequestedCode = /^PZ-(?:[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}|LEGACY-[0-9]{1,20})$/.test(requestedCode);
+  if (hasRequestedCode) trackerElement('order-number').value = requestedCode;
   try {
     const account = await trackerRequest('/api/customer/account');
     signedInAccount = account.customer;
@@ -161,6 +167,6 @@ async function initializeTracker() {
       return;
     }
   } catch (_error) { /* Guest tracking remains available without an account session. */ }
-  if (requestedOrder && /^\d+$/.test(requestedOrder)) trackerElement('lookup-phone').focus();
+  if (hasRequestedCode) trackerElement('lookup-phone').focus();
 }
 initializeTracker();

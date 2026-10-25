@@ -480,6 +480,7 @@
 
     function orderCard(order) {
       const id = escapeHTML(order.id);
+      const displayCode = escapeHTML(order.publicOrderCode || order.id);
       const safeId = String(order.id).replace(/[^a-zA-Z0-9_-]/g, '-');
       const detailsId = 'order-details-' + safeId;
       const statusOptions = allowedStatuses.map(function (status) {
@@ -496,7 +497,7 @@
         ? ' <span class="small text-secondary">(includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
       return '<article class="card" data-order-card="' + id + '"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div class="flex-grow-1">' +
-        '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
+        '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + displayCode + '</h4>' +
         statusBadge(order.status, order.id) + '<span class="badge rounded-pill bg-body-secondary text-body-secondary">' + escapeHTML(order.source || 'Order system') + '</span></div>' +
         '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p><p class="small mb-2"><span class="fw-semibold">Items:</span></p>' +
         '<ul class="small mb-2">' + formatOrderItems(order.items) + '</ul>' +
@@ -544,13 +545,14 @@
 
     function historyCard(order) {
       const id = escapeHTML(order.id);
+      const displayCode = escapeHTML(order.publicOrderCode || order.id);
       const timestamp = formatTimestamp(order.completedAt);
       const timeTag = timestamp.iso ? '<time datetime="' + escapeHTML(timestamp.iso) + '">' + escapeHTML(timestamp.label) + '</time>' : escapeHTML(timestamp.label);
       const taxDetails = Number.isFinite(Number(order.taxPrice))
         ? '<span class="small text-secondary"> (includes ' + formatMoney(order.taxPrice) + ' tax)</span>' : '';
       return '<article class="card"><div class="card-body p-3 p-md-4">' +
         '<div class="d-flex flex-column flex-md-row justify-content-between gap-3"><div class="flex-grow-1">' +
-        '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + id + '</h4>' +
+        '<div class="d-flex flex-wrap align-items-center gap-2 mb-2"><h4 class="h6 mb-0">Order ' + displayCode + '</h4>' +
         '<span class="badge rounded-pill bg-success-subtle text-success-emphasis">Completed</span></div>' +
         '<p class="mb-1"><strong>' + escapeHTML(order.customerName) + '</strong></p>' +
         '<p class="small text-secondary mb-2"><span class="fw-semibold">Phone:</span> ' + escapeHTML(formatPhoneNumber(order.customerPhone)) + '</p>' +
@@ -1265,7 +1267,7 @@
         body.className = 'card-body';
         const heading = document.createElement('h5');
         heading.className = 'h6';
-        heading.textContent = 'Order #' + order.id + ' · ' + order.status;
+        heading.textContent = 'Order ' + (order.publicOrderCode || order.id) + ' · ' + order.status;
         const meta = document.createElement('p');
         meta.className = 'small text-secondary mb-2';
         meta.textContent = [order.createdAt, order.channel, order.pickupDate || order.pickupTime ? 'Pickup ' + formatPickupSchedule(order) : ''].filter(Boolean).join(' · ');

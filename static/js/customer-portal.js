@@ -473,7 +473,14 @@ async function placeOrder(event) {
 
     const order = await apiRequest('/api/customer/orders', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
 
-    element('order-success').innerHTML = 'Order #' + Number(order.id) + ' was placed. <a class="alert-link" href="/order-tracker.html?order=' + encodeURIComponent(order.id) + '">Track your order</a> using your order number and phone number.';
+    const publicOrderCode = String(order.publicOrderCode || '');
+    const orderSuccess = element('order-success');
+    orderSuccess.replaceChildren(document.createTextNode('Order code ' + publicOrderCode + ' was placed. '));
+    const trackingLink = document.createElement('a');
+    trackingLink.className = 'alert-link';
+    trackingLink.href = '/order-tracker.html?order=' + encodeURIComponent(publicOrderCode);
+    trackingLink.textContent = 'Track your order';
+    orderSuccess.append(trackingLink, document.createTextNode(' using your order code and phone number.'));
     element('order-success').hidden = false;
 
     cart = [];
@@ -484,7 +491,7 @@ async function placeOrder(event) {
 
     element('order-success').focus();
 
-    announce('Order ' + order.id + ' placed. Use the tracking link and your phone number to follow its progress.');
+    announce('Order code ' + publicOrderCode + ' placed. Use the tracking link and your phone number to follow its progress.');
 
   } catch (error) {
 

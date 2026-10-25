@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS orders (
 
   order_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 
+  public_order_code VARCHAR(40) NOT NULL,
+
   customer_id BIGINT UNSIGNED NOT NULL,
   account_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL,
   KEY idx_orders_account (account_email, created_at),
@@ -104,6 +106,8 @@ CREATE TABLE IF NOT EXISTS orders (
   completed_at DATETIME(3) NULL,
 
   PRIMARY KEY (order_id),
+
+  UNIQUE KEY uq_orders_public_order_code (public_order_code),
 
   UNIQUE KEY uq_orders_tracking_token (tracking_token_hash),
 

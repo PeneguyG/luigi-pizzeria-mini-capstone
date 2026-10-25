@@ -20,9 +20,9 @@ START TRANSACTION;
 
 -- Active: Confirmed. Large pizza has 2 sausage and 3 green pepper servings.
 INSERT INTO orders
-  (customer_id, source, channel, pickup_time, status, notes, subtotal,
+  (customer_id, public_order_code, source, channel, pickup_time, status, notes, subtotal,
    tax_rate_bps, tax_amount, total)
-SELECT @demo_joe, 'Employee POS', 'Phone pickup',
+SELECT @demo_joe, 'PZ-2222-2222-2222-2222', 'Employee POS', 'Phone pickup',
        IF(TIME_TO_SEC(CURRENT_TIME()) < 82800, ADDTIME(CURRENT_TIME(), '01:00:00'), NULL),
        'Confirmed', 'DEMO DATA: D-001 — Large pizza with 2 sausage and 3 green pepper servings.',
        28.00, 975, 2.73, 30.73
@@ -52,9 +52,9 @@ SELECT @demo_order_1, 2, 'Drink', 'Medium Iced tea', NULL, 'Iced tea', 'Medium',
 
 -- Active: In progress. Small beef pizza and a medium cola.
 INSERT INTO orders
-  (customer_id, source, channel, pickup_time, status, notes, subtotal,
+  (customer_id, public_order_code, source, channel, pickup_time, status, notes, subtotal,
    tax_rate_bps, tax_amount, total)
-SELECT @demo_avery, 'Employee POS', 'In-store', NULL, 'In-Progress',
+SELECT @demo_avery, 'PZ-3333-3333-3333-3333', 'Employee POS', 'In-store', NULL, 'In-Progress',
        'DEMO DATA: D-002 — Kitchen has started this order.', 8.00, 975, 0.78, 8.78
   FROM DUAL
  WHERE NOT EXISTS (SELECT 1 FROM orders WHERE notes = 'DEMO DATA: D-002 — Kitchen has started this order.');
@@ -75,9 +75,9 @@ SELECT @demo_order_2, 2, 'Drink', 'Medium Cola', NULL, 'Cola', 'Medium', 1, 2.00
 
 -- Active: Ready for pickup.
 INSERT INTO orders
-  (customer_id, source, channel, pickup_time, status, notes, subtotal,
+  (customer_id, public_order_code, source, channel, pickup_time, status, notes, subtotal,
    tax_rate_bps, tax_amount, total)
-SELECT @demo_sam, 'Employee POS', 'Phone pickup', NULL, 'Ready',
+SELECT @demo_sam, 'PZ-4444-4444-4444-4444', 'Employee POS', 'Phone pickup', NULL, 'Ready',
        'DEMO DATA: D-003 — Ready for pickup.', 12.00, 975, 1.17, 13.17
   FROM DUAL
  WHERE NOT EXISTS (SELECT 1 FROM orders WHERE notes = 'DEMO DATA: D-003 — Ready for pickup.');
@@ -94,9 +94,9 @@ SELECT oi.order_item_id, t.topping_id, 1, '1 cup', 3.00
 
 -- Active: Overdue, with an older creation time for the queue.
 INSERT INTO orders
-  (customer_id, source, channel, pickup_time, status, notes, subtotal,
+  (customer_id, public_order_code, source, channel, pickup_time, status, notes, subtotal,
    tax_rate_bps, tax_amount, total, created_at)
-SELECT @demo_taylor, 'Employee POS', 'In-store', NULL, 'Overdue',
+SELECT @demo_taylor, 'PZ-5555-5555-5555-5555', 'Employee POS', 'In-store', NULL, 'Overdue',
        'DEMO DATA: D-004 — Overdue order for the kitchen queue.', 7.00, 975, 0.68, 7.68,
        CURRENT_TIMESTAMP(3) - INTERVAL 2 HOUR
   FROM DUAL
@@ -109,9 +109,9 @@ SELECT @demo_order_4, 1, 'Pizza', 'Medium (14-inch) pizza', 'Medium', NULL, NULL
 
 -- Completed orders appear in the history tab.
 INSERT INTO orders
-  (customer_id, source, channel, pickup_time, status, notes, subtotal,
+  (customer_id, public_order_code, source, channel, pickup_time, status, notes, subtotal,
    tax_rate_bps, tax_amount, total, created_at, completed_at)
-SELECT @demo_casey, 'Employee POS', 'Phone pickup', NULL, 'Completed',
+SELECT @demo_casey, 'PZ-6666-6666-6666-6666', 'Employee POS', 'Phone pickup', NULL, 'Completed',
        'DEMO DATA: D-005 — Completed pizza order.', 8.00, 975, 0.78, 8.78,
        CURRENT_TIMESTAMP(3) - INTERVAL 2 HOUR,
        CURRENT_TIMESTAMP(3) - INTERVAL 1 HOUR
@@ -129,9 +129,9 @@ SELECT oi.order_item_id, t.topping_id, 3, '¼ cup', 1.00
    AND NOT EXISTS (SELECT 1 FROM order_item_toppings AS x WHERE x.order_item_id = oi.order_item_id AND x.topping_id = t.topping_id);
 
 INSERT INTO orders
-  (customer_id, source, channel, pickup_time, status, notes, subtotal,
+  (customer_id, public_order_code, source, channel, pickup_time, status, notes, subtotal,
    tax_rate_bps, tax_amount, total, created_at, completed_at)
-SELECT @demo_jordan, 'Employee POS', 'In-store', NULL, 'Completed',
+SELECT @demo_jordan, 'PZ-7777-7777-7777-7777', 'Employee POS', 'In-store', NULL, 'Completed',
        'DEMO DATA: D-006 — Completed drink order.', 2.00, 975, 0.20, 2.20,
        CURRENT_TIMESTAMP(3) - INTERVAL 90 MINUTE,
        CURRENT_TIMESTAMP(3) - INTERVAL 60 MINUTE

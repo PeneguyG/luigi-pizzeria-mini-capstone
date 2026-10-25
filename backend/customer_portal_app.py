@@ -64,6 +64,8 @@ TAX_RATE = Decimal(TAX_RATE_BPS) / Decimal(10000)
 
 CENT = Decimal("0.01")
 
+PUBLIC_ORDER_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
 MAX_CUSTOMER_ORDER_ITEMS = 20
 
 MAX_EMPLOYEE_ORDER_ITEMS = 50
@@ -631,6 +633,13 @@ def iso_timestamp(value):
 
     return value.isoformat(sep=" ", timespec="milliseconds") if value else None
 
+def generate_public_order_code():
+    """Return a human-readable, unpredictable customer-facing order code."""
+    random_part = "".join(secrets.choice(PUBLIC_ORDER_CODE_ALPHABET) for _ in range(16))
+    return "PZ-{}-{}-{}-{}".format(
+        random_part[:4], random_part[4:8], random_part[8:12], random_part[12:]
+    )
+
 def serialize_order_row(row):
 
     pickup_time = row.get("pickupTime")
@@ -638,6 +647,8 @@ def serialize_order_row(row):
     return {
 
         "id": int(row["id"]),
+
+        "publicOrderCode": row.get("publicOrderCode", ""),
 
         "source": row["source"],
 
@@ -683,7 +694,7 @@ def serialize_order_row(row):
 
     }
 
-def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, limit=None, offset=0, search=None):
+def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, limit=None, offset=0, search=None, public_order_code=None):
 
     connection = database_connection()
 
@@ -701,6 +712,12 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
 
             parameters.extend((order_id, tracking_hash))
 
+        if public_order_code is not None:
+
+            where_clause += " AND o.public_order_code = %s AND o.tracking_token_hash = %s"
+
+            parameters.extend((public_order_code, tracking_hash))
+
         if customer_id is not None:
 
             where_clause += " AND o.customer_id = %s"
@@ -710,8 +727,8 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
         if search:
             pattern = "%" + search + "%"
             digits = re.sub(r"\D", "", search)
-            where_clause += " AND (c.full_name LIKE %s OR CAST(o.order_id AS CHAR) LIKE %s OR c.phone LIKE %s"
-            parameters.extend((pattern, pattern, pattern))
+            where_clause += " AND (c.full_name LIKE %s OR CAST(o.order_id AS CHAR) LIKE %s OR o.public_order_code LIKE %s OR c.phone LIKE %s"
+            parameters.extend((pattern, pattern, pattern, pattern))
             if digits:
                 where_clause += " OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', '') LIKE %s"
                 parameters.append("%" + digits + "%")
@@ -726,7 +743,7 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
             total = int(cursor.fetchone()["total"])
 
         order_query = (
-            "SELECT o.order_id AS id, o.source, o.channel, o.status, o.notes, "
+            "SELECT o.order_id AS id, o.public_order_code AS publicOrderCode, o.source, o.channel, o.status, o.notes, "
             "o.subtotal, o.tax_rate_bps AS taxRateBasisPoints, o.tax_amount AS taxAmount, o.total, "
             "o.pickup_date AS pickupDate, o.pickup_time AS pickupTime, o.created_at AS createdAt, o.completed_at AS completedAt, "
             "o.customer_email AS customerEmail, o.payment_method AS paymentMethod, o.payment_last_four AS paymentLastFour, "
@@ -1615,11 +1632,23 @@ def save_customer_draft():
 def customer_receipts():
     account = current_customer_account()
     if not account:
-        return jsonify(receipts=guest_checkout().get('receipts', []))
+        receipts = guest_checkout().get('receipts', [])
+        return jsonify(receipts=[
+            {
+                'orderCode': receipt.get('orderCode') or ('PZ-LEGACY-' + str(receipt.get('id', ''))),
+                'token': receipt.get('token', ''),
+            }
+            for receipt in receipts
+            if receipt.get('orderCode') or re.fullmatch(r"[0-9]{1,20}", str(receipt.get('id', '')))
+        ])
     connection = database_connection()
     try:
         cursor = connection.cursor()
-        cursor.execute('SELECT order_id AS id, tracking_token AS token FROM customer_order_receipts WHERE account_email = %s ORDER BY order_id DESC LIMIT 50', (account['email'],))
+        cursor.execute('''SELECT o.public_order_code AS orderCode, receipt.tracking_token AS token
+            FROM customer_order_receipts AS receipt
+            JOIN orders AS o ON o.order_id = receipt.order_id
+            WHERE receipt.account_email = %s
+            ORDER BY receipt.order_id DESC LIMIT 50''', (account['email'],))
         return jsonify(receipts=cursor.fetchall())
     finally:
         connection.close()
@@ -1766,11 +1795,11 @@ def customer_menu():
 
     })
 
-@app.get("/api/customer/orders/<int:order_id>")
+@app.get("/api/customer/orders/<order_code>")
 
-def track_customer_order(order_id):
+def track_customer_order(order_code):
 
-    # A random receipt token protects the order from guessed order numbers.
+    # A random receipt token protects authenticated tracking requests.
 
     token = request.headers.get("X-Order-Token", "")
 
@@ -1778,9 +1807,18 @@ def track_customer_order(order_id):
 
         return jsonify({"error": "Order not found. Open the tracker in the browser used to place your order."}), 404
 
+    order_code = order_code.strip().upper()
+    code_pattern = r"PZ-(?:[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}|LEGACY-[0-9]{1,20})"
+    if not re.fullmatch(code_pattern, order_code):
+        return jsonify({"error": "Order not found. Check your saved receipt."}), 404
+
     try:
 
-        orders = load_orders(None, order_id, hashlib.sha256(token.encode()).hexdigest())
+        orders = load_orders(
+            None,
+            tracking_hash=hashlib.sha256(token.encode()).hexdigest(),
+            public_order_code=order_code,
+        )
 
         if not orders:
 
@@ -1799,31 +1837,35 @@ def track_guest_order():
     """Look up a guest order after verifying the full phone number on the order."""
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
-        return jsonify(error="Enter your order number and phone number."), 400
-    order_number = str(body.get("orderNumber", "")).strip()
-    if not re.fullmatch(r"[0-9]{1,20}", order_number):
-        return jsonify(error="Enter your order number and phone number."), 400
-    order_id = int(order_number)
+        return jsonify(error="Enter your order code and phone number."), 400
+    order_code = str(body.get("orderNumber", "")).strip().upper()
+    code_pattern = r"PZ-(?:[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}|LEGACY-[0-9]{1,20})"
+    if not re.fullmatch(code_pattern, order_code):
+        return jsonify(error="Enter a valid order code and phone number."), 400
     phone = re.sub(r"\D", "", str(body.get("phone", "")))
     if phone.startswith("1") and len(phone) == 11:
         phone = phone[1:]
-    if order_id < 1 or len(phone) != 10:
-        return jsonify(error="Enter your order number and a 10-digit phone number."), 400
+    if len(phone) != 10:
+        return jsonify(error="Enter your order code and a 10-digit phone number."), 400
     connection = database_connection()
     try:
         cursor = connection.cursor()
         cursor.execute("""SELECT o.tracking_token_hash, c.phone
             FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id
-            WHERE o.order_id = %s""", (order_id,))
+            WHERE o.public_order_code = %s""", (order_code,))
         row = cursor.fetchone()
         stored_phone = re.sub(r"\D", "", str(row["phone"] or "")) if row else ""
         if stored_phone.startswith("1") and len(stored_phone) == 11:
             stored_phone = stored_phone[1:]
         if not row or not row["tracking_token_hash"] or stored_phone != phone:
-            return jsonify(error="We could not find that order. Check the order number and phone number and try again."), 404
-        orders = load_orders(None, order_id, row["tracking_token_hash"])
+            return jsonify(error="We could not find that order. Check the order code and phone number and try again."), 404
+        orders = load_orders(
+            None,
+            tracking_hash=row["tracking_token_hash"],
+            public_order_code=order_code,
+        )
         if not orders:
-            return jsonify(error="We could not find that order. Check the order number and phone number and try again."), 404
+            return jsonify(error="We could not find that order. Check the order code and phone number and try again."), 404
         return jsonify(orders[0])
     except Exception:
         app.logger.exception("Could not verify guest order tracking request")
@@ -2001,25 +2043,30 @@ def create_order():
                 cursor, customer_name, customer_first_name, customer_last_name, customer_phone
             )
 
-            cursor.execute(
-
-                """
-
-                INSERT INTO orders
-
-                    (customer_id, source, channel, pickup_date, pickup_time, status, notes,
-
-                     subtotal, tax_rate_bps, tax_amount, total,
-
-                     tracking_token_hash, customer_email, payment_method, payment_last_four)
-
-                VALUES (%s, %s, %s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, %s, %s, %s, %s)
-
-                """,
-
-                (customer_id, source, channel, pickup_date, pickup_time, notes, subtotal, TAX_RATE_BPS, tax_amount, total, tracking_hash, customer_email, payment_method, payment_last_four),
-
-            )
+            public_order_code = None
+            for _attempt in range(5):
+                candidate_code = generate_public_order_code()
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO orders
+                            (customer_id, public_order_code, source, channel, pickup_date, pickup_time, status, notes,
+                             subtotal, tax_rate_bps, tax_amount, total,
+                             tracking_token_hash, customer_email, payment_method, payment_last_four)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (customer_id, candidate_code, source, channel, pickup_date, pickup_time, notes, subtotal,
+                         TAX_RATE_BPS, tax_amount, total, tracking_hash, customer_email, payment_method, payment_last_four),
+                    )
+                    public_order_code = candidate_code
+                    break
+                except pymysql.err.IntegrityError:
+                    cursor.execute("SELECT 1 FROM orders WHERE public_order_code = %s", (candidate_code,))
+                    if cursor.fetchone():
+                        continue
+                    raise
+            if public_order_code is None:
+                raise RuntimeError("Could not allocate a unique public order code after five attempts.")
 
             order_id = cursor.lastrowid
 
@@ -2081,7 +2128,7 @@ def create_order():
                 cursor.execute('SELECT content FROM guest_checkouts WHERE checkout_key = %s', (checkout_key,))
                 previous = cursor.fetchone()
                 receipts = json.loads(previous['content']).get('receipts', []) if previous else []
-                content = dict(profile=profile, receipts=[dict(id=int(order_id), token=tracking_token)] + receipts[:9])
+                content = dict(profile=profile, receipts=[dict(id=int(order_id), orderCode=public_order_code, token=tracking_token)] + receipts[:9])
                 cursor.execute('INSERT INTO guest_checkouts (checkout_key, content) VALUES (%s, %s) ON DUPLICATE KEY UPDATE content = VALUES(content)', (checkout_key, json.dumps(content)))
                 account = current_customer_account()
                 if account:
@@ -2103,7 +2150,7 @@ def create_order():
 
         response_order = {
 
-            "id": int(order_id),
+            "publicOrderCode": public_order_code,
 
             "source": source,
 
@@ -2177,6 +2224,10 @@ def create_order():
         if is_customer:
 
             response_order["trackingToken"] = tracking_token
+
+        else:
+
+            response_order["id"] = int(order_id)
 
         return jsonify(response_order), 201
 

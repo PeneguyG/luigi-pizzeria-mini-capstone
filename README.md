@@ -47,6 +47,14 @@ cmd /c "mariadb -u root -p luigis_pizzeria < database/migrations/20261014_add_to
 cmd /c "mariadb -u root -p luigis_pizzeria < database/migrations/20261014_limit_topping_servings_to_three.sql"
 ```
 
+For an existing customer-portal database, add customer-facing secure order codes before restarting the updated application. The migration is safe to rerun if the column or unique index already exists:
+
+```powershell
+cmd /c "mariadb -u root -p luigis_pizzeria < database/migrations/20261024_add_public_order_code.sql"
+```
+
+New orders receive random `PZ-XXXX-XXXX-XXXX-XXXX` codes generated with Python's `secrets` module. Existing orders receive `PZ-LEGACY-<old order ID>` codes so their previous receipts can still be tracked. The GCE provisioning script applies this database upgrade idempotently.
+
 Create a least-privilege application account after importing the schema (replace the sample password):
 
 ```sql
