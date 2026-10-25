@@ -2,3 +2,8 @@
     [hidden] { display: none !important; }
 .topping-increment { min-height: 7rem; }
 .topping-image { width: 4rem; height: 4rem; object-fit: contain; }
+.active-orders-scroll { max-height: 65vh; overflow-y: auto; overflow-x: hidden; }
+.order-history-panel { height: min(78vh, 56rem); }
+.order-history-panel > .card-body { min-height: 0; overflow: hidden; }
+.order-history-scroll { min-height: 0; max-height: 100%; overflow-y: auto; overflow-x: hidden; }
+.active-orders-scroll > *, .order-history-scroll > * { min-width: 0; max-width: 100%; }

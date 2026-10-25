@@ -700,6 +700,22 @@
       name: document.body.dataset.staffName,
       role: document.body.dataset.staffRole
     };
+    const sidebar = document.getElementById('dashboard-sidebar');
+    const sidebarNavigation = document.getElementById('dashboard-navigation');
+    const mainColumn = document.getElementById('dashboard-main-column');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    sidebarToggle.addEventListener('click', function () {
+      const collapsed = sidebarToggle.getAttribute('aria-expanded') === 'true';
+      sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+      sidebarNavigation.hidden = collapsed;
+      sidebarToggle.textContent = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+      sidebar.classList.toggle('col-md-3', !collapsed);
+      sidebar.classList.toggle('col-lg-2', !collapsed);
+      sidebar.classList.toggle('col-md-auto', collapsed);
+      mainColumn.classList.toggle('col-md-9', !collapsed);
+      mainColumn.classList.toggle('col-lg-10', !collapsed);
+      mainColumn.classList.toggle('col-md', collapsed);
+    });
     const roleLevels = { employee: 1, manager: 2, owner: 3 };
     const roleNames = { employee: 'Employee', manager: 'Manager', owner: 'Owner' };
     const salesSummaryStatus = document.getElementById('sales-summary-status');
@@ -852,7 +868,7 @@
       container.setAttribute('aria-busy', 'false');
     }
 
-    function fillSpecialForm(index) {
+    function fillSpecialForm(index, moveFocus) {
       const special = managerSpecials[index];
       if (!special) return;
       document.getElementById('special-slot').value = String(index);
@@ -860,7 +876,7 @@
       document.getElementById('special-description').value = special.description || '';
       document.getElementById('special-size').value = special.size;
       renderSpecialToppings(special.toppings);
-      document.getElementById('special-name').focus();
+      if (moveFocus) document.getElementById('special-name').focus();
     }
 
     async function loadManagerSpecials() {
@@ -872,7 +888,7 @@
         const payload = await apiRequest('/api/customer/specials');
         managerSpecials = payload.specials || [];
         renderCurrentSpecials();
-        fillSpecialForm(Number(document.getElementById('special-slot').value) || 0);
+        fillSpecialForm(Number(document.getElementById('special-slot').value) || 0, false);
         showSpecialMessage('', false);
       } catch (error) {
         list.setAttribute('aria-busy', 'false');
@@ -892,11 +908,11 @@
       document.getElementById('special-topping-status').textContent = name + ': ' + next + (next === 1 ? ' serving selected.' : ' servings selected.') + ' Maximum 3.';
     });
     document.getElementById('special-size').addEventListener('change', updateSpecialEstimate);
-    document.getElementById('special-slot').addEventListener('change', function () { fillSpecialForm(Number(this.value)); });
+    document.getElementById('special-slot').addEventListener('change', function () { fillSpecialForm(Number(this.value), false); });
     document.getElementById('current-specials').addEventListener('click', function (event) {
       const button = event.target.closest('[data-edit-special]');
       if (!button) return;
-      fillSpecialForm(Number(button.dataset.editSpecial));
+      fillSpecialForm(Number(button.dataset.editSpecial), true);
     });
     document.getElementById('clear-special-form').addEventListener('click', function () {
       document.getElementById('special-form').reset(); renderSpecialToppings([]); document.getElementById('special-name').focus();

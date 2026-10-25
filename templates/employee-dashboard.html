@@ -32,8 +32,9 @@
 
   <main id="main-content" class="container-fluid py-4 py-lg-5">
     <div class="row g-0">
-      <aside class="col-12 col-md-3 col-lg-2 min-vh-100 border-end px-3 pb-4" aria-label="Employee dashboard sidebar">
-        <nav aria-label="Dashboard views">
+      <aside id="dashboard-sidebar" class="col-12 col-md-3 col-lg-2 min-vh-100 border-end px-3 pb-4" aria-label="Employee dashboard sidebar">
+        <button id="sidebar-toggle" class="btn btn-outline-secondary btn-sm mb-3" type="button" aria-expanded="true" aria-controls="dashboard-navigation">Collapse sidebar</button>
+        <nav id="dashboard-navigation" aria-label="Dashboard views">
           <div class="nav flex-column gap-2" role="tablist" aria-label="Employee dashboard sections" aria-orientation="vertical">
             <button class="nav-link active text-start rounded bg-danger-subtle text-danger-emphasis" id="pos-tab" type="button" role="tab" aria-label="Point of Sales tab" aria-selected="true" aria-controls="pos-panel" tabindex="0" data-panel="pos-panel">Point of Sales</button>
             <button class="nav-link text-dark text-start" id="orders-tab" type="button" role="tab" aria-label="Active orders tab" aria-selected="false" aria-controls="orders-panel" tabindex="-1" data-panel="orders-panel">Active orders <span id="order-count" class="badge rounded-pill ms-1 bg-danger-subtle text-danger-emphasis">0</span></button>
@@ -44,7 +45,7 @@
           </div>
         </nav>
       </aside>
-      <div class="col-12 col-md-9 col-lg-10 px-3 px-lg-4">
+      <div id="dashboard-main-column" class="col-12 col-md-9 col-lg-10 px-3 px-lg-4">
     <section aria-labelledby="dashboard-heading">
       <div class="mb-4">
         <h2 id="dashboard-heading" class="h4 mb-1" tabindex="-1">Order management</h2>
@@ -150,7 +151,7 @@
                         <div class="col-12">
                           <h4 class="h6 text-warning-emphasis">Fruit</h4>
                           <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2">
-                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-lg btn-outline-danger flex-grow-1 topping-increment" id="topping-pineapple" type="button" data-topping="Pineapple" aria-label="Add one serving of Pineapple" aria-controls="topping-pineapple-count">Pineapple</button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Pineapple" aria-label="Remove one serving of Pineapple" aria-disabled="true">−</button><span id="topping-pineapple-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
+                            <div class="col"><div class="d-flex align-items-center gap-2"><button class="btn btn-lg btn-outline-danger flex-grow-1 topping-increment d-flex flex-column justify-content-center align-items-center gap-1" id="topping-pineapple" type="button" data-topping="Pineapple" aria-label="Add one serving of Pineapple" aria-controls="topping-pineapple-count"><img class="topping-image" src="{{ url_for('static', filename='images/2-2-pineapple-picture.png') }}" alt="" aria-hidden="true"><span>Pineapple</span></button><button class="btn btn-outline-secondary topping-decrement" type="button" data-topping="Pineapple" aria-label="Remove one serving of Pineapple" aria-disabled="true">−</button><span id="topping-pineapple-count" class="badge text-bg-light border topping-count" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">0x</span><span class="visually-hidden">0 servings</span></span></div></div>
                           </div>
                         </div>
                       </div>
@@ -231,14 +232,14 @@
             <div><h3 class="h5 mb-1">Active orders</h3><p class="text-secondary mb-0">Customer portal and employee POS orders share this kitchen queue.</p></div>
             <button id="refresh-orders" class="btn btn-outline-danger" type="button" aria-label="Refresh active orders" aria-controls="active-orders-list">Refresh orders</button>
           </div>
-          <div id="active-orders-list" class="d-grid gap-3" aria-label="Current active orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
+          <div id="active-orders-list" class="d-grid gap-3 active-orders-scroll border rounded p-2 p-md-3" role="region" tabindex="0" aria-label="Current active orders" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
           <p id="orders-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <p id="overdue-update-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-orders" class="border rounded p-4 text-center text-secondary" hidden>No active orders are waiting.</div>
         </div>
       </section>
 
-      <section id="history-panel" class="card border-0 shadow-sm vh-100" role="tabpanel" aria-labelledby="history-tab" tabindex="0" hidden>
+      <section id="history-panel" class="card border-0 shadow-sm order-history-panel" role="tabpanel" aria-labelledby="history-tab" tabindex="0" hidden>
         <div class="card-body d-flex flex-column p-3 p-md-4 p-xl-5">
           <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
             <div><h3 class="h5 mb-1">Order history</h3><p class="text-secondary mb-0">Completed orders with customer, items, total, and completion time.</p></div>
@@ -250,7 +251,7 @@
             <div id="history-search-help" class="form-text">Search by customer name, order number, or phone number.</div>
           </div>
           <p id="history-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true"></p>
-          <div class="overflow-auto d-grid flex-grow-1 gap-3" id="history-list" role="region" tabindex="0" aria-label="Completed orders on this page" aria-describedby="history-status" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
+          <div class="d-grid flex-grow-1 gap-3 order-history-scroll border rounded p-2 p-md-3" id="history-list" role="region" tabindex="0" aria-label="Completed orders on this page" aria-describedby="history-status" aria-live="polite" aria-relevant="additions removals text" aria-atomic="false"></div>
           <p id="history-load-error" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
           <div id="empty-history" class="border rounded p-4 text-center text-secondary" hidden>No completed orders are in history yet.</div>
           <nav id="history-pagination" class="mt-3" aria-label="Order history pages" hidden>
@@ -312,7 +313,8 @@
               </div>
             </div>
           </div>
-          <section class="border-top mt-5 pt-4" aria-labelledby="specials-heading">
+          <section class="card border shadow-sm mt-4" aria-labelledby="specials-heading">
+            <div class="card-body p-3 p-md-4">
             <div class="mb-3"><p class="small text-uppercase fw-semibold mb-1">Customer menu</p><h4 id="specials-heading" class="h5 mb-1">Manage the two rotating specials</h4><p class="text-secondary mb-0">Customers without order history see these. Returning customers see their recent pizzas.</p></div>
             <p id="specials-message" class="alert mb-3" role="status" aria-live="polite" aria-atomic="true" hidden></p>
             <div id="current-specials" class="row g-3 mb-4" aria-live="polite" aria-busy="true"></div>
@@ -327,6 +329,7 @@
               </div>
               <div class="d-flex flex-wrap gap-2 align-items-center mt-3"><button class="btn btn-danger" id="save-special" type="submit">Save special</button><button class="btn btn-outline-secondary" id="clear-special-form" type="button">Clear form</button><span id="special-estimate" class="small text-secondary" aria-live="polite"></span></div>
             </form>
+            </div>
           </section>
         </div>
       </section>
@@ -416,6 +419,6 @@
 
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-1" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-2" defer></script>
 </body>
 </html>
