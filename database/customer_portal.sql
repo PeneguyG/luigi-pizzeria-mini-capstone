@@ -285,3 +285,13 @@ CREATE TABLE IF NOT EXISTS customer_order_receipts (
 
 CREATE TABLE IF NOT EXISTS guest_checkouts (checkout_key VARCHAR(43) PRIMARY KEY, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 
+
+
+-- Backup recovery codes: run this CREATE TABLE once on an existing database.
+CREATE TABLE IF NOT EXISTS customer_recovery_codes (
+  account_email VARCHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL PRIMARY KEY,
+  code_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_backup_code_account FOREIGN KEY (account_email)
+    REFERENCES customer_accounts(email) ON DELETE CASCADE
+) ENGINE=InnoDB;
