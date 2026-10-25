@@ -390,21 +390,21 @@
           <div class="mb-4">
             <p class="small text-uppercase fw-semibold mb-1">Manager tools</p>
             <h3 id="customers-heading" class="h5 mb-1" tabindex="-1">Customer directory</h3>
-            <p class="text-secondary mb-0">Search customer contact details and open a customer to review all of their orders.</p>
+            <p class="text-secondary mb-0">Search registered customer accounts and open an account to review its linked orders.</p>
           </div>
           <form id="customer-search-form" class="row g-2 mb-3" role="search">
             <div class="col-12 col-md">
               <label class="form-label" for="customer-search">Search customers</label>
               <input class="form-control" id="customer-search" name="q" type="search" maxlength="100" autocomplete="off" aria-describedby="customer-search-help">
-              <div id="customer-search-help" class="form-text">Search by first or last name, phone number, or email address.</div>
+              <div id="customer-search-help" class="form-text">Search registered accounts by first or last name, phone number, or email address.</div>
             </div>
             <div class="col-12 col-md-auto d-flex align-items-end">
               <button id="customer-search-submit" class="btn btn-outline-danger" type="submit">Search</button>
             </div>
           </form>
-          <p id="customer-directory-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true">Customer list is loading.</p>
+          <p id="customer-directory-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true">Registered customer accounts are loading.</p>
           <ul id="customer-directory-list" class="list-group mb-4" aria-label="Customers" aria-live="polite" aria-busy="false">
-            <li class="list-group-item text-secondary">Customers are loading.</li>
+            <li class="list-group-item text-secondary">Registered customer accounts are loading.</li>
           </ul>
           <section id="customer-order-history" aria-labelledby="customer-order-history-heading" hidden>
             <h4 id="customer-order-history-heading" class="h6" tabindex="-1">Customer order history</h4>
@@ -421,6 +421,6 @@
 
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-5" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-6" defer></script>
 </body>
 </html>

@@ -694,7 +694,7 @@ def serialize_order_row(row):
 
     }
 
-def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, limit=None, offset=0, search=None, public_order_code=None):
+def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, limit=None, offset=0, search=None, public_order_code=None, account_email=None):
 
     connection = database_connection()
 
@@ -717,6 +717,12 @@ def load_orders(completed, order_id=None, tracking_hash=None, customer_id=None, 
             where_clause += " AND o.public_order_code = %s AND o.tracking_token_hash = %s"
 
             parameters.extend((public_order_code, tracking_hash))
+
+        if account_email is not None:
+
+            where_clause += " AND (o.account_email = %s OR EXISTS (SELECT 1 FROM customer_order_receipts AS account_receipt WHERE account_receipt.order_id = o.order_id AND account_receipt.account_email = %s))"
+
+            parameters.extend((account_email, account_email))
 
         if customer_id is not None:
 
@@ -1221,50 +1227,43 @@ def list_customers():
         parameters = []
         if query:
             pattern = "%" + query + "%"
+            phone_digits = re.sub(r"\D", "", query)
             where_clause = """
-             WHERE c.first_name LIKE %s OR c.last_name LIKE %s
-                OR c.full_name LIKE %s OR c.phone LIKE %s
-                OR EXISTS (
-                    SELECT 1 FROM orders AS searched_order
-                     WHERE searched_order.customer_id = c.customer_id
-                       AND searched_order.customer_email LIKE %s
-                )
-                OR EXISTS (
-                    SELECT 1 FROM customer_accounts AS searched_account
-                     WHERE RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(searched_account.phone, '+', ''), '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), 10) = c.phone
-                       AND searched_account.email LIKE %s
-                )
+             WHERE a.first_name LIKE %s OR a.last_name LIKE %s
+                OR a.full_name LIKE %s OR a.phone LIKE %s OR LOWER(a.email) LIKE %s
             """
-            parameters.extend([pattern] * 6)
+            parameters.extend([pattern] * 4 + [pattern.lower()])
+            if phone_digits:
+                if len(phone_digits) == 11 and phone_digits.startswith("1"):
+                    phone_digits = phone_digits[1:]
+                where_clause += " OR a.phone LIKE %s"
+                parameters.append("%" + phone_digits + "%")
         cursor.execute(
             """
-            SELECT c.customer_id AS id, c.first_name AS firstName,
-                   c.last_name AS lastName, c.full_name AS fullName,
-                   c.phone AS phone,
-                   COALESCE((
-                       SELECT a.email FROM customer_accounts AS a
-                        WHERE RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(a.phone, '+', ''), '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), 10) = c.phone
-                        ORDER BY a.created_at DESC LIMIT 1
-                   ), (
-                       SELECT o.customer_email FROM orders AS o
-                        WHERE o.customer_id = c.customer_id AND o.customer_email <> ''
-                        ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1
-                   ), '') AS email,
+            SELECT a.email AS id, a.email AS email, a.first_name AS firstName,
+                   a.last_name AS lastName, a.full_name AS fullName, a.phone AS phone,
                    (SELECT COUNT(*) FROM orders AS order_count
-                     WHERE order_count.customer_id = c.customer_id) AS orderCount,
+                     WHERE order_count.account_email = a.email OR EXISTS (
+                       SELECT 1 FROM customer_order_receipts AS order_receipt
+                        WHERE order_receipt.order_id = order_count.order_id
+                          AND order_receipt.account_email = a.email
+                     )) AS orderCount,
                    (SELECT MAX(order_date.created_at) FROM orders AS order_date
-                     WHERE order_date.customer_id = c.customer_id) AS lastOrderAt
-              FROM customers AS c
-            """ + where_clause + " ORDER BY c.last_name, c.first_name, c.full_name",
+                     WHERE order_date.account_email = a.email OR EXISTS (
+                       SELECT 1 FROM customer_order_receipts AS date_receipt
+                        WHERE date_receipt.order_id = order_date.order_id
+                          AND date_receipt.account_email = a.email
+                     )) AS lastOrderAt
+              FROM customer_accounts AS a
+            """ + where_clause + " ORDER BY a.last_name, a.first_name, a.email",
             tuple(parameters),
         )
         customers = []
         for row in cursor.fetchall():
-            parts = (row.get("fullName") or "").split(None, 1)
             customers.append({
-                "id": int(row["id"]),
-                "firstName": row.get("firstName") or (parts[0] if parts else ""),
-                "lastName": row.get("lastName") or (parts[1] if len(parts) > 1 else ""),
+                "id": row["id"],
+                "firstName": row["firstName"],
+                "lastName": row["lastName"],
                 "fullName": row["fullName"],
                 "phone": row["phone"],
                 "email": row["email"],
@@ -1279,48 +1278,40 @@ def list_customers():
         if connection is not None:
             connection.close()
 
-@app.get("/api/staff/customers/<int:customer_id>/orders")
+@app.get("/api/staff/customer-account-orders")
 @staff_required
 @roles_required("manager", "owner")
-def get_customer_order_history(customer_id):
+def get_customer_order_history():
+    account_email = request.args.get("email", "").strip().lower()
+    if len(account_email) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", account_email):
+        return jsonify({"error": "Choose a valid registered customer account."}), 400
     connection = None
     try:
         connection = database_connection()
         cursor = connection.cursor()
         cursor.execute(
             """
-            SELECT c.customer_id AS id, c.first_name AS firstName,
-                   c.last_name AS lastName, c.full_name AS fullName,
-                   c.phone AS phone,
-                   COALESCE((
-                       SELECT a.email FROM customer_accounts AS a
-                        WHERE RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(a.phone, '+', ''), '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), 10) = c.phone
-                        ORDER BY a.created_at DESC LIMIT 1
-                   ), (
-                       SELECT o.customer_email FROM orders AS o
-                        WHERE o.customer_id = c.customer_id AND o.customer_email <> ''
-                        ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1
-                   ), '') AS email
-              FROM customers AS c
-             WHERE c.customer_id = %s
+            SELECT a.email AS id, a.email AS email, a.first_name AS firstName,
+                   a.last_name AS lastName, a.full_name AS fullName, a.phone AS phone
+              FROM customer_accounts AS a
+             WHERE a.email = %s
             """,
-            (customer_id,),
+            (account_email,),
         )
         row = cursor.fetchone()
         if row is None:
-            return jsonify({"error": "Customer not found."}), 404
-        parts = (row.get("fullName") or "").split(None, 1)
+            return jsonify({"error": "Registered customer account not found."}), 404
         customer = {
-            "id": int(row["id"]),
-            "firstName": row.get("firstName") or (parts[0] if parts else ""),
-            "lastName": row.get("lastName") or (parts[1] if len(parts) > 1 else ""),
+            "id": row["id"],
+            "firstName": row["firstName"],
+            "lastName": row["lastName"],
             "fullName": row["fullName"],
             "phone": row["phone"],
             "email": row["email"],
         }
         connection.close()
         connection = None
-        orders = load_orders(None, customer_id=customer_id)
+        orders = load_orders(None, account_email=account_email)
         return jsonify({"customer": customer, "orders": orders})
     except Exception:
         app.logger.exception("Could not load customer order history")

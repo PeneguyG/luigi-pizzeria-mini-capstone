@@ -1074,7 +1074,7 @@
     const customerHistorySection = document.getElementById('customer-order-history');
     const customerOrdersList = document.getElementById('customer-orders-list');
     const customerOrdersStatus = document.getElementById('customer-orders-status');
-    const customerRecordsById = new Map();
+    const customerRecordsByEmail = new Map();
     let customerSearchTimer = null;
     let customerDirectoryRequestId = 0;
     let customerHistoryRequestId = 0;
@@ -1190,34 +1190,34 @@
 
     function renderCustomerDirectory(customers) {
       customerDirectoryList.replaceChildren();
-      customerRecordsById.clear();
+      customerRecordsByEmail.clear();
       if (customers.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'list-group-item text-secondary';
-        empty.textContent = 'No customers match this search.';
+        empty.textContent = 'No registered customer accounts match this search.';
         customerDirectoryList.append(empty);
-        customerDirectoryStatus.textContent = 'No customers found.';
+        customerDirectoryStatus.textContent = 'No registered customer accounts found.';
         return;
       }
 
       customers.forEach(function (customer) {
-        customerRecordsById.set(String(customer.id), customer);
+        customerRecordsByEmail.set(String(customer.email), customer);
         const item = document.createElement('li');
         item.className = 'list-group-item';
         const select = document.createElement('button');
         select.type = 'button';
         select.className = 'btn btn-link link-dark text-start text-decoration-none p-0 w-100';
-        select.dataset.customerId = String(customer.id);
+        select.dataset.customerEmail = String(customer.email);
         select.setAttribute('aria-controls', 'customer-order-history');
         select.setAttribute('aria-expanded', 'false');
-        select.setAttribute('aria-label', 'View order history for ' + customer.fullName + ', ' + customer.orderCount + ' orders');
+        select.setAttribute('aria-label', 'View order history for registered account ' + customer.fullName + ', ' + customer.orderCount + ' orders');
 
         const name = document.createElement('span');
         name.className = 'd-block fw-semibold';
         name.textContent = customer.fullName || [customer.firstName, customer.lastName].filter(Boolean).join(' ');
         const details = document.createElement('span');
         details.className = 'd-block small text-secondary';
-        const contact = [customer.phone, customer.email].filter(Boolean).join(' · ');
+        const contact = [formatPhoneNumber(customer.phone), customer.email].filter(Boolean).join(' · ');
         details.textContent = (contact ? contact + ' · ' : '') + customer.orderCount +
           (customer.orderCount === 1 ? ' order' : ' orders') +
           (customer.lastOrderAt ? ' · Last order ' + customer.lastOrderAt : '');
@@ -1225,7 +1225,7 @@
         item.append(select);
         customerDirectoryList.append(item);
       });
-      customerDirectoryStatus.textContent = customers.length + (customers.length === 1 ? ' customer found.' : ' customers found.');
+      customerDirectoryStatus.textContent = customers.length + (customers.length === 1 ? ' registered customer account found.' : ' registered customer accounts found.');
     }
 
     async function loadCustomerDirectory() {
@@ -1298,13 +1298,13 @@
       customerHistorySection.hidden = false;
       document.getElementById('selected-customer-summary').textContent = [
         customer.fullName,
-        customer.phone,
+        formatPhoneNumber(customer.phone),
         customer.email
       ].filter(Boolean).join(' · ');
       customerOrdersStatus.textContent = 'Loading order history.';
       customerOrdersList.setAttribute('aria-busy', 'true');
       try {
-        const payload = await apiRequest('/api/staff/customers/' + encodeURIComponent(customer.id) + '/orders');
+        const payload = await apiRequest('/api/staff/customer-account-orders?email=' + encodeURIComponent(customer.email));
         if (requestId !== customerHistoryRequestId) return;
         renderCustomerOrders(payload.orders || []);
         customerOrdersStatus.textContent = (payload.orders || []).length +
@@ -1330,12 +1330,12 @@
       customerSearchTimer = window.setTimeout(loadCustomerDirectory, 250);
     });
     customerDirectoryList.addEventListener('click', function (event) {
-      const button = event.target.closest('[data-customer-id]');
+      const button = event.target.closest('[data-customer-email]');
       if (!button) return;
-      customerDirectoryList.querySelectorAll('[data-customer-id]').forEach(function (result) {
+      customerDirectoryList.querySelectorAll('[data-customer-email]').forEach(function (result) {
         result.setAttribute('aria-expanded', String(result === button));
       });
-      const customer = customerRecordsById.get(button.dataset.customerId);
+      const customer = customerRecordsByEmail.get(button.dataset.customerEmail);
       if (customer) loadCustomerOrderHistory(customer);
     });
 
