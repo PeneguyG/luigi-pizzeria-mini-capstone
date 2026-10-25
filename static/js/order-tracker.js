@@ -51,6 +51,9 @@ function itemsMarkup(items) {
 function renderOrder(order, authenticated) {
   currentOrder = order;
   trackerElement('order-result').hidden = false;
+  trackerElement('authenticated-current-label').hidden = !authenticated;
+  trackerElement('authenticated-current-label').textContent = order.status === 'Completed' ? 'Past order details' : 'Current order';
+  trackerElement('guest-order-label').hidden = authenticated;
   const orderCode = displayOrderCode(order);
   trackerElement('order-result-heading').textContent = 'Order ' + orderCode + ' · Thanks, ' + order.customerName + '!';
   trackerElement('order-pickup').textContent = 'Pickup at Luigi’s Pizzeria' + (order.pickupTime ? ' · Requested time: ' + order.pickupTime : ' · Next available pickup');
@@ -58,9 +61,11 @@ function renderOrder(order, authenticated) {
   trackerElement('order-status').textContent = statusName;
   const steps = ['Confirmed','In-Progress','Ready','Completed'];
   const labels = ['Order received','In the kitchen','Ready for pickup','Picked up'];
-  const current = order.status === 'Overdue' ? 1 : steps.indexOf(order.status);
+  const isCompleted = order.status === 'Completed';
+  const current = isCompleted ? steps.length : order.status === 'Overdue' ? 1 : steps.indexOf(order.status);
   trackerElement('order-steps').innerHTML = steps.map(function (_status, index) {
-    return '<li class="' + (index < current ? 'done' : index === current ? 'current' : '') + '"' + (index === current ? ' aria-current="step"' : '') + '><span class="dot" aria-hidden="true">' + (index < current ? '✓' : index + 1) + '</span><span class="visually-hidden">' + (index < current ? 'Completed: ' : index === current ? 'Current step: ' : 'Upcoming: ') + '</span>' + labels[index] + '</li>';
+    const done = isCompleted || index < current;
+    return '<li class="' + (done ? 'done' : index === current ? 'current' : '') + '"' + (index === current ? ' aria-current="step"' : '') + '><span class="dot" aria-hidden="true">' + (done ? '✓' : index + 1) + '</span><span class="visually-hidden">' + (done ? 'Completed: ' : index === current ? 'Current step: ' : 'Upcoming: ') + '</span>' + labels[index] + '</li>';
   }).join('');
   const messages = {
     'Confirmed':'Your order is confirmed. Our team will start preparing it soon.',
@@ -85,6 +90,45 @@ function renderOrder(order, authenticated) {
   }
   announceTracker('Order code ' + orderCode + ' status: ' + statusName + '.');
 }
+function renderAuthenticatedPastOrders(orders) {
+  const list = trackerElement('past-orders-list');
+  list.replaceChildren();
+  if (!orders.length) {
+    const empty = document.createElement('p');
+    empty.className = 'text-secondary mb-0';
+    empty.textContent = 'You have no past orders yet.';
+    list.append(empty);
+    return;
+  }
+  orders.forEach(function (order) {
+    const article = document.createElement('article');
+    article.className = 'border-top py-3';
+    const row = document.createElement('div');
+    row.className = 'd-flex flex-wrap justify-content-between align-items-start gap-2';
+    const heading = document.createElement('h3');
+    heading.className = 'h5 mb-1';
+    heading.textContent = 'Order ' + displayOrderCode(order);
+    const status = document.createElement('span');
+    status.className = 'badge rounded-pill soft-green';
+    status.textContent = 'Completed';
+    row.append(heading, status);
+    const details = document.createElement('div');
+    details.className = 'mt-2';
+    details.innerHTML = itemsMarkup(order.items) + '<p class="fw-semibold mb-2">Total: ' + formatMoney(order.totalPrice) + '</p>';
+    const viewButton = document.createElement('button');
+    viewButton.type = 'button';
+    viewButton.className = 'btn btn-sm btn-outline-danger';
+    viewButton.textContent = 'View order details';
+    viewButton.addEventListener('click', function () {
+      trackerElement('authenticated-no-active').hidden = true;
+      renderOrder(order, true);
+      trackerElement('order-result-heading').focus();
+      trackerElement('order-result').scrollIntoView({behavior: 'smooth', block: 'start'});
+    });
+    article.append(row, details, viewButton);
+    list.append(article);
+  });
+}
 async function loadGuestOrder(orderCode, phone, quiet) {
   if (!quiet) showTrackerError('');
   try {
@@ -108,17 +152,16 @@ async function refreshAuthenticatedOrders() {
       catch (_error) { return null; }
     }));
     const active = results.filter(function (order) { return order && order.status !== 'Completed'; });
-    const list = trackerElement('active-orders-list');
-    trackerElement('active-orders-section').hidden = false;
-    if (!active.length) {
-      list.innerHTML = '<p class="text-secondary mb-0">You have no active orders right now.</p>';
+    const past = results.filter(function (order) { return order && order.status === 'Completed'; });
+    trackerElement('past-orders-section').hidden = false;
+    renderAuthenticatedPastOrders(past);
+    if (active.length) {
+      trackerElement('authenticated-no-active').hidden = true;
+      renderOrder(active[0], true);
     } else {
-      list.innerHTML = active.map(function (order) {
-        return '<article class="border-top py-3"><div class="d-flex flex-wrap justify-content-between gap-2"><h3 class="h5">Order ' + safeText(displayOrderCode(order)) + '</h3><span class="badge rounded-pill soft-green align-self-start">' + safeText(order.status === 'In-Progress' ? 'In the kitchen' : order.status) + '</span></div><p class="text-secondary">' + safeText(order.customerName) + (order.pickupTime ? ' · Pickup ' + safeText(order.pickupTime) : '') + '</p><div>' + itemsMarkup(order.items) + '</div><strong>Total: ' + formatMoney(order.totalPrice) + '</strong></article>';
-      }).join('');
+      trackerElement('order-result').hidden = true;
+      trackerElement('authenticated-no-active').hidden = false;
     }
-    const latestOrder = results.find(function (order) { return Boolean(order); });
-    if (latestOrder) renderOrder(latestOrder, true);
   } catch (error) { showTrackerError(error.message); }
   finally { refreshRunning = false; }
 }
@@ -231,7 +274,7 @@ trackerElement('guest-tracker-form').addEventListener('submit', async function (
   } catch (_error) { /* The accessible error is rendered by loadGuestOrder. */ }
   finally { submit.disabled = false; submit.textContent = 'Find order'; }
 });
-trackerElement('refresh-active-orders').addEventListener('click', refreshAuthenticatedOrders);
+trackerElement('refresh-customer-orders').addEventListener('click', refreshAuthenticatedOrders);
 trackerElement('express-account-form').addEventListener('submit', async function (event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -263,7 +306,7 @@ async function initializeTracker() {
     signedInAccount = account.customer;
     if (signedInAccount) {
       trackerElement('guest-lookup').hidden = true;
-      trackerElement('active-orders-section').hidden = false;
+      trackerElement('past-orders-section').hidden = false;
       await refreshAuthenticatedOrders();
       refreshTimer = setInterval(refreshAuthenticatedOrders, 10000);
       return;

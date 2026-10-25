@@ -8,6 +8,7 @@
     };
     const drinkPricing = { Small: 1, Medium: 2, Large: 3 };
     const TAX_RATE = 0.0975;
+    const BUSINESS_TIMEZONE = document.body.dataset.businessTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
     const statusStyles = {
       Confirmed: 'bg-warning-subtle text-warning-emphasis',
       'In-Progress': 'bg-info-subtle text-info-emphasis',
@@ -31,7 +32,6 @@
     let historyRequestId = 0;
     let historySearchTimer = 0;
     let overdueCheckRunning = false;
-    const overdueUpdatesInProgress = new Set();
 
     function formatMoney(amount) {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount) || 0);
@@ -105,22 +105,39 @@
     }
 
     function localDateInputValue(date) {
-      return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: BUSINESS_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(date).reduce(function (result, part) {
+        if (part.type !== 'literal') result[part.type] = part.value;
+        return result;
+      }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day;
     }
 
     function localTimeInputValue(date) {
-      return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: BUSINESS_TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      }).formatToParts(date).reduce(function (result, part) {
+        if (part.type !== 'literal') result[part.type] = part.value;
+        return result;
+      }, {});
+      return parts.hour + ':' + parts.minute;
+    }
+
+    function addMonthsToDateValue(dateValue, amount) {
+      const parts = dateValue.split('-').map(Number);
+      const monthIndex = parts[1] - 1 + amount;
+      const year = parts[0] + Math.floor(monthIndex / 12);
+      const month = monthIndex % 12;
+      const day = Math.min(parts[2], new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
+      return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     }
 
     function updatePickupDateMinimum() {
       const dateInput = document.getElementById('pickup-date');
-      const todayDate = new Date();
-      const today = localDateInputValue(todayDate);
-      const latestDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 2, Math.min(
-        todayDate.getDate(), new Date(todayDate.getFullYear(), todayDate.getMonth() + 3, 0).getDate()
-      ));
+      const today = localDateInputValue(new Date());
       dateInput.min = today;
-      dateInput.max = localDateInputValue(latestDate);
+      dateInput.max = addMonthsToDateValue(today, 2);
       if (!dateInput.value) dateInput.value = today;
       return { today: today, latest: dateInput.max };
     }
@@ -581,14 +598,6 @@
       }
     }
 
-    function pickupTimeHasPassed(pickupDate, pickupTime, now) {
-      const match = /^([01][0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$/.exec(String(pickupTime || ''));
-      if (!match) return false;
-      const date = pickupDate || localDateInputValue(now);
-      const scheduled = new Date(date + 'T' + String(pickupTime));
-      return !Number.isNaN(scheduled.getTime()) && now > scheduled;
-    }
-
     function updateOrderStatusInUi(order, preserveFocusedSelection) {
       const card = activeOrdersList.querySelector('[data-order-card="' + CSS.escape(String(order.id)) + '"]');
       if (!card) return;
@@ -608,49 +617,23 @@
       if (overdueCheckRunning) return;
       overdueCheckRunning = true;
       const overdueError = document.getElementById('overdue-update-error');
-      const changedOrders = [];
-      const failedOrders = [];
-
       try {
-        if (refreshFromApi) synchronizeActiveOrders(await listOrders());
-        const now = new Date();
-        const candidates = activeOrders.filter(function (order) {
-          return order.status !== 'Completed' && order.status !== 'Overdue' && pickupTimeHasPassed(order.pickupDate, order.pickupTime, now);
+        const previousStatuses = new Map(activeOrders.map(function (order) { return [String(order.id), order.status]; }));
+        // The API evaluates pickup times in BUSINESS_TIMEZONE and returns the
+        // authoritative Overdue status; browser timezone and clock are ignored.
+        synchronizeActiveOrders(await listOrders());
+        const newlyOverdue = activeOrders.filter(function (order) {
+          return order.status === 'Overdue' && previousStatuses.get(String(order.id)) !== 'Overdue';
         });
-
-        for (const order of candidates) {
-          const id = String(order.id);
-          if (overdueUpdatesInProgress.has(id)) continue;
-          overdueUpdatesInProgress.add(id);
-          try {
-            const result = await updateOrderStatus(order.id, 'Overdue');
-            order.status = result && result.status ? result.status : 'Overdue';
-            updateOrderStatusInUi(order, true);
-            changedOrders.push(order);
-          } catch (error) {
-            failedOrders.push({ id: id, message: error.message });
-          } finally {
-            overdueUpdatesInProgress.delete(id);
-          }
-        }
-
-        if (failedOrders.length) {
-          const failedIds = failedOrders.map(function (item) { return item.id; }).join(', ');
-          overdueError.textContent = 'Could not mark order' + (failedOrders.length === 1 ? ' ' : 's ') + failedIds +
-            ' overdue. ' + failedOrders[0].message + ' Refresh orders and try again.';
-          overdueError.hidden = false;
-        } else {
-          overdueError.hidden = true;
-          overdueError.textContent = '';
-        }
-
-        if (changedOrders.length) {
-          const ids = changedOrders.map(function (order) { return String(order.id); }).join(', ');
-          announce('Order' + (changedOrders.length === 1 ? ' ' : 's ') + ids +
-            ' automatically marked overdue because the requested pickup time passed.');
+        overdueError.hidden = true;
+        overdueError.textContent = '';
+        if (newlyOverdue.length) {
+          announce('Order' + (newlyOverdue.length === 1 ? ' ' : 's ') + newlyOverdue.map(function (order) {
+            return String(order.publicOrderCode || order.id);
+          }).join(', ') + ' automatically marked overdue using the restaurant timezone.');
         }
       } catch (error) {
-        overdueError.textContent = 'Could not check active orders for overdue pickup times. ' + error.message;
+        overdueError.textContent = 'Could not refresh pickup statuses. ' + error.message;
         overdueError.hidden = false;
       } finally {
         overdueCheckRunning = false;

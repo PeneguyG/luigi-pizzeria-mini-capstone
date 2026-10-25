@@ -308,6 +308,27 @@ def normalize_phone_number(value):
         raise ApiError("Customer phone must be a valid 10-digit US number.")
     return digits
 
+def business_now():
+    """Current aware time in the restaurant timezone used for pickup scheduling."""
+    timezone_name = os.environ.get("BUSINESS_TIMEZONE")
+    try:
+        return datetime.now(ZoneInfo(timezone_name)) if timezone_name else datetime.now().astimezone()
+    except ZoneInfoNotFoundError as exc:
+        raise RuntimeError("BUSINESS_TIMEZONE must be a valid IANA timezone name.") from exc
+
+def mark_past_pickups_overdue(cursor):
+    """Apply overdue status using the restaurant's wall-clock time, not a browser clock."""
+    local_now = business_now().replace(tzinfo=None)
+    cursor.execute(
+        """UPDATE orders
+              SET status = 'Overdue'
+            WHERE status NOT IN ('Completed', 'Overdue')
+              AND pickup_date IS NOT NULL
+              AND pickup_time IS NOT NULL
+              AND (pickup_date < %s OR (pickup_date = %s AND pickup_time < %s))""",
+        (local_now.date(), local_now.date(), local_now.time()),
+    )
+
 def get_or_create_customer(cursor, full_name, first_name, last_name, phone):
     # Match legacy rows that may have been saved with punctuation in the phone field.
     cursor.execute("SELECT customer_id, phone FROM customers")
@@ -560,15 +581,10 @@ def prepare_items(raw_items, maximum):
     return items, subtotal, tax_amount, subtotal + tax_amount
 
 def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=20):
-    timezone_name = os.environ.get("BUSINESS_TIMEZONE")
-
     try:
-
-        now = datetime.now(ZoneInfo(timezone_name)) if timezone_name else datetime.now().astimezone()
-
-    except ZoneInfoNotFoundError as exc:
-
-        raise ApiError("BUSINESS_TIMEZONE must be a valid IANA timezone name.", 503) from exc
+        now = business_now()
+    except RuntimeError as exc:
+        raise ApiError(str(exc), 503) from exc
 
     date_was_omitted = date_value in (None, "")
     if date_was_omitted:
@@ -1492,6 +1508,7 @@ def dashboard():
         "employee-dashboard.html",
         staff=staff,
         csrf_token=ensure_csrf_token(),
+        business_timezone=os.environ.get("BUSINESS_TIMEZONE", ""),
     )
 
 @app.get("/staff-change-password")
@@ -1882,7 +1899,13 @@ def track_guest_order():
 def get_active_orders():
 
     try:
-
+        connection = database_connection()
+        try:
+            cursor = connection.cursor()
+            mark_past_pickups_overdue(cursor)
+            connection.commit()
+        finally:
+            connection.close()
         return jsonify(load_orders(completed=False))
 
     except RuntimeError as exc:
