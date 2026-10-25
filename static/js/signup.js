@@ -203,14 +203,14 @@ document.getElementById('suPassword').addEventListener('input', function () {
 });
 document.getElementById('suConfirm').addEventListener('input', function () { this.setCustomValidity(''); });
 
-const initialMode = query.get('mode') === 'signin' ? 'signin' : 'signup';
+const initialMode = ['signin', 'recovery'].includes(query.get('mode')) ? query.get('mode') : 'signup';
 switchTab(initialMode, false);
 renderSession(null);
 accountRequest('/api/customer/account').then(function (response) {
   if (backupFlow) return;
   renderSession(response.customer);
   if (!response.customer && (query.has('mode') || query.has('next'))) {
-    const field = (initialMode === 'signin' ? signinForm : signupForm).querySelector('input');
+    const field = (initialMode === 'recovery' ? recoveryForm : initialMode === 'signin' ? signinForm : signupForm).querySelector('input');
     if (field) field.focus();
   }
 }).catch(function (error) {
@@ -242,7 +242,8 @@ function presentBackup(code, flow) {
   document.getElementById('backupCodeHeading').focus();
 }
 
-document.getElementById('openRecovery').addEventListener('click', function () {
+document.getElementById('openRecovery').addEventListener('click', function (event) {
+  event.preventDefault();
   if (accountBusy) return;
   document.getElementById('reEmail').value = document.getElementById('siEmail').value;
   switchTab('recovery', true);
