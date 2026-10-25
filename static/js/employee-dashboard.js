@@ -8,7 +8,7 @@
     };
     const drinkPricing = { Small: 1, Medium: 2, Large: 3 };
     const TAX_RATE = 0.0975;
-    const BUSINESS_TIMEZONE = document.body.dataset.businessTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const BUSINESS_TIMEZONE = LuigiTime.zone;
     const statusStyles = {
       Confirmed: 'bg-warning-subtle text-warning-emphasis',
       'In-Progress': 'bg-info-subtle text-info-emphasis',
@@ -457,10 +457,11 @@
     }
 
     function formatTimestamp(timestamp) {
+      if (!timestamp) return { label: 'Timestamp unavailable', iso: '' };
       const date = new Date(timestamp);
       if (Number.isNaN(date.getTime())) return { label: 'Timestamp unavailable', iso: '' };
       return {
-        label: new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date),
+        label: new Intl.DateTimeFormat('en-US', { timeZone: BUSINESS_TIMEZONE, year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(date),
         iso: date.toISOString()
       };
     }
@@ -1251,7 +1252,7 @@
         heading.textContent = 'Order ' + (order.publicOrderCode || order.id) + ' · ' + order.status;
         const meta = document.createElement('p');
         meta.className = 'small text-secondary mb-2';
-        meta.textContent = [order.createdAt, order.channel, order.pickupDate || order.pickupTime ? 'Pickup ' + formatPickupSchedule(order) : ''].filter(Boolean).join(' · ');
+        meta.textContent = [formatTimestamp(order.createdAt).label, order.channel, order.pickupDate || order.pickupTime ? 'Pickup ' + formatPickupSchedule(order) : ''].filter(Boolean).join(' · ');
         const lines = document.createElement('ul');
         lines.className = 'small mb-2';
         (order.items || []).forEach(function (line) {
