@@ -1832,7 +1832,7 @@ def track_guest_order():
         if order_code:
             cursor.execute("""SELECT o.public_order_code, o.tracking_token_hash, c.phone
             FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id
-            WHERE o.public_order_code = %s AND o.tracking_token_hash IS NOT NULL""", (order_code,))
+            WHERE o.public_order_code = %s""", (order_code,))
             row = cursor.fetchone()
             if not row:
                 return jsonify(error="We could not find that order. Check the code and try again."), 404
@@ -1844,6 +1844,8 @@ def track_guest_order():
             is_legacy = order_code.startswith("PZ-LEGACY-")
             if (phone or is_legacy) and stored_phone != phone:
                 return jsonify(error="We could not find that order. Check the code and phone number and try again."), 404
+            # Public order codes are generated with Python secrets for both POS
+            # and customer orders; use the code as the lookup credential.
             orders = load_orders(None, tracking_hash=row["tracking_token_hash"], public_order_code=order_code)
             if not orders:
                 return jsonify(error="We could not find that order. Check the code and try again."), 404
@@ -1851,8 +1853,7 @@ def track_guest_order():
 
         cursor.execute("""SELECT o.public_order_code, o.tracking_token_hash
             FROM orders AS o JOIN customers AS c ON c.customer_id = o.customer_id
-            WHERE o.tracking_token_hash IS NOT NULL
-              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', '') IN (%s, %s)
+            WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', '') IN (%s, %s)
             ORDER BY o.created_at DESC LIMIT 20""", (phone, "1" + phone))
         receipt_rows = cursor.fetchall()
         matches = []
