@@ -1,6 +1,7 @@
 import json
 """Flask API and same-origin host for Luigi's employee order dashboard."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as datetime_time
+import calendar
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -556,7 +557,7 @@ def prepare_items(raw_items, maximum):
 
     return items, subtotal, tax_amount, subtotal + tax_amount
 
-def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=15):
+def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=20):
     timezone_name = os.environ.get("BUSINESS_TIMEZONE")
 
     try:
@@ -567,7 +568,8 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=15):
 
         raise ApiError("BUSINESS_TIMEZONE must be a valid IANA timezone name.", 503) from exc
 
-    if date_value in (None, ""):
+    date_was_omitted = date_value in (None, "")
+    if date_was_omitted:
         pickup_date = now.date()
     elif not isinstance(date_value, str):
         raise ApiError("Pickup date must use YYYY-MM-DD format.")
@@ -582,13 +584,28 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=15):
     if pickup_date < now.date():
         raise ApiError("Pickup date cannot be in the past.")
 
+    month_index = now.year * 12 + (now.month - 1) + 2
+    latest_year, latest_month_index = divmod(month_index, 12)
+    latest_month = latest_month_index + 1
+    latest_day = min(now.day, calendar.monthrange(latest_year, latest_month)[1])
+    latest_date = now.date().replace(year=latest_year, month=latest_month, day=latest_day)
+    if pickup_date > latest_date:
+        raise ApiError("Pickup date cannot be more than two months in advance.")
+
+    opening_time = datetime_time(10, 0)
+    closing_time = datetime_time(22, 40)
+
     if time_value in (None, ""):
         if pickup_date > now.date():
-            raise ApiError("Choose a pickup time for the selected date.")
-        scheduled = now + timedelta(minutes=15)
+            return pickup_date, opening_time
+        scheduled = max(now + timedelta(minutes=minimum_buffer_minutes), datetime.combine(pickup_date, opening_time, tzinfo=now.tzinfo))
         if scheduled.second or scheduled.microsecond:
             scheduled = scheduled.replace(second=0, microsecond=0) + timedelta(minutes=1)
-        return scheduled.date(), scheduled.time().replace(tzinfo=None)
+        if scheduled.date() != pickup_date or scheduled.time().replace(tzinfo=None) > closing_time:
+            if date_was_omitted:
+                return pickup_date + timedelta(days=1), opening_time
+            raise ApiError("No pickup times remain today. Choose a future date.")
+        return pickup_date, scheduled.time().replace(tzinfo=None)
     if not isinstance(time_value, str):
         raise ApiError("Pickup time must use HH:MM format.")
     try:
@@ -600,10 +617,12 @@ def pickup_schedule_values(date_value, time_value, minimum_buffer_minutes=15):
         raise ApiError("Pickup time must use HH:MM or HH:MM:SS format.") from exc
 
     scheduled = datetime.combine(pickup_date, pickup_time, tzinfo=now.tzinfo)
+    if pickup_time < opening_time or pickup_time > closing_time:
+        raise ApiError("Pickup time must be between 10:00 a.m. and 10:40 p.m.")
     minimum = now + timedelta(minutes=minimum_buffer_minutes)
-    if scheduled < minimum:
+    if pickup_date == now.date() and scheduled < minimum:
         if minimum_buffer_minutes:
-            raise ApiError("For pickup today, choose a time at least 15 minutes from now.")
+            raise ApiError("For pickup today, choose a time at least 20 minutes from now.")
         raise ApiError("Pickup time must be later than the current time.")
 
     return pickup_date, pickup_time
@@ -1959,7 +1978,7 @@ def create_order():
 
         pickup_date, pickup_time = pickup_schedule_values(
             body.get("pickupDate"), body.get("pickupTime"),
-            minimum_buffer_minutes=15,
+            minimum_buffer_minutes=20,
         )
 
         notes = body.get("notes", "")

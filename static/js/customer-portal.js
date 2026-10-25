@@ -373,11 +373,52 @@ function prefillCustomer(customer) {
   if (customer.email && !element('customer-email').value) element('customer-email').value = customer.email;
 }
 
+function localTimeValue(date) {
+  return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+}
+
+function validatePickupTime() {
+  const input = element('pickup-time');
+  const error = element('pickup-time-error');
+  const close = '22:40';
+  let earliest = '10:00';
+  let message = '';
+  const now = new Date();
+  const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const minimum = new Date(now.getTime() + 20 * 60 * 1000);
+  if (minimum.getSeconds() > 0 || minimum.getMilliseconds() > 0) minimum.setMinutes(minimum.getMinutes() + 1);
+  minimum.setSeconds(0, 0);
+  const minimumDate = minimum.getFullYear() + '-' + String(minimum.getMonth() + 1).padStart(2, '0') + '-' + String(minimum.getDate()).padStart(2, '0');
+  const minimumTime = localTimeValue(minimum);
+  const noTimesRemain = minimumDate !== today || localTimeValue(now) > close || minimumTime > close;
+  if (!noTimesRemain && minimumTime > earliest) earliest = minimumTime;
+  if (noTimesRemain) earliest = '22:41';
+  input.min = earliest;
+  input.max = close;
+  if (input.value) {
+    if (input.value < '10:00' || input.value > close) {
+      message = 'Pickup times must be between 10:00 a.m. and 10:40 p.m.';
+    } else if (noTimesRemain) {
+      message = 'No pickup times remain today. Leave this blank for the next available pickup.';
+    } else if (input.value < earliest) {
+      message = 'For today, choose a pickup time at least 20 minutes from now (' + earliest + ' or later).';
+    }
+  }
+  input.setCustomValidity(message);
+  input.classList.toggle('is-invalid', Boolean(message));
+  if (message) input.setAttribute('aria-invalid', 'true');
+  else input.removeAttribute('aria-invalid');
+  error.textContent = message || 'Choose 10:00 a.m.–10:40 p.m. and allow at least 20 minutes for today\'s pickup.';
+  return !message;
+}
+
 async function placeOrder(event) {
 
   event.preventDefault();
 
-  if (sendingOrder || !menuReady || !element('checkout-form').reportValidity()) return;
+  if (sendingOrder || !menuReady) return;
+  validatePickupTime();
+  if (!element('checkout-form').reportValidity()) return;
 
   const errorBox = element('checkout-error');
 
@@ -653,6 +694,12 @@ element('topping-options').addEventListener('click', function (event) {
 });
 
 element('checkout-form').addEventListener('submit', placeOrder);
+
+element('pickup-time').addEventListener('input', validatePickupTime);
+element('pickup-time').addEventListener('change', validatePickupTime);
+element('pickup-time').addEventListener('blur', validatePickupTime);
+element('pickup-time').addEventListener('focus', validatePickupTime);
+validatePickupTime();
 
 element('card-expiry').addEventListener('input', maskExpiryInput);
 element('card-expiry').addEventListener('blur', function () {
