@@ -114,10 +114,15 @@
 
     function updatePickupDateMinimum() {
       const dateInput = document.getElementById('pickup-date');
-      const today = localDateInputValue(new Date());
+      const todayDate = new Date();
+      const today = localDateInputValue(todayDate);
+      const latestDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 2, Math.min(
+        todayDate.getDate(), new Date(todayDate.getFullYear(), todayDate.getMonth() + 3, 0).getDate()
+      ));
       dateInput.min = today;
+      dateInput.max = localDateInputValue(latestDate);
       if (!dateInput.value) dateInput.value = today;
-      return today;
+      return { today: today, latest: dateInput.max };
     }
 
     function updatePickupTimeValidity() {
@@ -125,34 +130,45 @@
       const timeInput = document.getElementById('pickup-time');
       const dateError = document.getElementById('pickup-date-error');
       const timeError = document.getElementById('pickup-time-error');
-      const today = updatePickupDateMinimum();
+      const dateBounds = updatePickupDateMinimum();
       const selectedDate = dateInput.value;
-      const invalidPastDate = Boolean(selectedDate) && selectedDate < today;
-      dateInput.setCustomValidity(invalidPastDate ? 'Choose today or a future pickup date.' : '');
+      const invalidPastDate = Boolean(selectedDate) && selectedDate < dateBounds.today;
+      const invalidFutureDate = Boolean(selectedDate) && selectedDate > dateBounds.latest;
+      const dateMessage = invalidPastDate ? 'Past pickup dates are not allowed.' : 'Choose a date within the next two months.';
+      dateInput.setCustomValidity(invalidPastDate || invalidFutureDate ? dateMessage : '');
       dateInput.classList.toggle('is-invalid', !dateInput.validity.valid);
-      dateError.textContent = invalidPastDate ? 'Past pickup dates are not allowed.' : 'Choose a pickup date.';
+      dateError.textContent = invalidPastDate || invalidFutureDate ? dateMessage : 'Choose a pickup date.';
 
-      timeInput.removeAttribute('min');
-      let invalidTime = false;
-      if (timeInput.value && selectedDate === today) {
+      const closingTime = '22:40';
+      let earliestTime = '10:00';
+      let noTimesRemainToday = false;
+      if (selectedDate === dateBounds.today) {
         const minimum = new Date(Date.now() + 20 * 60 * 1000);
         if (minimum.getSeconds() > 0 || minimum.getMilliseconds() > 0) minimum.setMinutes(minimum.getMinutes() + 1);
         minimum.setSeconds(0, 0);
-        const minimumDate = localDateInputValue(minimum);
-        if (minimumDate !== today) {
-          invalidTime = true;
-          timeError.textContent = 'There is not enough time remaining today. Choose a future pickup date.';
+        if (localDateInputValue(minimum) !== dateBounds.today) {
+          noTimesRemainToday = true;
+          earliestTime = '22:41';
         } else {
-          const minimumTime = localTimeInputValue(minimum);
-          timeInput.min = minimumTime;
-          const selectedTimeParts = timeInput.value.split(':').map(Number);
-          const selectedSeconds = selectedTimeParts[0] * 3600 + selectedTimeParts[1] * 60 + (selectedTimeParts[2] || 0);
-          const minimumSeconds = minimum.getHours() * 3600 + minimum.getMinutes() * 60;
-          invalidTime = selectedSeconds < minimumSeconds;
-          timeError.textContent = 'For pickup today, choose a time at least 20 minutes from now (' + minimumTime.slice(0, 5) + ' or later).';
+          earliestTime = localTimeInputValue(minimum);
+          if (earliestTime < '10:00') earliestTime = '10:00';
+          if (earliestTime > closingTime) noTimesRemainToday = true;
         }
+      }
+      timeInput.min = earliestTime;
+      timeInput.max = closingTime;
+      let invalidTime = false;
+      if (noTimesRemainToday) {
+        invalidTime = true;
+        timeError.textContent = 'No pickup times remain today. Choose a future date.';
+      } else if (timeInput.value && (timeInput.value < '10:00' || timeInput.value > closingTime)) {
+        invalidTime = true;
+        timeError.textContent = 'Pickup times must be between 10:00 a.m. and 10:40 p.m.';
+      } else if (timeInput.value && selectedDate === dateBounds.today && timeInput.value < earliestTime) {
+        invalidTime = true;
+        timeError.textContent = 'For today, choose a pickup time at least 20 minutes from now (' + earliestTime + ' or later).';
       } else {
-        timeError.textContent = 'For today, choose a pickup time at least 20 minutes from now.';
+        timeError.textContent = 'Choose a pickup time from 10:00 a.m. to 10:40 p.m.';
       }
       timeInput.setCustomValidity(invalidTime ? timeError.textContent : '');
       timeInput.classList.toggle('is-invalid', invalidTime);
@@ -701,20 +717,27 @@
       role: document.body.dataset.staffRole
     };
     const sidebar = document.getElementById('dashboard-sidebar');
-    const sidebarNavigation = document.getElementById('dashboard-navigation');
     const mainColumn = document.getElementById('dashboard-main-column');
     const sidebarToggle = document.getElementById('sidebar-toggle');
     sidebarToggle.addEventListener('click', function () {
-      const collapsed = sidebarToggle.getAttribute('aria-expanded') === 'true';
-      sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-      sidebarNavigation.hidden = collapsed;
-      sidebarToggle.textContent = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-      sidebar.classList.toggle('col-md-3', !collapsed);
-      sidebar.classList.toggle('col-lg-2', !collapsed);
-      sidebar.classList.toggle('col-md-auto', collapsed);
-      mainColumn.classList.toggle('col-md-9', !collapsed);
-      mainColumn.classList.toggle('col-lg-10', !collapsed);
-      mainColumn.classList.toggle('col-md', collapsed);
+      const hideSidebar = sidebarToggle.getAttribute('aria-expanded') === 'true';
+      sidebar.hidden = hideSidebar;
+      sidebarToggle.setAttribute('aria-expanded', String(!hideSidebar));
+      const label = hideSidebar ? 'Show navigation sidebar' : 'Hide navigation sidebar';
+      sidebarToggle.setAttribute('aria-label', label);
+      sidebarToggle.setAttribute('title', label);
+      mainColumn.classList.toggle('col-md-9', !hideSidebar);
+      mainColumn.classList.toggle('col-lg-10', !hideSidebar);
+    });
+    sidebar.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !sidebar.hidden) {
+        sidebar.hidden = true;
+        sidebarToggle.setAttribute('aria-expanded', 'false');
+        sidebarToggle.setAttribute('aria-label', 'Show navigation sidebar');
+        sidebarToggle.setAttribute('title', 'Show navigation sidebar');
+        mainColumn.classList.remove('col-md-9', 'col-lg-10');
+        sidebarToggle.focus();
+      }
     });
     const roleLevels = { employee: 1, manager: 2, owner: 3 };
     const roleNames = { employee: 'Employee', manager: 'Manager', owner: 'Owner' };

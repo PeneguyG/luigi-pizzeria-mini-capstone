@@ -33,7 +33,6 @@
   <main id="main-content" class="container-fluid py-4 py-lg-5">
     <div class="row g-0">
       <aside id="dashboard-sidebar" class="col-12 col-md-3 col-lg-2 min-vh-100 border-end px-3 pb-4" aria-label="Employee dashboard sidebar">
-        <button id="sidebar-toggle" class="btn btn-outline-secondary btn-sm mb-3" type="button" aria-expanded="true" aria-controls="dashboard-navigation">Collapse sidebar</button>
         <nav id="dashboard-navigation" aria-label="Dashboard views">
           <div class="nav flex-column gap-2" role="tablist" aria-label="Employee dashboard sections" aria-orientation="vertical">
             <button class="nav-link active text-start rounded bg-danger-subtle text-danger-emphasis" id="pos-tab" type="button" role="tab" aria-label="Point of Sales tab" aria-selected="true" aria-controls="pos-panel" tabindex="0" data-panel="pos-panel">Point of Sales</button>
@@ -46,6 +45,9 @@
         </nav>
       </aside>
       <div id="dashboard-main-column" class="col-12 col-md-9 col-lg-10 px-3 px-lg-4">
+    <button id="sidebar-toggle" class="btn btn-outline-secondary mb-3" type="button" aria-label="Hide navigation sidebar" aria-expanded="true" aria-controls="dashboard-sidebar" title="Hide navigation sidebar">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    </button>
     <section aria-labelledby="dashboard-heading">
       <div class="mb-4">
         <h2 id="dashboard-heading" class="h4 mb-1" tabindex="-1">Order management</h2>
@@ -90,14 +92,14 @@
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="pickup-date">Requested pickup date <span aria-hidden="true" class="text-danger">*</span></label>
                     <input class="form-control" id="pickup-date" name="pickupDate" type="date" required aria-describedby="pickup-date-help pickup-date-error">
-                    <div id="pickup-date-help" class="form-text">Choose today or a future date.</div>
-                    <div id="pickup-date-error" class="invalid-feedback" role="alert">Choose today or a future pickup date.</div>
+                    <div id="pickup-date-help" class="form-text">Choose today or a date within the next two months.</div>
+                    <div id="pickup-date-error" class="invalid-feedback" role="alert">Choose a date from today through two months ahead.</div>
                   </div>
                   <div class="col-12 col-md-6">
                     <label class="form-label" for="pickup-time">Requested pickup time</label>
                     <input class="form-control" id="pickup-time" name="pickupTime" type="time" step="60" aria-describedby="pickup-time-help pickup-time-error" aria-label="Requested pickup time, optional">
-                    <div id="pickup-time-help" class="form-text">For pickup today, schedule at least 20 minutes from now. Future dates can use any time.</div>
-                    <div id="pickup-time-error" class="invalid-feedback" role="alert">For today, choose a pickup time at least 20 minutes from now.</div>
+                    <div id="pickup-time-help" class="form-text">Pickup times are 10:00 a.m.–10:40 p.m. For today, allow at least 20 minutes for preparation.</div>
+                    <div id="pickup-time-error" class="invalid-feedback" role="alert">Choose a time from 10:00 a.m. to 10:40 p.m. and allow 20 minutes for today's orders.</div>
                   </div>
                   <div class="col-12">
                     <label class="form-label" for="order-notes">Order notes</label>
@@ -313,7 +315,7 @@
               </div>
             </div>
           </div>
-          <section class="card border shadow-sm mt-4" aria-labelledby="specials-heading">
+          <section class="card border shadow-sm mt-4 manager-specials-container" aria-labelledby="specials-heading">
             <div class="card-body p-3 p-md-4">
             <div class="mb-3"><p class="small text-uppercase fw-semibold mb-1">Customer menu</p><h4 id="specials-heading" class="h5 mb-1">Manage the two rotating specials</h4><p class="text-secondary mb-0">Customers without order history see these. Returning customers see their recent pizzas.</p></div>
             <p id="specials-message" class="alert mb-3" role="status" aria-live="polite" aria-atomic="true" hidden></p>
@@ -419,6 +421,6 @@
 
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-2" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261024-4" defer></script>
 </body>
 </html>
