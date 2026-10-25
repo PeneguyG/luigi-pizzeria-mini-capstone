@@ -381,7 +381,7 @@ function prefillCustomer(customer) {
 }
 
 function localTimeValue(date) {
-  return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+  return LuigiTime.timeValue(date);
 }
 
 function validatePickupTime() {
@@ -391,11 +391,11 @@ function validatePickupTime() {
   let earliest = '10:00';
   let message = '';
   const now = new Date();
-  const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const today = LuigiTime.dateValue(now);
   const minimum = new Date(now.getTime() + 20 * 60 * 1000);
   if (minimum.getSeconds() > 0 || minimum.getMilliseconds() > 0) minimum.setMinutes(minimum.getMinutes() + 1);
   minimum.setSeconds(0, 0);
-  const minimumDate = minimum.getFullYear() + '-' + String(minimum.getMonth() + 1).padStart(2, '0') + '-' + String(minimum.getDate()).padStart(2, '0');
+  const minimumDate = LuigiTime.dateValue(minimum);
   const minimumTime = localTimeValue(minimum);
   const noTimesRemain = minimumDate !== today || localTimeValue(now) > close || minimumTime > close;
   if (!noTimesRemain && minimumTime > earliest) earliest = minimumTime;
