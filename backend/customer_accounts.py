@@ -43,7 +43,8 @@ def install_accounts(app, connect, guest_checkout):
         connection = connect()
         try:
             cursor = connection.cursor()
-            cursor.execute('''SELECT a.email, a.full_name AS name, a.first_name AS firstName, a.last_name AS lastName, a.phone
+            cursor.execute('''SELECT a.email, a.full_name AS name, a.first_name AS firstName, a.last_name AS lastName, a.phone,
+                EXISTS(SELECT 1 FROM customer_recovery_codes r WHERE r.account_email = a.email) AS hasRecoveryCode
                 FROM customer_sessions s JOIN customer_accounts a ON a.email = s.account_email
                 WHERE s.token_hash = %s AND s.expires_at > UTC_TIMESTAMP()''',
                 (hashlib.sha256(token.encode()).hexdigest(),))
@@ -117,7 +118,7 @@ def install_accounts(app, connect, guest_checkout):
             recovery_code = write_recovery_code(cursor, email)
             token = start_session(connection, email)
             connection.commit()
-            return session_response(dict(email=email, name=name, firstName=first_name, lastName=last_name, phone=phone, recoveryCode=recovery_code), token, 201)
+            return session_response(dict(email=email, name=name, firstName=first_name, lastName=last_name, phone=phone, hasRecoveryCode=True, recoveryCode=recovery_code), token, 201)
         except pymysql.err.IntegrityError as exc:
             connection.rollback()
             if exc.args[0] == 1062:
@@ -148,7 +149,7 @@ def install_accounts(app, connect, guest_checkout):
             connection.commit()
             if attempts > 20:
                 return jsonify(error='Too many sign-in attempts. Try again in 15 minutes.'), 429
-            cursor.execute('SELECT email, full_name AS name, first_name AS firstName, last_name AS lastName, phone, password_hash FROM customer_accounts WHERE email = %s', (email,))
+            cursor.execute('SELECT email, full_name AS name, first_name AS firstName, last_name AS lastName, phone, password_hash, EXISTS(SELECT 1 FROM customer_recovery_codes r WHERE r.account_email = customer_accounts.email) AS hasRecoveryCode FROM customer_accounts WHERE email = %s', (email,))
             customer = cursor.fetchone()
             valid = check_password_hash(customer['password_hash'] if customer else DUMMY_HASH, password)
             if not customer or not valid:
@@ -233,6 +234,10 @@ def install_accounts(app, connect, guest_checkout):
             if not check_password_hash(account['password_hash'], password):
                 connection.rollback()
                 return jsonify(error='Your current password is incorrect.'), 401
+            cursor.execute('SELECT code_hash FROM customer_recovery_codes WHERE account_email = %s FOR UPDATE', (customer['email'],))
+            if cursor.fetchone():
+                connection.rollback()
+                return jsonify(error='A recovery code is already set up. Keep the code you previously saved.'), 409
             code = write_recovery_code(cursor, customer['email'])
             connection.commit()
             return jsonify(recoveryCode=code)

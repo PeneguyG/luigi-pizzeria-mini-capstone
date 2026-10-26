@@ -73,6 +73,7 @@ function switchTab(name, moveFocus) {
 
 function renderSession(customer) {
   signedInCustomer = customer;
+  document.getElementById('recoveryCodeSetup').hidden = !customer || Boolean(customer.hasRecoveryCode);
   const signedIn = Boolean(customer);
   authPanel.hidden = signedIn;
   authPanel.classList.toggle('hidden', signedIn);
@@ -137,7 +138,7 @@ async function handleSignup(event) {
       password: password
     });
     signupForm.reset();
-    renderSession({email: created.email, firstName: created.firstName, name: created.name});
+    renderSession({email: created.email, firstName: created.firstName, name: created.name, hasRecoveryCode: true});
     presentBackup(created.recoveryCode, 'signup');
   } catch (error) {
     if (error.message.indexOf('already exists') !== -1) {
@@ -221,6 +222,8 @@ accountRequest('/api/customer/account').then(function (response) {
 function presentBackup(code, flow) {
   if (!code) throw new Error('Your code could not be displayed. Sign in to generate a replacement.');
   backupFlow = flow;
+  if (signedInCustomer) signedInCustomer.hasRecoveryCode = true;
+  document.getElementById('recoveryCodeSetup').hidden = true;
   authPanel.hidden = true;
   authPanel.classList.add('hidden');
   accountPanel.hidden = true;
