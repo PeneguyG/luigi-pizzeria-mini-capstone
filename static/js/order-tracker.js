@@ -5,6 +5,8 @@ let refreshTimer = null;
 let currentOrder = null;
 let signedInAccount = null;
 let refreshRunning = false;
+let preferredOrderCode = '';
+const guestTracking = new URLSearchParams(window.location.search).get('guest') === '1';
 
 function safeText(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
 function formatMoney(value) { return '$' + Number(value || 0).toFixed(2); }
@@ -134,7 +136,7 @@ async function loadGuestOrder(orderCode, phone, quiet) {
   try {
     const result = await trackerRequest('/api/customer/track', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:orderCode,phone:phone})});
     if (Array.isArray(result.orders)) return result;
-    renderOrder(result, false);
+    renderOrder(result, Boolean(signedInAccount && !guestTracking));
     if (!quiet) trackerElement('order-result-heading').focus();
     return result;
   } catch (error) {
@@ -157,7 +159,13 @@ async function refreshAuthenticatedOrders() {
     renderAuthenticatedPastOrders(past);
     if (active.length) {
       trackerElement('authenticated-no-active').hidden = true;
-      renderOrder(active[0], true);
+      const preferred = active.find(function (order) { return displayOrderCode(order) === preferredOrderCode; });
+      if (preferred) renderOrder(preferred, Boolean(signedInAccount && !guestTracking));
+      else if (currentOrder && displayOrderCode(currentOrder) === preferredOrderCode) renderOrder(currentOrder, Boolean(signedInAccount && !guestTracking));
+      else renderOrder(active[0], true);
+    } else if (currentOrder && displayOrderCode(currentOrder) === preferredOrderCode) {
+      trackerElement('authenticated-no-active').hidden = true;
+      renderOrder(currentOrder, Boolean(signedInAccount && !guestTracking));
     } else {
       trackerElement('order-result').hidden = true;
       trackerElement('authenticated-no-active').hidden = false;
@@ -167,7 +175,7 @@ async function refreshAuthenticatedOrders() {
 }
 async function refreshGuestOrder() {
   clearTimeout(refreshTimer);
-  if (!currentOrder || signedInAccount || currentOrder.status === 'Completed') return;
+  if (!currentOrder || currentOrder.status === 'Completed') return;
   try {
     if (!document.hidden) {
       await loadGuestOrder(displayOrderCode(currentOrder), trackerElement('lookup-phone').value, true);
@@ -310,18 +318,35 @@ async function initializeTracker() {
     ? 'PZ-LEGACY-' + requestedOrder
     : String(requestedOrder || '').trim().toUpperCase();
   const hasRequestedCode = /^PZ-(?:[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}-[23456789A-HJ-NP-Z]{4}|LEGACY-[0-9]{1,20})$/.test(requestedCode);
-  if (hasRequestedCode) trackerElement('order-number').value = requestedCode;
+  if (hasRequestedCode) {
+    trackerElement('order-number').value = requestedCode;
+    preferredOrderCode = requestedCode;
+  }
   try {
     const account = await trackerRequest('/api/customer/account');
     signedInAccount = account.customer;
     if (signedInAccount) {
-      trackerElement('guest-lookup').hidden = true;
       trackerElement('past-orders-section').hidden = false;
-      await refreshAuthenticatedOrders();
-      refreshTimer = setInterval(refreshAuthenticatedOrders, 10000);
-      return;
     }
   } catch (_error) { /* Guest tracking remains available without an account session. */ }
-  if (hasRequestedCode) trackerElement('order-number').focus();
+  if (hasRequestedCode) {
+    try {
+      const order = await loadGuestOrder(requestedCode, '', true);
+      renderOrder(order, Boolean(signedInAccount && !guestTracking));
+      trackerElement('guest-lookup').hidden = true;
+      if (order.status !== 'Completed') refreshTimer = setTimeout(refreshGuestOrder, 5000);
+    } catch (error) {
+      showTrackerError(error.message);
+      trackerElement('guest-lookup').hidden = false;
+    }
+  }
+  if (signedInAccount) {
+    trackerElement('guest-lookup').hidden = true;
+    trackerElement('past-orders-section').hidden = false;
+    await refreshAuthenticatedOrders();
+    refreshTimer = setInterval(refreshAuthenticatedOrders, 10000);
+    return;
+  }
+  if (hasRequestedCode && !currentOrder) trackerElement('order-number').focus();
 }
 initializeTracker();

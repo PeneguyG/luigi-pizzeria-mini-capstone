@@ -2072,8 +2072,10 @@ def create_order():
 
                 return jsonify({"error": "The request security token is missing or expired.", "code": "csrf_failed"}), 400
 
+        account = None
         if is_customer:
-            account = current_customer_account()
+            guest_order = body.get("guestOrder") is True
+            account = None if guest_order else current_customer_account()
             if account:
                 body.update(customerFirstName=account["firstName"], customerLastName=account["lastName"],
                             customerPhone=account["phone"], customerEmail=account["email"])
@@ -2224,7 +2226,6 @@ def create_order():
                 receipts = json.loads(previous['content']).get('receipts', []) if previous else []
                 content = dict(profile=profile, receipts=[dict(id=int(order_id), orderCode=public_order_code, token=tracking_token)] + receipts[:9])
                 cursor.execute('INSERT INTO guest_checkouts (checkout_key, content) VALUES (%s, %s) ON DUPLICATE KEY UPDATE content = VALUES(content)', (checkout_key, json.dumps(content)))
-                account = current_customer_account()
                 if account:
                     cursor.execute('INSERT INTO customer_order_receipts (order_id, account_email, tracking_token) VALUES (%s, %s, %s)', (order_id, account['email'], tracking_token))
                     cursor.execute('DELETE FROM customer_drafts WHERE account_email = %s', (account['email'],))

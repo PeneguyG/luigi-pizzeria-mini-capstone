@@ -24,6 +24,7 @@ let menuReady = false;
 
 let sendingOrder = false;
 let customerAccount = null;
+const guestOrdering = new URLSearchParams(window.location.search).get('mode') === 'guest';
 
 function element(id) { return document.getElementById(id); }
 
@@ -454,6 +455,7 @@ async function placeOrder(event) {
       notes: element('order-notes').value.trim(),
 
       paymentMethod: 'Demo card',
+      guestOrder: guestOrdering,
 
       paymentLastFour: demoCardLastFour(),
 
@@ -476,24 +478,17 @@ async function placeOrder(event) {
     const order = await apiRequest('/api/customer/orders', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
 
     const publicOrderCode = String(order.publicOrderCode || '');
-    const orderSuccess = element('order-success');
-    orderSuccess.replaceChildren(document.createTextNode('Order code ' + publicOrderCode + ' was placed. '));
-    const trackingLink = document.createElement('a');
-    trackingLink.className = 'alert-link';
-    trackingLink.href = '/order-tracker.html?order=' + encodeURIComponent(publicOrderCode);
-    trackingLink.textContent = 'Track your order';
-    orderSuccess.append(trackingLink, document.createTextNode(' using your order code and phone number.'));
-    element('order-success').hidden = false;
-
     cart = [];
 
     element('checkout-form').reset();
 
     renderCart();
 
-    element('order-success').focus();
-
-    announce('Order code ' + publicOrderCode + ' placed. Use the tracking link and your phone number to follow its progress.');
+    announce('Order code ' + publicOrderCode + ' placed. Opening order tracking.');
+    const trackingUrl = new URL('/order-tracker.html', window.location.origin);
+    trackingUrl.searchParams.set('order', publicOrderCode);
+    if (guestOrdering) trackingUrl.searchParams.set('guest', '1');
+    window.location.assign(trackingUrl.toString());
 
   } catch (error) {
 
@@ -523,7 +518,7 @@ async function initializeCustomerDashboard() {
 
   try {
     const accountState = await apiRequest('/api/customer/account');
-    customerAccount = accountState.customer || null;
+    customerAccount = guestOrdering ? null : (accountState.customer || null);
     prefillCustomer(customerAccount);
     if (customerAccount && customerAccount.firstName) {
       element('customer-welcome').textContent = 'Welcome back, ' + customerAccount.firstName + '!';
@@ -646,7 +641,7 @@ async function loadCustomerSuggestions() {
   const container = element('customer-suggestions');
   container.setAttribute('aria-busy', 'true');
   try {
-    if (customerAccount) {
+    if (customerAccount && !guestOrdering) {
       try {
         const history = await apiRequest('/api/customer/favorites');
         if (history.signedIn && history.favorites && history.favorites.length) {
@@ -664,7 +659,9 @@ async function loadCustomerSuggestions() {
     customerSuggestionItems = (payload.specials || []).slice(0, 2);
     customerSuggestionMode = 'specials';
     renderCustomerSuggestions(customerSuggestionItems, 'specials');
-    element('suggestions-status').textContent = customerAccount ? 'No previous pizza orders yet. Try a current special.' : 'Ordering as a guest? Try one of these specials.';
+    element('suggestions-status').textContent = guestOrdering
+      ? 'Ordering as a guest? Try one of these specials.'
+      : customerAccount ? 'No previous pizza orders yet. Try a current special.' : 'Ordering as a guest? Try one of these specials.';
   } catch (error) {
     container.setAttribute('aria-busy', 'false');
     element('suggestions-status').textContent = 'Suggestions could not be loaded. You can still build a pizza below.';
