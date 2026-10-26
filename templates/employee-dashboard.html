@@ -277,9 +277,12 @@
             <button id="refresh-sales-summary" class="btn btn-outline-danger flex-shrink-0" type="button" aria-controls="sales-summary-content">Refresh sales</button>
           </div>
           <p class="alert alert-info" role="note">Orders count as sales when they are placed. Totals include tax and refresh every 15 seconds while the Manager dashboard is selected.</p>
-          <p id="sales-summary-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true">Sales summary is loading.</p>
-          <p id="sales-summary-error" class="alert alert-danger" role="alert" hidden></p>
-          <div id="sales-summary-content" aria-busy="true">
+          <section class="card border shadow-sm mb-4" aria-labelledby="live-sales-heading">
+            <div class="card-body p-3 p-md-4">
+              <h4 id="live-sales-heading" class="h5 mb-3">Live store sales</h4>
+              <p id="sales-summary-status" class="small text-secondary" role="status" aria-live="polite" aria-atomic="true">Sales summary is loading.</p>
+              <p id="sales-summary-error" class="alert alert-danger" role="alert" hidden></p>
+              <div id="sales-summary-content" aria-busy="true">
             <div class="row g-3 mb-4">
               <div class="col-12 col-lg-6">
                 <article class="card h-100">
@@ -300,25 +303,6 @@
                 </article>
               </div>
             </div>
-            <section class="card border mb-4" aria-labelledby="sales-comparison-heading">
-              <div class="card-body">
-                <h4 id="sales-comparison-heading" class="h6">Compare sales periods</h4>
-                <p class="small text-secondary">Compare today or this week with a selected past day or week. Weeks run Monday through Sunday.</p>
-                <form id="sales-comparison-form" class="row g-2 align-items-end mb-3">
-                  <div class="col-12 col-sm-5 col-lg-4"><label class="form-label" for="sales-compare-date">Comparison date</label><input class="form-control" id="sales-compare-date" type="date" required></div>
-                  <div class="col-12 col-sm-4 col-lg-3"><label class="form-label" for="sales-compare-mode">Compare</label><select class="form-select" id="sales-compare-mode"><option value="day">Selected day vs today</option><option value="week">Selected week vs this week</option></select></div>
-                  <div class="col-12 col-sm-auto"><button class="btn btn-outline-danger" id="compare-sales-button" type="submit">Compare periods</button></div>
-                </form>
-                <p id="sales-comparison-label" class="small fw-semibold mb-2" aria-live="polite"></p>
-                <div class="table-responsive">
-                  <table class="table table-sm align-middle mb-0">
-                    <caption class="caption-top">Selected period compared with the current matching period. Sales include tax.</caption>
-                    <thead><tr><th scope="col">Measure</th><th scope="col" id="sales-comparison-current-heading">Today</th><th scope="col" id="sales-comparison-selected-heading">Selected day</th><th scope="col">Difference</th></tr></thead>
-                    <tbody id="sales-comparison-table-body"><tr><td colspan="4" class="text-secondary">Loading comparison…</td></tr></tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
             <div class="row">
               <div class="col-12">
                 <div class="table-responsive">
@@ -334,6 +318,27 @@
               </div>
             </div>
           </div>
+            </div>
+          </section>
+          <section class="card border shadow-sm mb-4" aria-labelledby="sales-comparison-heading">
+            <div class="card-body p-3 p-md-4">
+              <h4 id="sales-comparison-heading" class="h5">Compare sales periods</h4>
+              <p class="small text-secondary">Compare today or this week with a selected past day or week. Weeks run Monday through Sunday.</p>
+              <form id="sales-comparison-form" class="row g-2 align-items-end mb-3">
+                <div class="col-12 col-sm-5 col-lg-4"><label class="form-label" for="sales-compare-date">Comparison date</label><input class="form-control" id="sales-compare-date" type="date" required></div>
+                <div class="col-12 col-sm-4 col-lg-3"><label class="form-label" for="sales-compare-mode">Compare</label><select class="form-select" id="sales-compare-mode"><option value="day">Selected day vs today</option><option value="week">Selected week vs this week</option></select></div>
+                <div class="col-12 col-sm-auto"><button class="btn btn-outline-danger" id="compare-sales-button" type="submit">Compare periods</button></div>
+              </form>
+              <p id="sales-comparison-label" class="small fw-semibold mb-2" aria-live="polite"></p>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <caption class="caption-top">Selected period compared with the current matching period. Sales include tax.</caption>
+                  <thead><tr><th scope="col">Measure</th><th scope="col" id="sales-comparison-current-heading">Today</th><th scope="col" id="sales-comparison-selected-heading">Selected day</th><th scope="col">Difference</th></tr></thead>
+                  <tbody id="sales-comparison-table-body"><tr><td colspan="4" class="text-secondary">Loading comparison…</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
           <section class="card border shadow-sm mt-4 manager-specials-container" aria-labelledby="specials-heading">
             <div class="card-body p-3 p-md-4">
             <div class="mb-3"><p class="small text-uppercase fw-semibold mb-1">Customer menu</p><h4 id="specials-heading" class="h5 mb-1">Manage the two rotating specials</h4><p class="text-secondary mb-0">Customers without order history see these. Returning customers see their recent pizzas.</p></div>
