@@ -472,8 +472,19 @@
     }
 
     function formatPickupSchedule(order) {
-      return [order.pickupDate, order.pickupTime].filter(Boolean).join(' ')
-        || (order.pickupTime ? order.pickupTime : 'Not specified');
+      const pickupTime = formatPickupTime(order.pickupTime);
+      return [order.pickupDate, pickupTime].filter(Boolean).join(' ') || 'Not specified';
+    }
+
+    function formatPickupTime(value) {
+      // API values may be TIME strings (HH:mm:ss) or ISO timestamps. Read
+      // the clock portion directly so the displayed pickup wall time is stable.
+      const match = /(?:T|^)(\d{1,2}):(\d{2})(?::\d{2})?/.exec(String(value || '').trim());
+      if (!match) return '';
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (hour > 23 || minute > 59) return '';
+      return (hour % 12 || 12) + ':' + String(minute).padStart(2, '0') + (hour >= 12 ? ' pm' : ' am');
     }
 
     function formatOrderItems(items) {
@@ -1077,7 +1088,7 @@
     applyStaffAccess();
     if (new URLSearchParams(window.location.search).get('focus') === 'dashboard') {
       window.requestAnimationFrame(function () {
-        document.getElementById('dashboard-heading').focus();
+        document.getElementById('pos-heading').focus();
       });
     }
 

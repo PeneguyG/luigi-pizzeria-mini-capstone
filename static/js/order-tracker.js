@@ -11,6 +11,14 @@ const guestTracking = new URLSearchParams(window.location.search).get('guest') =
 function safeText(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
 function formatMoney(value) { return '$' + Number(value || 0).toFixed(2); }
 function displayOrderCode(order) { return String(order.publicOrderCode || ('PZ-LEGACY-' + order.id)); }
+function formatPickupTime(value) {
+  const match = /^(\d{1,2}):(\d{2})/.exec(String(value || ''));
+  if (!match) return '';
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return '';
+  return (hour % 12 || 12) + ':' + String(minute).padStart(2, '0') + (hour >= 12 ? ' pm' : ' am');
+}
 function announceTracker(message) { trackerElement('tracker-announcement').textContent = message; }
 function maskPhoneInput(value) {
   let digits = String(value || '').replace(/\D/g, '').slice(0, 11);
@@ -58,7 +66,7 @@ function renderOrder(order, authenticated) {
   trackerElement('guest-order-label').hidden = authenticated;
   const orderCode = displayOrderCode(order);
   trackerElement('order-result-heading').textContent = 'Order ' + orderCode + ' · Thanks, ' + order.customerName + '!';
-  trackerElement('order-pickup').textContent = 'Pickup at Luigi’s Pizzeria' + (order.pickupTime ? ' · Requested time: ' + order.pickupTime : ' · Next available pickup');
+  trackerElement('order-pickup').textContent = 'Pickup at Luigi’s Pizzeria' + (order.pickupTime ? ' · Requested time: ' + formatPickupTime(order.pickupTime) : ' · Next available pickup');
   const statusName = order.status === 'In-Progress' ? 'In the kitchen' : order.status === 'Completed' ? 'Picked up' : order.status;
   trackerElement('order-status').textContent = statusName;
   const steps = ['Confirmed','In-Progress','Ready','Completed'];
@@ -203,7 +211,7 @@ function showPhoneMatches(orders) {
     code.textContent = 'Order ' + displayOrderCode(order);
     const meta = document.createElement('span');
     meta.className = 'd-block small text-secondary';
-    meta.textContent = [order.status, order.pickupTime ? 'Pickup ' + order.pickupTime : ''].filter(Boolean).join(' · ');
+    meta.textContent = [order.status, order.pickupTime ? 'Pickup ' + formatPickupTime(order.pickupTime) : ''].filter(Boolean).join(' · ');
     description.append(code, meta);
     const total = document.createElement('span');
     total.className = 'fw-semibold';
