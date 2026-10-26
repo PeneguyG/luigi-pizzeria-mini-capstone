@@ -1,3 +1,6 @@
+Replace **`templates/signup.html`** with this. It requires the updated **`static/js/signup.js`** from the recovery package.
+
+```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,82 +8,303 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Create a Luigi's Pizzeria customer account or sign in before ordering.">
   <title>Customer Account | Luigi's Pizzeria</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+    crossorigin="anonymous">
+
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='css/signup.css') }}">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to main content</a>
+
   <header class="site-header">
-    <a href="/" class="brand" aria-label="Luigi's Pizzeria home">Luigi's <span>Pizzeria</span></a>
+    <a href="/" class="brand" aria-label="Luigi's Pizzeria home">
+      Luigi's <span>Pizzeria</span>
+    </a>
+
     <div class="header-actions">
       <span id="welcome" class="muted hidden" aria-live="polite"></span>
-      <button id="headerSignIn" class="btn secondary" type="button">Sign in</button>
-      <button id="signOut" class="btn secondary hidden" type="button">Sign out</button>
+      <button id="headerSignIn" class="btn secondary" type="button">
+        Sign in
+      </button>
+      <button id="signOut" class="btn secondary hidden" type="button">
+        Sign out
+      </button>
     </div>
   </header>
 
   <main id="main-content" class="container py-4 py-lg-5" tabindex="-1">
     <section class="hero" aria-labelledby="account-title">
       <h1 id="account-title" tabindex="-1">Order your way</h1>
-      <p>Create an account or sign in to continue to pickup ordering. You can also return to the landing page and order as a guest.</p>
-      <a href="/customer?focus=order" class="btn secondary">Continue as a guest</a>
+      <p>
+        Create an account or sign in to continue to pickup ordering.
+        You can also return to the landing page and order as a guest.
+      </p>
+      <a href="/customer?focus=order" class="btn secondary">
+        Continue as a guest
+      </a>
     </section>
 
-    <section class="container" id="account" aria-labelledby="account-options-title">
-      <h2 id="account-options-title" class="visually-hidden">Customer account options</h2>
+    <section class="container" id="account"
+             aria-labelledby="account-options-title">
+      <h2 id="account-options-title" class="visually-hidden">
+        Customer account options
+      </h2>
+
       <div id="authPanel" class="auth-wrap card">
-          <p id="auth-help" class="muted">Create an account to save your contact details securely for future orders.</p>
-        <div class="tabs" role="tablist" aria-label="Customer account options">
-          <button class="tab active" id="signup-tab" data-tab="signup" type="button" role="tab" aria-selected="true" aria-controls="signupPanel" tabindex="0">Create account</button>
-          <button class="tab" id="signin-tab" data-tab="signin" type="button" role="tab" aria-selected="false" aria-controls="signinPanel" tabindex="-1">Sign in</button>
+        <p id="auth-help" class="muted">
+          Create an account to save your contact details securely for future orders.
+        </p>
+
+        <div class="tabs" role="tablist"
+             aria-label="Customer account options">
+          <button class="tab active"
+                  id="signup-tab"
+                  data-tab="signup"
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="signupPanel"
+                  tabindex="0">
+            Create account
+          </button>
+          <button class="tab"
+                  id="signin-tab"
+                  data-tab="signin"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="signinPanel"
+                  tabindex="-1">
+            Sign in
+          </button>
         </div>
 
-        <div id="signupPanel" role="tabpanel" aria-labelledby="signup-tab" tabindex="0">
+        <!-- Create account -->
+        <div id="signupPanel" role="tabpanel"
+             aria-labelledby="signup-tab" tabindex="0">
           <form id="signupForm" aria-describedby="auth-help">
-            <label for="suFirstName">First name <span aria-hidden="true">(required)</span></label>
-            <input id="suFirstName" name="given-name" type="text" autocomplete="given-name" maxlength="80" required>
+            <label for="suFirstName">
+              First name <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="suFirstName" name="given-name" type="text"
+                   autocomplete="given-name" maxlength="80" required>
 
-            <label for="suLastName">Last name <span aria-hidden="true">(required)</span></label>
-            <input id="suLastName" name="family-name" type="text" autocomplete="family-name" maxlength="80" required>
+            <label for="suLastName">
+              Last name <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="suLastName" name="family-name" type="text"
+                   autocomplete="family-name" maxlength="80" required>
 
-            <label for="suEmail">Email address <span aria-hidden="true">(required)</span></label>
-            <input id="suEmail" name="email" type="email" autocomplete="email" maxlength="254" required>
+            <label for="suEmail">
+              Email address <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="suEmail" name="email" type="email"
+                   autocomplete="email" maxlength="254" required>
 
-            <label for="suPhone">Phone number <span aria-hidden="true">(required)</span></label>
-            <input id="suPhone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 555-5555" required aria-describedby="phone-help">
-            <small id="phone-help" class="muted">Enter at least 10 digits.</small>
+            <label for="suPhone">
+              Phone number <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="suPhone" name="phone" type="tel"
+                   autocomplete="tel" placeholder="(555) 555-5555"
+                   required aria-describedby="phone-help">
+            <small id="phone-help" class="muted">
+              Enter at least 10 digits.
+            </small>
 
-            <label for="suPassword">Password <span aria-hidden="true">(required)</span></label>
-            <input id="suPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="password-help">
-            <small id="password-help" class="muted">Use at least 8 characters. Do not reuse a real password in this demo.</small>
+            <label for="suPassword">
+              Password <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="suPassword" name="new-password" type="password"
+                   autocomplete="new-password"
+                   minlength="8" maxlength="128"
+                   required aria-describedby="password-help">
+            <small id="password-help" class="muted">
+              Use at least 8 characters. Do not reuse a real password in this demo.
+            </small>
 
-            <label for="suConfirm">Confirm password <span aria-hidden="true">(required)</span></label>
-            <input id="suConfirm" name="confirm-password" type="password" autocomplete="new-password" required>
+            <label for="suConfirm">
+              Confirm password <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="suConfirm" name="confirm-password"
+                   type="password" autocomplete="new-password" required>
 
-            <button class="btn block" type="submit">Create account and continue</button>
+            <button class="btn block" type="submit">
+              Create account and continue
+            </button>
           </form>
         </div>
 
-        <div id="signinPanel" class="hidden" role="tabpanel" aria-labelledby="signin-tab" tabindex="0" hidden>
+        <!-- Sign in -->
+        <div id="signinPanel" class="hidden" role="tabpanel"
+             aria-labelledby="signin-tab" tabindex="0" hidden>
           <form id="signinForm" aria-describedby="auth-help">
-            <label for="siEmail">Email address <span aria-hidden="true">(required)</span></label>
-            <input id="siEmail" name="email" type="email" autocomplete="username" required>
+            <label for="siEmail">
+              Email address <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="siEmail" name="email" type="email"
+                   autocomplete="username" required>
 
-            <label for="siPassword">Password <span aria-hidden="true">(required)</span></label>
-            <input id="siPassword" name="password" type="password" autocomplete="current-password" required>
+            <label for="siPassword">
+              Password <span aria-hidden="true">(required)</span>
+            </label>
+            <input id="siPassword" name="password" type="password"
+                   autocomplete="current-password" required>
 
-            <button class="btn block" type="submit">Sign in and continue</button>
+            <button class="btn block" type="submit">Sign in</button>
+
+            <!-- Password recovery link -->
+            <p class="mt-3 mb-0">
+              <a id="openRecovery"
+                 class="btn secondary block"
+                 href="/signup.html?mode=recovery">
+                Forgot password? Use a recovery code
+              </a>
+            </p>
           </form>
         </div>
 
-        <div id="authMessage" class="message" role="alert" aria-atomic="true"></div>
+        <!-- Password recovery -->
+        <div id="recoveryPanel" class="hidden"
+             aria-labelledby="recoveryHeading" hidden>
+          <h2 id="recoveryHeading" class="h5" tabindex="-1">
+            Recover your account
+          </h2>
+          <p class="muted">
+            Enter your account email and saved backup code.
+            No text or email will be sent.
+          </p>
+
+          <form id="recoveryForm">
+            <label for="reEmail">Account email address</label>
+            <input id="reEmail" name="email" type="email"
+                   autocomplete="email" maxlength="254" required>
+
+            <label for="reCode">Backup recovery code</label>
+            <input id="reCode" name="recoveryCode" type="text"
+                   autocomplete="off" autocapitalize="characters"
+                   spellcheck="false" maxlength="100"
+                   required aria-describedby="recoveryHelp">
+            <small id="recoveryHelp" class="muted">
+              Use the code saved when you created your account
+              or generated a replacement.
+            </small>
+
+            <label for="rePassword">New password</label>
+            <input id="rePassword" name="new-password" type="password"
+                   autocomplete="new-password"
+                   minlength="8" maxlength="128" required>
+
+            <label for="reConfirm">Confirm new password</label>
+            <input id="reConfirm" name="confirm-password" type="password"
+                   autocomplete="new-password"
+                   minlength="8" maxlength="128" required>
+
+            <button class="btn block" type="submit">Reset password</button>
+            <button id="backToSignin" class="btn secondary block"
+                    type="button">
+              Back to sign in
+            </button>
+          </form>
+
+          <p class="small muted mt-3">
+            Lost both your password and backup code?
+            Contact the restaurant for help.
+            Staff assistance is not an automatic password reset.
+          </p>
+        </div>
+
+        <div id="authMessage" class="message"
+             role="alert" aria-atomic="true"></div>
       </div>
 
+      <!-- Signed-in account -->
       <div id="accountPanel" class="auth-wrap card hidden" hidden>
-        <h2 id="accountGreeting">Welcome back</h2>
-        <p class="muted">Your account is stored securely and can be used on any device.</p>
-        <a id="continueOrder" class="btn block text-center" href="/customer?focus=order">Continue to pickup ordering</a>
+        <h2 id="accountGreeting" tabindex="-1">Welcome back</h2>
+        <p class="muted">
+          Your account is stored securely and can be used on any device.
+        </p>
+
+        <section class="my-3" aria-labelledby="generateCodeHeading">
+          <h3 id="generateCodeHeading" class="h5">
+            Save a backup recovery code
+          </h3>
+          <p class="small muted">
+            Generate a code if you do not have one.
+            Generating a new code immediately replaces your previous code.
+            Your current password is required.
+          </p>
+
+          <form id="generateCodeForm">
+            <label for="codeCurrentPassword">Current password</label>
+            <input id="codeCurrentPassword" name="current-password"
+                   type="password" autocomplete="current-password"
+                   maxlength="128" required>
+
+            <button class="btn secondary block" type="submit">
+              Generate a new recovery code
+            </button>
+          </form>
+
+          <p id="generateCodeError" class="message error"
+             role="alert" hidden></p>
+        </section>
+
+        <a id="continueOrder" class="btn block text-center"
+           href="/customer?focus=order">
+          Continue to pickup ordering
+        </a>
       </div>
+
+      <!-- One-time display of a newly generated recovery code -->
+      <section id="backupCodePanel" class="auth-wrap card hidden"
+               aria-labelledby="backupCodeHeading" hidden>
+        <h2 id="backupCodeHeading" class="h4" tabindex="-1">
+          Save your recovery code
+        </h2>
+        <p id="backupCodeMessage" class="muted"></p>
+
+        <p class="small muted">
+          This code is shown once and works once.
+          Keep it somewhere safe, such as a password manager.
+          Anyone with your email and this code can reset your password.
+        </p>
+
+        <label for="backupCodeValue" class="form-label">
+          Your backup recovery code
+        </label>
+        <textarea id="backupCodeValue"
+                  class="form-control font-monospace"
+                  rows="2"
+                  readonly
+                  autocomplete="off"
+                  spellcheck="false"
+                  style="width:100%;resize:vertical"
+                  aria-describedby="backupSaveHelp"></textarea>
+
+        <p id="backupSaveHelp" class="small muted mt-2">
+          Copy or write it down before continuing.
+          It cannot be retrieved later.
+          You can generate a replacement after signing in with your password.
+        </p>
+
+        <label class="d-flex align-items-start gap-2 mt-3"
+               for="backupSaved">
+          <input id="backupSaved" type="checkbox"
+                 class="mt-1 flex-shrink-0"
+                 style="width:1.25rem;height:1.25rem">
+          <span>I have saved this recovery code.</span>
+        </label>
+
+        <button id="backupContinue" class="btn block mt-3"
+                type="button" disabled>
+          Continue
+        </button>
+      </section>
     </section>
   </main>
 
@@ -90,6 +314,9 @@
     <a href="/">Back to Luigi's Pizzeria</a>
   </footer>
 
-  <script src="{{ url_for('static', filename='js/signup.js') }}?v=20261024-1" defer></script>
+  <script
+    src="{{ url_for('static', filename='js/signup.js') }}?v=20261025-backup2"
+    defer></script>
 </body>
 </html>
+```
