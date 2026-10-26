@@ -191,7 +191,7 @@ function totalsHTML(items) {
 function itemsHTML(items, removable) {
   return items.map(function (item, index) {
     let description = item.description || '';
-    if (item.type === 'Pizza' && item.toppings) description = item.toppings.map(function (topping) { return topping.quantity + '× ' + topping.name; }).join(', ') || 'Cheese and marinara';
+    if (item.type === 'Pizza' && item.toppings) description = item.toppings.map(function (topping) { return topping.quantity + 'x ' + topping.name; }).join(', ') || 'Cheese and marinara';
     return '<div class="border-bottom py-3"><div class="d-flex justify-content-between gap-2"><strong class="small">' + item.quantity + ' × ' + escapeHTML(item.name) + '</strong><span class="small text-nowrap">' + money(item.quantity * item.unitPrice) + '</span></div><p class="small text-secondary mb-0 mt-1">' + escapeHTML(description) + '</p>' + (removable ? '<button class="btn btn-link btn-sm text-danger p-0 mt-1" type="button" data-remove="' + index + '" aria-label="Remove ' + escapeHTML(item.name) + '">Remove</button>' : '') + '</div>';
   }).join('');
 }
@@ -623,14 +623,17 @@ function renderCustomerSuggestions(items, mode) {
     const card = document.createElement('article'); card.className = 'favorite-card h-100';
     const mark = document.createElement('span'); mark.className = 'favorite-mark'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = String(index + 1).padStart(2, '0');
     const body = document.createElement('div');
-    const title = document.createElement('h4'); title.className = 'h6 mb-1'; title.textContent = item.name || ('Recent ' + item.pizzaSize + ' pizza');
+    const itemName = specials
+      ? (item.name || item.specialName || ('Special ' + (index + 1)))
+      : (item.name || ('Recent ' + (item.pizzaSize || item.size || 'cheese') + ' pizza'));
+    const title = document.createElement('h4'); title.className = 'h6 mb-1'; title.textContent = itemName;
     const details = document.createElement('p'); details.className = 'small text-secondary mb-2';
-    details.textContent = item.size || item.pizzaSize;
-    if (item.toppings && item.toppings.length) details.textContent += ' · ' + item.toppings.map(function (t) { return (t.quantity > 1 ? t.quantity + '× ' : '') + t.name; }).join(', ');
+    details.textContent = item.size || item.pizzaSize || '';
+    if (item.toppings && item.toppings.length) details.textContent += (details.textContent ? ' · ' : '') + item.toppings.map(function (t) { return (t.quantity > 1 ? t.quantity + 'x ' : '') + t.name; }).join(', ');
     const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-sm btn-outline-danger';
     button.dataset.suggestionAction = specials ? 'customize' : 'reorder'; button.dataset.suggestionIndex = String(index);
     button.textContent = specials ? 'Customize this special' : 'Add to order';
-    button.setAttribute('aria-label', (specials ? 'Customize ' : 'Add to order: ') + (item.name || item.pizzaSize + ' pizza'));
+    button.setAttribute('aria-label', (specials ? 'Customize ' : 'Add to order: ') + itemName);
     body.append(title, details, button); card.append(mark, body); col.append(card); container.append(col);
   });
   container.setAttribute('aria-busy', 'false');
@@ -685,7 +688,7 @@ function applyPizzaSuggestion(item) {
   });
   updatePizzaEstimate();
   element('pizza-size').focus();
-  announce(item.name + ' selected. Adjust the pizza, then add it to your order.');
+  announce((item.name || item.specialName || 'Special pizza') + ' selected. Adjust the pizza, then add it to your order.');
 }
 
 element('customer-suggestions').addEventListener('click', function (event) {

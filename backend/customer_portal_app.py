@@ -492,7 +492,7 @@ def prepare_items(raw_items, maximum):
 
             topping_text = ", ".join(
 
-                "{}Ãƒâ€” {}".format(topping["quantity"], topping["name"])
+                "{}x {}".format(topping["quantity"], topping["name"])
 
                 for topping in toppings
 
@@ -1730,7 +1730,7 @@ DEFAULT_SPECIALS = [
 def normalize_specials(specials):
     """Read legacy saved specials and expose exactly two configurable pizza slots."""
     normalized = []
-    for item in (specials or [])[:2]:
+    for index, item in enumerate((specials or [])[:2]):
         if not isinstance(item, dict):
             continue
         toppings = []
@@ -1741,7 +1741,10 @@ def normalize_specials(specials):
                 and type(topping.get("quantity", 1)) is int and 1 <= topping.get("quantity", 1) <= 3):
                 toppings.append({"name": topping["name"], "quantity": topping.get("quantity", 1)})
         size = item.get("size", "Medium")
-        normalized.append({"name": str(item.get("name", "Pizza special"))[:80],
+        special_name = item.get("name")
+        if not isinstance(special_name, str) or not special_name.strip() or special_name.strip().casefold() in {"small", "medium", "large"}:
+            special_name = DEFAULT_SPECIALS[index]["name"]
+        normalized.append({"name": special_name.strip()[:80],
                            "description": str(item.get("description", ""))[:300],
                            "size": size if size in PIZZA_PRICES else "Medium", "toppings": toppings})
     while len(normalized) < 2:
