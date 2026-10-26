@@ -733,6 +733,12 @@
     const salesSummaryTableBody = document.getElementById('sales-summary-table-body');
     const salesSummaryUpdated = document.getElementById('sales-summary-updated');
     const refreshSalesSummaryButton = document.getElementById('refresh-sales-summary');
+    const salesCompareDate = document.getElementById('sales-compare-date');
+    const salesCompareMode = document.getElementById('sales-compare-mode');
+    const salesCompareButton = document.getElementById('compare-sales-button');
+    const salesComparisonBody = document.getElementById('sales-comparison-table-body');
+    salesCompareDate.max = localDateInputValue(new Date());
+    salesCompareDate.value = salesCompareDate.max;
     let salesSummaryRequestActive = false;
     let lastSalesSummaryFingerprint = null;
 
@@ -750,17 +756,50 @@
       return row;
     }
 
+    function renderSalesComparison(comparison) {
+      const current = comparison.current || {orders: 0, averageOrder: 0, sales: 0};
+      const selected = comparison.selected || {orders: 0, averageOrder: 0, sales: 0};
+      document.getElementById('sales-comparison-current-heading').textContent = comparison.currentLabel;
+      document.getElementById('sales-comparison-selected-heading').textContent = comparison.selectedLabel;
+      document.getElementById('sales-comparison-label').textContent = comparison.selectedLabel + ' compared with ' + comparison.currentLabel;
+      const rows = [
+        {label: 'Sales', current: Number(current.sales) || 0, selected: Number(selected.sales) || 0, format: formatMoney},
+        {label: 'Orders', current: Number(current.orders) || 0, selected: Number(selected.orders) || 0, format: function (value) { return String(value); }},
+        {label: 'Average order', current: Number(current.averageOrder) || 0, selected: Number(selected.averageOrder) || 0, format: formatMoney}
+      ];
+      salesComparisonBody.replaceChildren();
+      rows.forEach(function (metric) {
+        const row = document.createElement('tr');
+        const heading = document.createElement('th');
+        heading.scope = 'row';
+        heading.textContent = metric.label;
+        const currentCell = document.createElement('td');
+        currentCell.textContent = metric.format(metric.current);
+        const selectedCell = document.createElement('td');
+        selectedCell.textContent = metric.format(metric.selected);
+        const differenceCell = document.createElement('td');
+        const delta = metric.selected - metric.current;
+        differenceCell.textContent = (delta > 0 ? '+' : '') + metric.format(delta);
+        row.append(heading, currentCell, selectedCell, differenceCell);
+        salesComparisonBody.append(row);
+      });
+    }
+
     async function loadManagerSalesSummary(options) {
       const shouldAnnounce = !options || options.announce !== false;
       if (salesSummaryRequestActive || !['manager', 'owner'].includes(currentStaff.role)) return;
       salesSummaryRequestActive = true;
       salesSummaryContent.setAttribute('aria-busy', 'true');
       if (shouldAnnounce) refreshSalesSummaryButton.disabled = true;
+      if (shouldAnnounce) salesCompareButton.disabled = true;
       try {
-        const summary = await apiRequest('/api/staff/sales-summary');
+        const query = new URLSearchParams({date: salesCompareDate.value, compare: salesCompareMode.value});
+        const summary = await apiRequest('/api/staff/sales-summary?' + query.toString());
         const today = summary.today || { orders: 0, averageOrder: 0, sales: 0 };
         const week = summary.week || { orders: 0, averageOrder: 0, sales: 0 };
-        const fingerprint = [today.orders, today.averageOrder, today.sales, week.orders, week.averageOrder, week.sales].join('|');
+        const comparison = summary.comparison;
+        const fingerprint = [today.orders, today.averageOrder, today.sales, week.orders, week.averageOrder, week.sales,
+          comparison && comparison.selected.orders, comparison && comparison.selected.sales].join('|');
         const changed = lastSalesSummaryFingerprint !== null && lastSalesSummaryFingerprint !== fingerprint;
 
         document.getElementById('today-sales-total').textContent = formatMoney(today.sales);
@@ -771,6 +810,7 @@
           createSalesSummaryRow('Today', today),
           createSalesSummaryRow('This week', week)
         );
+        if (comparison) renderSalesComparison(comparison);
         const generatedAt = new Date(summary.generatedAt);
         salesSummaryUpdated.textContent = Number.isNaN(generatedAt.getTime())
           ? ''
@@ -791,6 +831,7 @@
         salesSummaryContent.setAttribute('aria-busy', 'false');
         salesSummaryRequestActive = false;
         if (shouldAnnounce) refreshSalesSummaryButton.disabled = false;
+        if (shouldAnnounce) salesCompareButton.disabled = false;
       }
     }
 
@@ -1652,6 +1693,11 @@
       historySearchTimer = window.setTimeout(function () { renderHistory(); }, 250);
     });
     refreshSalesSummaryButton.addEventListener('click', function () {
+      loadManagerSalesSummary();
+    });
+    document.getElementById('sales-comparison-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (!salesCompareDate.reportValidity()) return;
       loadManagerSalesSummary();
     });
 

@@ -300,6 +300,25 @@
                 </article>
               </div>
             </div>
+            <section class="card border mb-4" aria-labelledby="sales-comparison-heading">
+              <div class="card-body">
+                <h4 id="sales-comparison-heading" class="h6">Compare sales periods</h4>
+                <p class="small text-secondary">Compare today or this week with a selected past day or week. Weeks run Monday through Sunday.</p>
+                <form id="sales-comparison-form" class="row g-2 align-items-end mb-3">
+                  <div class="col-12 col-sm-5 col-lg-4"><label class="form-label" for="sales-compare-date">Comparison date</label><input class="form-control" id="sales-compare-date" type="date" required></div>
+                  <div class="col-12 col-sm-4 col-lg-3"><label class="form-label" for="sales-compare-mode">Compare</label><select class="form-select" id="sales-compare-mode"><option value="day">Selected day vs today</option><option value="week">Selected week vs this week</option></select></div>
+                  <div class="col-12 col-sm-auto"><button class="btn btn-outline-danger" id="compare-sales-button" type="submit">Compare periods</button></div>
+                </form>
+                <p id="sales-comparison-label" class="small fw-semibold mb-2" aria-live="polite"></p>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <caption class="caption-top">Selected period compared with the current matching period. Sales include tax.</caption>
+                    <thead><tr><th scope="col">Measure</th><th scope="col" id="sales-comparison-current-heading">Today</th><th scope="col" id="sales-comparison-selected-heading">Selected day</th><th scope="col">Difference</th></tr></thead>
+                    <tbody id="sales-comparison-table-body"><tr><td colspan="4" class="text-secondary">Loading comparison…</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
             <div class="row">
               <div class="col-12">
                 <div class="table-responsive">
@@ -422,6 +441,6 @@
   <footer class="container pb-4"><p class="small text-secondary mb-0">Employee order management</p></footer>
 
   <script src="{{ url_for('static', filename='js/central-time.js') }}?v=20261025-1" defer></script>
-  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261025-3" defer></script>
+  <script src="{{ url_for('static', filename='js/employee-dashboard.js') }}?v=20261025-4" defer></script>
 </body>
 </html>

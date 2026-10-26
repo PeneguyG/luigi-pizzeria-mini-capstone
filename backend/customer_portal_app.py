@@ -1108,10 +1108,44 @@ def get_sales_summary():
         now_local = datetime.now(business_timezone)
         today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         week_start_local = today_start_local - timedelta(days=today_start_local.weekday())
+        compare_mode = request.args.get("compare", "day")
+        if compare_mode not in {"day", "week"}:
+            return jsonify({"error": "Choose a day or week comparison."}), 400
+        requested_date = request.args.get("date")
+        try:
+            selected_date = datetime.strptime(requested_date, "%Y-%m-%d").date() if requested_date else now_local.date()
+        except ValueError:
+            return jsonify({"error": "Choose a valid comparison date."}), 400
+        if selected_date > now_local.date():
+            return jsonify({"error": "Comparison dates cannot be in the future."}), 400
+
+        selected_start_local = datetime.combine(selected_date, datetime_time.min, tzinfo=business_timezone)
+        if compare_mode == "week":
+            selected_start_local -= timedelta(days=selected_start_local.weekday())
+            selected_end_local = selected_start_local + timedelta(days=7)
+            if selected_start_local.date() == week_start_local.date():
+                selected_end_local = now_local
+            week_label_date = selected_start_local.strftime("%b ") + str(selected_start_local.day) + selected_start_local.strftime(", %Y")
+            selected_label = "Week of " + week_label_date
+            current_period_start_local = week_start_local
+            current_period_end_local = now_local
+            current_period_label = "This week"
+        else:
+            selected_end_local = selected_start_local + timedelta(days=1)
+            if selected_date == now_local.date():
+                selected_end_local = now_local
+            selected_label = selected_start_local.strftime("%A, %b ") + str(selected_start_local.day) + selected_start_local.strftime(", %Y")
+            current_period_start_local = today_start_local
+            current_period_end_local = now_local
+            current_period_label = "Today"
         utc_timezone = ZoneInfo("UTC")
         now_utc = now_local.astimezone(utc_timezone).replace(tzinfo=None)
         today_start_utc = today_start_local.astimezone(utc_timezone).replace(tzinfo=None)
         week_start_utc = week_start_local.astimezone(utc_timezone).replace(tzinfo=None)
+        selected_start_utc = selected_start_local.astimezone(utc_timezone).replace(tzinfo=None)
+        selected_end_utc = selected_end_local.astimezone(utc_timezone).replace(tzinfo=None)
+        current_period_start_utc = current_period_start_local.astimezone(utc_timezone).replace(tzinfo=None)
+        current_period_end_utc = current_period_end_local.astimezone(utc_timezone).replace(tzinfo=None)
 
         connection = database_connection()
         cursor = connection.cursor()
@@ -1134,6 +1168,24 @@ def get_sales_summary():
             ),
         )
         row = cursor.fetchone()
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS period_orders, COALESCE(SUM(total), 0) AS period_sales
+              FROM orders
+             WHERE created_at >= %s AND created_at < %s
+            """,
+            (selected_start_utc, selected_end_utc),
+        )
+        selected_row = cursor.fetchone()
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS period_orders, COALESCE(SUM(total), 0) AS period_sales
+              FROM orders
+             WHERE created_at >= %s AND created_at < %s
+            """,
+            (current_period_start_utc, current_period_end_utc),
+        )
+        current_period_row = cursor.fetchone()
 
         def period_summary(order_count, sales_total):
             order_count = int(order_count or 0)
@@ -1153,6 +1205,14 @@ def get_sales_summary():
             "generatedAt": now_local.isoformat(timespec="seconds"),
             "today": period_summary(row["today_orders"], row["today_sales"]),
             "week": period_summary(row["week_orders"], row["week_sales"]),
+            "comparison": {
+                "mode": compare_mode,
+                "date": selected_date.isoformat(),
+                "selectedLabel": selected_label,
+                "currentLabel": current_period_label,
+                "selected": period_summary(selected_row["period_orders"], selected_row["period_sales"]),
+                "current": period_summary(current_period_row["period_orders"], current_period_row["period_sales"]),
+            },
         })
     except RuntimeError as exc:
         app.logger.error("Sales summary configuration error: %s", exc)
